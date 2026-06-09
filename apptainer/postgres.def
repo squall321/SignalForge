@@ -1,0 +1,11 @@
+Bootstrap: localimage
+From: POSTGRES_BASE_SIF_PLACEHOLDER
+
+%labels
+    Component  sf-postgres
+    Wraps      postgres:16-alpine
+
+%startscript
+    # postgres:16-alpine entrypoint respects:
+    #   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, PGPORT, PGDATA
+    exec docker-entrypoint.sh postgres

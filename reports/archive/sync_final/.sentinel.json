@@ -1,0 +1,14 @@
+{
+  "round": "sync_final",
+  "timestamp": "2026-06-08T03:59:36Z",
+  "host": "smarttwincluster",
+  "tracks_completed": ["F1_backend_recover", "F3_receiver_sim", "F4_beat_trigger"],
+  "results": {
+    "F1": {"backend_pid": 943821, "port": 18000, "health": 200, "hwax_signalforge_api": 200},
+    "F3": {"sim_dir": "/tmp/sf_receiver_sim/", "dump_downloaded": "sf-db-20260608-005147Z.sql.gz", "sha256_match": true, "sf_postgres_voc_intact": 141574},
+    "F4": {"task_id": "3757b03b-cb99-479a-bce4-cd602c731dd3", "state": "SUCCESS", "elapsed_s": 3.93, "voc_count": 141574, "latest_uploaded": true},
+    "F2_drift_resolution": "schema 차이는 misunderstanding — 실제 signalforge.auto_sync.v1 schema 는 완전 (ts/run_id/last_dump.{sha256,size,name,mtime}/voc_count 다 채워짐)"
+  },
+  "live_services_intact": true,
+  "status": "ok"
+}

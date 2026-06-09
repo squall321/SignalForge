@@ -1,0 +1,225 @@
+{
+  "date": "2026-06-05",
+  "round": "R13",
+  "model": "qwen2.5:14b",
+  "n_total": 100,
+  "per_topic": 11,
+  "extra_topic": "question",
+  "quota": {
+    "positive_general": 11,
+    "negative_general": 11,
+    "question": 12,
+    "comparison": 11,
+    "price_purchase": 11,
+    "service_repair": 11,
+    "experience": 11,
+    "expectation": 11,
+    "emotion_only": 11
+  },
+  "overall_accuracy": 0.62,
+  "r10_overall_accuracy": 0.678,
+  "delta_overall": -0.058,
+  "per_topic_metrics": {
+    "positive_general": {
+      "support": 11,
+      "llm_count": 8,
+      "correct": 5,
+      "precision": 0.455,
+      "recall": 0.625,
+      "f1": 0.526
+    },
+    "negative_general": {
+      "support": 11,
+      "llm_count": 9,
+      "correct": 6,
+      "precision": 0.545,
+      "recall": 0.667,
+      "f1": 0.6
+    },
+    "question": {
+      "support": 12,
+      "llm_count": 11,
+      "correct": 8,
+      "precision": 0.667,
+      "recall": 0.727,
+      "f1": 0.696
+    },
+    "comparison": {
+      "support": 11,
+      "llm_count": 20,
+      "correct": 7,
+      "precision": 0.636,
+      "recall": 0.35,
+      "f1": 0.452
+    },
+    "price_purchase": {
+      "support": 11,
+      "llm_count": 8,
+      "correct": 5,
+      "precision": 0.455,
+      "recall": 0.625,
+      "f1": 0.526
+    },
+    "service_repair": {
+      "support": 11,
+      "llm_count": 9,
+      "correct": 8,
+      "precision": 0.727,
+      "recall": 0.889,
+      "f1": 0.8
+    },
+    "experience": {
+      "support": 11,
+      "llm_count": 12,
+      "correct": 5,
+      "precision": 0.455,
+      "recall": 0.417,
+      "f1": 0.435
+    },
+    "expectation": {
+      "support": 11,
+      "llm_count": 8,
+      "correct": 7,
+      "precision": 0.636,
+      "recall": 0.875,
+      "f1": 0.737
+    },
+    "emotion_only": {
+      "support": 11,
+      "llm_count": 13,
+      "correct": 11,
+      "precision": 1.0,
+      "recall": 0.846,
+      "f1": 0.917
+    }
+  },
+  "r10_per_topic_f1": {
+    "positive_general": 0.533,
+    "negative_general": 0.632,
+    "question": 0.762,
+    "comparison": 0.48,
+    "price_purchase": 0.476,
+    "service_repair": 0.889,
+    "experience": 0.6,
+    "expectation": 0.842,
+    "emotion_only": 0.952
+  },
+  "confusion_matrix": {
+    "positive_general": {
+      "positive_general": 5,
+      "other": 2,
+      "comparison": 2,
+      "price_purchase": 1,
+      "experience": 1
+    },
+    "price_purchase": {
+      "question": 1,
+      "price_purchase": 5,
+      "positive_general": 2,
+      "experience": 2,
+      "comparison": 1
+    },
+    "experience": {
+      "comparison": 5,
+      "experience": 5,
+      "negative_general": 1
+    },
+    "question": {
+      "question": 8,
+      "service_repair": 1,
+      "comparison": 2,
+      "expectation": 1
+    },
+    "service_repair": {
+      "service_repair": 8,
+      "question": 2,
+      "experience": 1
+    },
+    "expectation": {
+      "expectation": 7,
+      "negative_general": 1,
+      "comparison": 1,
+      "emotion_only": 1,
+      "positive_general": 1
+    },
+    "negative_general": {
+      "emotion_only": 1,
+      "price_purchase": 1,
+      "negative_general": 6,
+      "comparison": 2,
+      "experience": 1
+    },
+    "comparison": {
+      "comparison": 7,
+      "negative_general": 1,
+      "price_purchase": 1,
+      "experience": 2
+    },
+    "emotion_only": {
+      "emotion_only": 11
+    }
+  },
+  "mismatches": [
+    {
+      "id": 548763,
+      "auto": "price_purchase",
+      "llm": "question",
+      "content": "Buds 4 Pro pre-order review Did you receive a Starbucks coupon?\nWhy don't you give it to me?"
+    },
+    {
+      "id": 978283,
+      "auto": "experience",
+      "llm": "comparison",
+      "content": "The Messages web app is pretty slow and flaky in my experience (I use it every day). The iMessage protocol seems more reliable across devices, but that's just anecdotal. The Reactions thing depends on"
+    },
+    {
+      "id": 972006,
+      "auto": "positive_general",
+      "llm": "other",
+      "content": "The login page example was actually perfect for illustrating this. Meshing polygons? Centering a div? Go ahead and turn the LLM loose. If you miss any bugs you can just fix them when they get reported"
+    },
+    {
+      "id": 1016513,
+      "auto": "negative_general",
+      "llm": "emotion_only",
+      "content": "우러급300은 아니지만 1.로 살아보고 후회중이지만 습관은 바꾸기힘든 건 사실 이라서 ㅠ\n돈습관도 중요하다 생각함"
+    },
+    {
+      "id": 958851,
+      "auto": "expectation",
+      "llm": "negative_general",
+      "content": "I am getting quite sick of this. I have no interest in an iPhone and was looking forward to the Galaxy S III (have a Nexus S currently). Why is Apple so fearful of competition? Companies learn from ea"
+    },
+    {
+      "id": 436483,
+      "auto": "question",
+      "llm": "service_repair",
+      "content": "Flip 5 What's weird? It's broken. Does anyone know how to fix it?\nFirst of all, it's a touch-blocking bug, but it's a bit strange.\nI don't know if it's the original flip feature, but the main screen d"
+    },
+    {
+      "id": 124267,
+      "auto": "price_purchase",
+      "llm": "positive_general",
+      "content": "I'm still very satisfied haha. I'm so happy that I bought a 2 million won item for 1.45 million won."
+    },
+    {
+      "id": 749735,
+      "auto": "negative_general",
+      "llm": "price_purchase",
+      "content": "Is it a waste of money to buy AirPods Pro 3 instead of Buds 4 Pro?\nI was thinking of buying Buds 3 Pro.\nThere was so much talk that I gave up.\nI'm planning to buy Buds 4 Pro this time.\nThey say there "
+    },
+    {
+      "id": 958853,
+      "auto": "comparison",
+      "llm": "negative_general",
+      "content": "I agree. I still feel bitter about the GPS and I swore to 'punish' Samsung by boycotting them in future. However - when I broke my phone, the Galaxy S II was by far the most suitable phone for me shor"
+    },
+    {
+      "id": 3140,
+      "auto": "price_purchase",
+      "llm": "positive_general",
+      "content": "I am also really satisfied with the Fold 7.\nFirst of all, I think insurance is essential.\nThe price is good if it is Kakao insurance + credit card company insurance.\nI think it's worth it since it doe"
+    }
+  ],
+  "advice": []
+}

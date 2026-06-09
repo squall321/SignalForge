@@ -1,0 +1,14 @@
+{
+  "captured_at": "2026-06-09T00:30:00+00:00",
+  "target_date": "2026-06-09",
+  "status": "ok",
+  "voc_last": 13644,
+  "voc_prev": 8978,
+  "sentiment_null_rate": 0.0,
+  "topic_rate": 0.0,
+  "grounding_last": 0.3637,
+  "regression_ok_ratio": null,
+  "regression_failed": null,
+  "violations_count": 0,
+  "violations": []
+}

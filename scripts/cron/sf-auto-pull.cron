@@ -1,0 +1,23 @@
+# SignalForge — 수신 측 자동 풀 (Track Y2, round=auto_sync)
+#
+# 설치:
+#   sudo cp scripts/cron/sf-auto-pull.cron /etc/cron.d/sf-auto-pull
+#   sudo chmod 644 /etc/cron.d/sf-auto-pull
+#   sudo touch /var/log/sf_auto_pull.log && sudo chown koopark:koopark /var/log/sf_auto_pull.log
+#
+# 또는 사용자 crontab (sudo 불가시):
+#   crontab -e
+#   */5 * * * * /home/koopark/claude/SignalForge/scripts/auto-pull.sh >> /var/log/sf_auto_pull.log 2>&1
+#
+# 점검:
+#   tail -f /var/log/sf_auto_pull.log
+#   tail -20 /home/koopark/claude/SignalForge/logs/audit/auto_sync.jsonl
+#   cat /var/lib/sf_last_sync.json   # 또는 PROJECT_ROOT/.sf_last_sync.json
+#
+# 환경: PATH 는 /etc/cron.d/* 에서 필수 (rclone, psql, python3 위치)
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+
+# 5분마다 LATEST 비교 → 변경 감지 시 풀+restore+reload
+*/5 * * * * koopark /home/koopark/claude/SignalForge/scripts/auto-pull.sh >> /var/log/sf_auto_pull.log 2>&1

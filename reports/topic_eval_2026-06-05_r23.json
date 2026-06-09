@@ -1,0 +1,224 @@
+{
+  "date": "2026-06-05",
+  "round": "R13",
+  "model": "qwen2.5:14b",
+  "n_total": 100,
+  "per_topic": 11,
+  "extra_topic": "question",
+  "quota": {
+    "positive_general": 11,
+    "negative_general": 11,
+    "question": 12,
+    "comparison": 11,
+    "price_purchase": 11,
+    "service_repair": 11,
+    "experience": 11,
+    "expectation": 11,
+    "emotion_only": 11
+  },
+  "overall_accuracy": 0.65,
+  "r10_overall_accuracy": 0.678,
+  "delta_overall": -0.028,
+  "per_topic_metrics": {
+    "positive_general": {
+      "support": 11,
+      "llm_count": 7,
+      "correct": 4,
+      "precision": 0.364,
+      "recall": 0.571,
+      "f1": 0.444
+    },
+    "negative_general": {
+      "support": 11,
+      "llm_count": 8,
+      "correct": 7,
+      "precision": 0.636,
+      "recall": 0.875,
+      "f1": 0.737
+    },
+    "question": {
+      "support": 12,
+      "llm_count": 13,
+      "correct": 9,
+      "precision": 0.75,
+      "recall": 0.692,
+      "f1": 0.72
+    },
+    "comparison": {
+      "support": 11,
+      "llm_count": 19,
+      "correct": 7,
+      "precision": 0.636,
+      "recall": 0.368,
+      "f1": 0.467
+    },
+    "price_purchase": {
+      "support": 11,
+      "llm_count": 10,
+      "correct": 6,
+      "precision": 0.545,
+      "recall": 0.6,
+      "f1": 0.571
+    },
+    "service_repair": {
+      "support": 11,
+      "llm_count": 8,
+      "correct": 8,
+      "precision": 0.727,
+      "recall": 1.0,
+      "f1": 0.842
+    },
+    "experience": {
+      "support": 11,
+      "llm_count": 11,
+      "correct": 5,
+      "precision": 0.455,
+      "recall": 0.455,
+      "f1": 0.455
+    },
+    "expectation": {
+      "support": 11,
+      "llm_count": 11,
+      "correct": 8,
+      "precision": 0.727,
+      "recall": 0.727,
+      "f1": 0.727
+    },
+    "emotion_only": {
+      "support": 11,
+      "llm_count": 12,
+      "correct": 11,
+      "precision": 1.0,
+      "recall": 0.917,
+      "f1": 0.957
+    }
+  },
+  "r10_per_topic_f1": {
+    "positive_general": 0.533,
+    "negative_general": 0.632,
+    "question": 0.762,
+    "comparison": 0.48,
+    "price_purchase": 0.476,
+    "service_repair": 0.889,
+    "experience": 0.6,
+    "expectation": 0.842,
+    "emotion_only": 0.952
+  },
+  "confusion_matrix": {
+    "positive_general": {
+      "positive_general": 4,
+      "experience": 1,
+      "comparison": 2,
+      "other": 1,
+      "expectation": 1,
+      "price_purchase": 1,
+      "negative_general": 1
+    },
+    "price_purchase": {
+      "price_purchase": 6,
+      "question": 2,
+      "experience": 1,
+      "positive_general": 2
+    },
+    "experience": {
+      "comparison": 4,
+      "expectation": 1,
+      "experience": 5,
+      "price_purchase": 1
+    },
+    "question": {
+      "question": 9,
+      "comparison": 2,
+      "expectation": 1
+    },
+    "service_repair": {
+      "service_repair": 8,
+      "comparison": 1,
+      "experience": 2
+    },
+    "expectation": {
+      "expectation": 8,
+      "comparison": 1,
+      "emotion_only": 1,
+      "positive_general": 1
+    },
+    "negative_general": {
+      "negative_general": 7,
+      "comparison": 2,
+      "price_purchase": 1,
+      "experience": 1
+    },
+    "comparison": {
+      "experience": 1,
+      "comparison": 7,
+      "question": 2,
+      "price_purchase": 1
+    },
+    "emotion_only": {
+      "emotion_only": 11
+    }
+  },
+  "mismatches": [
+    {
+      "id": 958372,
+      "auto": "experience",
+      "llm": "comparison",
+      "content": "I constantly hear people make this claim, but in my experience, it is not true. I have owned tons of Android devices and they have really gotten a lot smoother and responsive, especially with 4.1/4.2 "
+    },
+    {
+      "id": 983468,
+      "auto": "positive_general",
+      "llm": "experience",
+      "content": "The Lumia 950 XL shipped with Windows 10 native and was Microsoft's flagship phone, so it got updates for longer. But, yeah, live tiles were great and the UI was just super smooth. The dedicated camer"
+    },
+    {
+      "id": 191026,
+      "auto": "comparison",
+      "llm": "experience",
+      "content": "iPhone 17 Pro Max 딥 블루 1TB 자급제 약 3달 사용기\n원 글은 티스토리에 올렸던 건데\n티스토리 원 글에는 사진이 30개가 넘어가고 내용이 길어서\n여기 올릴 때는 사진을 추리고\n내용도 약 3달간 사용해본 경험 위주로 요약해서 올립니다.\n내용을 요약하다보니\n다소 문체나 어투가 정제 되지 않은 점 양해 바라며,\n원본 사용기는 제 티스토리에서 확"
+    },
+    {
+      "id": 548763,
+      "auto": "price_purchase",
+      "llm": "question",
+      "content": "Buds 4 Pro pre-order review Did you receive a Starbucks coupon?\nWhy don't you give it to me?"
+    },
+    {
+      "id": 835184,
+      "auto": "negative_general",
+      "llm": "comparison",
+      "content": "It's definitely easier on the eyes to see Quantum 6 after looking at S23.\nIs the s23 display very bad?"
+    },
+    {
+      "id": 590844,
+      "auto": "negative_general",
+      "llm": "price_purchase",
+      "content": "Galaxy 26 Ultra Samsung.com price?\nI'm watching Silver Shadow.\n256GB was sold for around 1.5 million won yesterday.\nWill it go up to 1.6 million won today?\nIs this a different price per month? Is the "
+    },
+    {
+      "id": 976877,
+      "auto": "positive_general",
+      "llm": "comparison",
+      "content": "Is the alternative really better overall. We upgraded to a samsung fridge last year from two consecutive cheapo-chinese-local walmart-brands and it was worth every penny. It will pay itself in energy "
+    },
+    {
+      "id": 1047745,
+      "auto": "comparison",
+      "llm": "question",
+      "content": "If it weren't for a large company, would you have been inclined to contact me? If you really like that person, let him go. Wouldn’t it be much better to meet someone better than you who works at a lar"
+    },
+    {
+      "id": 3128,
+      "auto": "positive_general",
+      "llm": "comparison",
+      "content": "In fact, it has a structure that folds and unfolds, but I think its current durability is excellent. The connection part will be connected to the LCD, hinge, and data cable, and of course, this is bou"
+    },
+    {
+      "id": 6576,
+      "auto": "price_purchase",
+      "llm": "experience",
+      "content": "I recently started running and was considering a smartwatch, so I bought the Amazfit Bip 6. The most notable thing was that, unlike the Apple Watch or Galaxy Watch, the battery lasted for more than a "
+    }
+  ],
+  "advice": []
+}

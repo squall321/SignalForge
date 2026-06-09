@@ -1,0 +1,25 @@
+[Unit]
+Description=SignalForge — auto-pull from Google Drive (Track Y2)
+Documentation=file:/home/koopark/claude/SignalForge/scripts/auto-pull.sh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=koopark
+Group=koopark
+WorkingDirectory=/home/koopark/claude/SignalForge
+ExecStart=/home/koopark/claude/SignalForge/scripts/auto-pull.sh
+StandardOutput=append:/var/log/sf_auto_pull.log
+StandardError=append:/var/log/sf_auto_pull.log
+# 한 사이클 최대 10분 (DB 50MB + restore 평균 1~2분)
+TimeoutStartSec=600
+# rclone/psql/python3 PATH 보장
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# /var/lock /var/lib 쓰기 (필요 시 폴백 경로 사용)
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/koopark/claude/SignalForge /var/lib /var/lock /var/log /tmp
+
+[Install]
+WantedBy=multi-user.target

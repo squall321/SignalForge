@@ -1,0 +1,233 @@
+{
+  "date": "2026-06-05",
+  "round": "R13",
+  "model": "qwen2.5:14b",
+  "n_total": 100,
+  "per_topic": 11,
+  "extra_topic": "question",
+  "quota": {
+    "positive_general": 11,
+    "negative_general": 11,
+    "question": 12,
+    "comparison": 11,
+    "price_purchase": 11,
+    "service_repair": 11,
+    "experience": 11,
+    "expectation": 11,
+    "emotion_only": 11
+  },
+  "overall_accuracy": 0.59,
+  "r10_overall_accuracy": 0.678,
+  "delta_overall": -0.088,
+  "per_topic_metrics": {
+    "positive_general": {
+      "support": 11,
+      "llm_count": 6,
+      "correct": 3,
+      "precision": 0.273,
+      "recall": 0.5,
+      "f1": 0.353
+    },
+    "negative_general": {
+      "support": 11,
+      "llm_count": 8,
+      "correct": 7,
+      "precision": 0.636,
+      "recall": 0.875,
+      "f1": 0.737
+    },
+    "question": {
+      "support": 12,
+      "llm_count": 12,
+      "correct": 8,
+      "precision": 0.667,
+      "recall": 0.667,
+      "f1": 0.667
+    },
+    "comparison": {
+      "support": 11,
+      "llm_count": 17,
+      "correct": 6,
+      "precision": 0.545,
+      "recall": 0.353,
+      "f1": 0.429
+    },
+    "price_purchase": {
+      "support": 11,
+      "llm_count": 13,
+      "correct": 6,
+      "precision": 0.545,
+      "recall": 0.462,
+      "f1": 0.5
+    },
+    "service_repair": {
+      "support": 11,
+      "llm_count": 8,
+      "correct": 7,
+      "precision": 0.636,
+      "recall": 0.875,
+      "f1": 0.737
+    },
+    "experience": {
+      "support": 11,
+      "llm_count": 10,
+      "correct": 4,
+      "precision": 0.364,
+      "recall": 0.4,
+      "f1": 0.381
+    },
+    "expectation": {
+      "support": 11,
+      "llm_count": 12,
+      "correct": 7,
+      "precision": 0.636,
+      "recall": 0.583,
+      "f1": 0.609
+    },
+    "emotion_only": {
+      "support": 11,
+      "llm_count": 13,
+      "correct": 11,
+      "precision": 1.0,
+      "recall": 0.846,
+      "f1": 0.917
+    }
+  },
+  "r10_per_topic_f1": {
+    "positive_general": 0.533,
+    "negative_general": 0.632,
+    "question": 0.762,
+    "comparison": 0.48,
+    "price_purchase": 0.476,
+    "service_repair": 0.889,
+    "experience": 0.6,
+    "expectation": 0.842,
+    "emotion_only": 0.952
+  },
+  "confusion_matrix": {
+    "positive_general": {
+      "comparison": 2,
+      "positive_general": 3,
+      "other": 1,
+      "expectation": 2,
+      "experience": 2,
+      "price_purchase": 1
+    },
+    "price_purchase": {
+      "positive_general": 2,
+      "price_purchase": 6,
+      "experience": 1,
+      "comparison": 1,
+      "question": 1
+    },
+    "experience": {
+      "experience": 4,
+      "positive_general": 1,
+      "price_purchase": 1,
+      "expectation": 1,
+      "comparison": 3,
+      "service_repair": 1
+    },
+    "question": {
+      "expectation": 1,
+      "comparison": 1,
+      "emotion_only": 1,
+      "price_purchase": 1,
+      "question": 8
+    },
+    "service_repair": {
+      "service_repair": 7,
+      "question": 1,
+      "comparison": 1,
+      "expectation": 1,
+      "experience": 1
+    },
+    "expectation": {
+      "expectation": 7,
+      "negative_general": 1,
+      "emotion_only": 1,
+      "price_purchase": 1,
+      "comparison": 1
+    },
+    "negative_general": {
+      "negative_general": 7,
+      "comparison": 2,
+      "price_purchase": 1,
+      "experience": 1
+    },
+    "comparison": {
+      "question": 2,
+      "comparison": 6,
+      "price_purchase": 2,
+      "experience": 1
+    },
+    "emotion_only": {
+      "emotion_only": 11
+    }
+  },
+  "mismatches": [
+    {
+      "id": 164081,
+      "auto": "positive_general",
+      "llm": "comparison",
+      "content": "Are the Galaxy Book and Samsung ecosystems very useful when purchasing a laptop?\nIt looks convenient, but I don't think I'll use it much.\nIt looks pretty useful...\nBut the Galaxy Book is too expensive"
+    },
+    {
+      "id": 124267,
+      "auto": "price_purchase",
+      "llm": "positive_general",
+      "content": "I'm still very satisfied haha. I'm so happy that I bought a 2 million won item for 1.45 million won."
+    },
+    {
+      "id": 40224,
+      "auto": "question",
+      "llm": "expectation",
+      "content": "About Galaxy S26\nHow do you feel when you move on from Note 9?"
+    },
+    {
+      "id": 972006,
+      "auto": "positive_general",
+      "llm": "other",
+      "content": "The login page example was actually perfect for illustrating this. Meshing polygons? Centering a div? Go ahead and turn the LLM loose. If you miss any bugs you can just fix them when they get reported"
+    },
+    {
+      "id": 958851,
+      "auto": "expectation",
+      "llm": "negative_general",
+      "content": "I am getting quite sick of this. I have no interest in an iPhone and was looking forward to the Galaxy S III (have a Nexus S currently). Why is Apple so fearful of competition? Companies learn from ea"
+    },
+    {
+      "id": 53196,
+      "auto": "comparison",
+      "llm": "question",
+      "content": "@Galbungi1 (58.126) I don’t think there’s anything going on in the text section, and it’s just like a computer tab (computer tabs also don’t go over word by word).\n\nMove to the next element on a web p"
+    },
+    {
+      "id": 23152,
+      "auto": "service_repair",
+      "llm": "question",
+      "content": "환불 안해줌?? - dc App"
+    },
+    {
+      "id": 976284,
+      "auto": "question",
+      "llm": "comparison",
+      "content": "Agree. They should make the desktop UI similar to what is there on ChromeOS or Samsung Dex. The top bar doesn&#x27;t make sense at all."
+    },
+    {
+      "id": 835184,
+      "auto": "negative_general",
+      "llm": "comparison",
+      "content": "It's definitely easier on the eyes to see Quantum 6 after looking at S23.\nIs the s23 display very bad?"
+    },
+    {
+      "id": 590844,
+      "auto": "negative_general",
+      "llm": "price_purchase",
+      "content": "Galaxy 26 Ultra Samsung.com price?\nI'm watching Silver Shadow.\n256GB was sold for around 1.5 million won yesterday.\nWill it go up to 1.6 million won today?\nIs this a different price per month? Is the "
+    }
+  ],
+  "advice": [
+    "- positive_general: precision=0.273 (support=11) — 키워드 사전 보강 권고"
+  ]
+}

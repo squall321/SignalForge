@@ -1,0 +1,14 @@
+[Unit]
+Description=SignalForge — auto-pull timer (every 5 min, Track Y2)
+Documentation=file:/home/koopark/claude/SignalForge/scripts/auto-pull.sh
+
+[Timer]
+# 부팅 후 2분 → 이후 5분마다
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Unit=sf-auto-pull.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

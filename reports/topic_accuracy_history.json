@@ -1,0 +1,40 @@
+{
+  "metric": "topic_classifier_accuracy",
+  "model": "qwen2.5:14b",
+  "per_topic_samples": 10,
+  "seed": 20260604,
+  "runs": [
+    {
+      "round": "R9",
+      "date": "2026-06-04",
+      "accuracy": 0.456,
+      "n_samples": 90,
+      "report": "/home/koopark/claude/SignalForge/reports/topic_eval_2026-06-04_r9.md",
+      "notes": "초기 사전 — long-form 우연 매칭 多, positive/price precision 0.10"
+    },
+    {
+      "round": "R10",
+      "date": "2026-06-04",
+      "accuracy": 0.678,
+      "n_samples": 90,
+      "report": "/home/koopark/claude/SignalForge/reports/topic_eval_2026-06-04_r10.md",
+      "notes": "사전 확장 + LONG_THRESHOLD=300 head scan + primary signal density 정렬 + 일반어→phrase 정제. 모든 topic precision >= 0.30. emotion/service/expectation/question F1 >= 0.76",
+      "improvements": {
+        "long_form_head_scan": {"threshold_chars": 300, "scan_chars": 250},
+        "primary_topic_ordering": "signal density desc + tie-break priority",
+        "english_phrase_only": "단순 'good'/'best'/'bad' 등 단일어 → 2-word phrase 로 교체"
+      },
+      "per_topic_f1": {
+        "positive_general": 0.533,
+        "negative_general": 0.632,
+        "question": 0.762,
+        "comparison": 0.480,
+        "price_purchase": 0.476,
+        "service_repair": 0.889,
+        "experience": 0.600,
+        "expectation": 0.842,
+        "emotion_only": 0.952
+      }
+    }
+  ]
+}

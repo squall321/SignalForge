@@ -1,0 +1,1 @@
+{"round": "data_grow_r3", "timestamp": "2026-06-09T22:30:00+00:00", "host": "smarttwincluster", "status": "ok_backfill", "voc_total": 156555, "mx_match_pct": 88.56, "active_sites": 87, "kind": "sentinel", "track": "L6", "note": "Backfilled sentinel for data_grow R3 round (no audit_round writer attached at time; metrics snapshotted at L6 sentinel sweep)"}

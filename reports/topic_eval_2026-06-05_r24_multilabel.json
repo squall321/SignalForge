@@ -1,0 +1,277 @@
+{
+  "date": "2026-06-05",
+  "round": "R24",
+  "model": "qwen2.5:14b",
+  "n_total": 100,
+  "n_multi": 63,
+  "n_single": 37,
+  "overall_multilabel": {
+    "exact_match": 0.15,
+    "partial_match": 0.8,
+    "jaccard_avg": 0.429,
+    "f1_micro_avg": 0.535
+  },
+  "macro_f1_multilabel": 0.539,
+  "primary_overall": 0.43,
+  "primary_per_topic_f1": {
+    "positive_general": 0.435,
+    "negative_general": 0.483,
+    "question": 0.385,
+    "comparison": 0.476,
+    "price_purchase": 0.417,
+    "service_repair": 0.4,
+    "experience": 0.125,
+    "expectation": 0.471,
+    "emotion_only": 0.75
+  },
+  "per_topic_multilabel": {
+    "positive_general": {
+      "support_auto": 24,
+      "support_llm": 12,
+      "tp": 9,
+      "precision": 0.375,
+      "recall": 0.75,
+      "f1": 0.5
+    },
+    "negative_general": {
+      "support_auto": 22,
+      "support_llm": 22,
+      "tp": 12,
+      "precision": 0.545,
+      "recall": 0.545,
+      "f1": 0.545
+    },
+    "question": {
+      "support_auto": 29,
+      "support_llm": 29,
+      "tp": 19,
+      "precision": 0.655,
+      "recall": 0.655,
+      "f1": 0.655
+    },
+    "comparison": {
+      "support_auto": 19,
+      "support_llm": 59,
+      "tp": 17,
+      "precision": 0.895,
+      "recall": 0.288,
+      "f1": 0.436
+    },
+    "price_purchase": {
+      "support_auto": 14,
+      "support_llm": 24,
+      "tp": 8,
+      "precision": 0.571,
+      "recall": 0.333,
+      "f1": 0.421
+    },
+    "service_repair": {
+      "support_auto": 13,
+      "support_llm": 11,
+      "tp": 10,
+      "precision": 0.769,
+      "recall": 0.909,
+      "f1": 0.833
+    },
+    "experience": {
+      "support_auto": 26,
+      "support_llm": 10,
+      "tp": 5,
+      "precision": 0.192,
+      "recall": 0.5,
+      "f1": 0.278
+    },
+    "expectation": {
+      "support_auto": 14,
+      "support_llm": 25,
+      "tp": 11,
+      "precision": 0.786,
+      "recall": 0.44,
+      "f1": 0.564
+    },
+    "emotion_only": {
+      "support_auto": 4,
+      "support_llm": 9,
+      "tp": 4,
+      "precision": 1.0,
+      "recall": 0.444,
+      "f1": 0.615
+    }
+  },
+  "set_size_distribution": {
+    "auto": {
+      "1": 37,
+      "2": 61,
+      "3": 2
+    },
+    "llm": {
+      "1": 16,
+      "2": 67,
+      "3": 17
+    }
+  },
+  "baselines": {
+    "R10_primary_overall": 0.678,
+    "R18_primary_overall": 0.64,
+    "R23_primary_overall": 0.406
+  },
+  "mismatches": [
+    {
+      "id": 1114095,
+      "auto": [
+        "positive_general",
+        "price_purchase"
+      ],
+      "llm": [
+        "price_purchase",
+        "question"
+      ],
+      "jaccard": 0.3333333333333333,
+      "content": "@Kimppaggujjing\nMr.\nI also buy a carnival limousine and it's perfect for looking for a TV. tivo stream 4k\nWhich shopping mall did you purchase from?"
+    },
+    {
+      "id": 6268,
+      "auto": [
+        "service_repair",
+        "experience"
+      ],
+      "llm": [
+        "positive_general",
+        "question",
+        "service_repair"
+      ],
+      "jaccard": 0.25,
+      "content": "I enjoyed reading your valuable review.\nIt was paid,,, how much was it?\nI also bought a Fold 7, but I'm worried.\nI use it at a construction site and after reading the article, I am scared.\nHow much do"
+    },
+    {
+      "id": 1166023,
+      "auto": [
+        "experience",
+        "negative_general"
+      ],
+      "llm": [
+        "expectation",
+        "comparison"
+      ],
+      "jaccard": 0.0,
+      "content": "Galaxy S20\nEven so, I was forced to use it because of rust, so I'm using my girlfriend's used S20 Plus for over 6 years. I don't have any major complaints, but I don't really like the camera because i"
+    },
+    {
+      "id": 975290,
+      "auto": [
+        "price_purchase",
+        "positive_general"
+      ],
+      "llm": [
+        "comparison",
+        "negative_general"
+      ],
+      "jaccard": 0.0,
+      "content": "I currently own a 1000xm3. My colleague recently just bought an Airpods pro and was going on for ages about how awesome it is. I offered him to try out my XM3s. He tried them out for 15 mins. I never "
+    },
+    {
+      "id": 143715,
+      "auto": [
+        "question",
+        "negative_general"
+      ],
+      "llm": [
+        "question",
+        "comparison"
+      ],
+      "jaccard": 0.3333333333333333,
+      "content": "Which part do you think is a waste of money? Is there really no reason to go up to 1 tera? Should I just go to 512?"
+    },
+    {
+      "id": 14937,
+      "auto": [
+        "negative_general"
+      ],
+      "llm": [
+        "comparison",
+        "experience"
+      ],
+      "jaccard": 0.0,
+      "content": "You can just search for Samsung Monitor M5.\nIt's FHD, so the specs aren't that great, but it has a smart TV function, so I mainly use it for 30 by Me purposes."
+    },
+    {
+      "id": 7449,
+      "auto": [
+        "question",
+        "experience"
+      ],
+      "llm": [
+        "experience",
+        "comparison",
+        "expectation"
+      ],
+      "jaccard": 0.25,
+      "content": "@junapa\nMr.\nThink about it carefully.\nHow to take pictures in a situation where all settings are messed up...\nIs that just a drawback?\nAnd take a good look...\nI have been using Pro Mode on the S22U fo"
+    },
+    {
+      "id": 17885,
+      "auto": [
+        "comparison",
+        "negative_general"
+      ],
+      "llm": [
+        "comparison",
+        "expectation"
+      ],
+      "jaccard": 0.3333333333333333,
+      "content": "Galaxy's update is dropped so it stays in good condition, but I think it's because there are a lot of people who update iPhone as soon as it comes out. I can't use it since the 13 mini upgraded to ios"
+    },
+    {
+      "id": 13549,
+      "auto": [
+        "negative_general",
+        "question"
+      ],
+      "llm": [
+        "question",
+        "comparison",
+        "expectation"
+      ],
+      "jaccard": 0.25,
+      "content": "What's the problem? Are you dissatisfied with the fact that you're still using the S20 Plus?\nI'm planning to buy a new phone and use it for 6 years, but I'm thinking of buying a used S24 because it's "
+    },
+    {
+      "id": 415582,
+      "auto": [
+        "service_repair",
+        "question"
+      ],
+      "llm": [
+        "question",
+        "comparison",
+        "price_purchase"
+      ],
+      "jaccard": 0.25,
+      "content": "What extended warranty do you buy for Z Fold 5?\nbest warranty, buy two s23 ultra"
+    },
+    {
+      "id": 7811,
+      "auto": [
+        "experience"
+      ],
+      "llm": [
+        "positive_general",
+        "expectation"
+      ],
+      "jaccard": 0.0,
+      "content": "@\nSince you are not fanless, of course there is fan noise :)\nIt varies from user to user, but in most cases, it seems difficult to hear fan noise when the power is off.\nI plan to use this part more an"
+    },
+    {
+      "id": 518113,
+      "auto": [
+        "question"
+      ],
+      "llm": [
+        "negative_general",
+        "comparison"
+      ],
+      "jaccard": 0.0,
+      "content": "To be honest, it wasn't top 10 power, was it?\nPosted Category\nKiwoom\nI know that the Beast is truly the worst of all time, but everyone expected him to not be 10th this year, so how can they push this"
+    }
+  ]
+}

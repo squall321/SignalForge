@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-06-08T00:30:00+00:00",
+  "target_date": "2026-06-08",
+  "status": "warning",
+  "voc_last": 8978,
+  "voc_prev": 8597,
+  "sentiment_null_rate": 0.0,
+  "topic_rate": 0.0,
+  "grounding_last": 0.2879,
+  "regression_ok_ratio": null,
+  "regression_failed": null,
+  "violations_count": 1,
+  "violations": [
+    {
+      "metric": "llm_grounding_last",
+      "severity": "warning",
+      "value": 0.2879,
+      "threshold": 0.3,
+      "reason": "grounding last=0.288 < 0.3"
+    }
+  ]
+}

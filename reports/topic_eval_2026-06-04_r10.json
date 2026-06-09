@@ -1,0 +1,196 @@
+{
+  "date": "2026-06-04",
+  "model": "qwen2.5:14b",
+  "n_total": 90,
+  "per_topic": 10,
+  "overall_accuracy": 0.678,
+  "per_topic_metrics": {
+    "positive_general": {
+      "support": 10,
+      "llm_count": 5,
+      "correct": 4,
+      "precision": 0.4,
+      "recall": 0.8,
+      "f1": 0.533
+    },
+    "negative_general": {
+      "support": 10,
+      "llm_count": 9,
+      "correct": 6,
+      "precision": 0.6,
+      "recall": 0.667,
+      "f1": 0.632
+    },
+    "question": {
+      "support": 10,
+      "llm_count": 11,
+      "correct": 8,
+      "precision": 0.8,
+      "recall": 0.727,
+      "f1": 0.762
+    },
+    "comparison": {
+      "support": 10,
+      "llm_count": 15,
+      "correct": 6,
+      "precision": 0.6,
+      "recall": 0.4,
+      "f1": 0.48
+    },
+    "price_purchase": {
+      "support": 10,
+      "llm_count": 11,
+      "correct": 5,
+      "precision": 0.5,
+      "recall": 0.455,
+      "f1": 0.476
+    },
+    "service_repair": {
+      "support": 10,
+      "llm_count": 8,
+      "correct": 8,
+      "precision": 0.8,
+      "recall": 1.0,
+      "f1": 0.889
+    },
+    "experience": {
+      "support": 10,
+      "llm_count": 10,
+      "correct": 6,
+      "precision": 0.6,
+      "recall": 0.6,
+      "f1": 0.6
+    },
+    "expectation": {
+      "support": 10,
+      "llm_count": 9,
+      "correct": 8,
+      "precision": 0.8,
+      "recall": 0.889,
+      "f1": 0.842
+    },
+    "emotion_only": {
+      "support": 10,
+      "llm_count": 11,
+      "correct": 10,
+      "precision": 1.0,
+      "recall": 0.909,
+      "f1": 0.952
+    }
+  },
+  "confusion_matrix": {
+    "negative_general": {
+      "negative_general": 6,
+      "comparison": 2,
+      "price_purchase": 1,
+      "experience": 1
+    },
+    "positive_general": {
+      "other": 1,
+      "comparison": 2,
+      "positive_general": 4,
+      "negative_general": 1,
+      "price_purchase": 1,
+      "experience": 1
+    },
+    "price_purchase": {
+      "negative_general": 1,
+      "question": 2,
+      "price_purchase": 5,
+      "positive_general": 1,
+      "expectation": 1
+    },
+    "emotion_only": {
+      "emotion_only": 10
+    },
+    "experience": {
+      "experience": 6,
+      "comparison": 2,
+      "price_purchase": 2
+    },
+    "comparison": {
+      "question": 1,
+      "experience": 1,
+      "price_purchase": 1,
+      "comparison": 6,
+      "negative_general": 1
+    },
+    "expectation": {
+      "expectation": 8,
+      "emotion_only": 1,
+      "comparison": 1
+    },
+    "service_repair": {
+      "price_purchase": 1,
+      "service_repair": 8,
+      "experience": 1
+    },
+    "question": {
+      "question": 8,
+      "comparison": 2
+    }
+  },
+  "mismatches": [
+    {
+      "id": 972006,
+      "auto": "positive_general",
+      "llm": "other",
+      "content": "The login page example was actually perfect for illustrating this. Meshing polygons? Centering a div? Go ahead and turn the LLM loose. If you miss any bugs you can just fix them when they get reported"
+    },
+    {
+      "id": 224851,
+      "auto": "price_purchase",
+      "llm": "negative_general",
+      "content": "Samsung is eroding trust. If you pre-order, you are now a fool."
+    },
+    {
+      "id": 235364,
+      "auto": "comparison",
+      "llm": "question",
+      "content": "Doesn't the iPhone Air work?\n‌Galaxy S26\nThese days, there are so many hot deals coming out.\nThere were widespread rumors that sales had collapsed.\nI know that the iPhone Air is also a failure.\nI hope"
+    },
+    {
+      "id": 687955,
+      "auto": "service_repair",
+      "llm": "price_purchase",
+      "content": "s25+ mint fucking bite\nI want to switch to Silver Shadow\nPay an additional 100,000 won to Samsung Service Center\nWhen replacing the back panel + border\nI would love it if there was an option to change"
+    },
+    {
+      "id": 139637,
+      "auto": "negative_general",
+      "llm": "comparison",
+      "content": "오늘 핸드폰 사는데 겜용으로 s26+ 별로에요?\n퀸텀 2라는 희대의 똥폰 4년 사용하고\n오늘 엄마폰 + 내폰 , 26+ 사용 하려는데\n울트라사면 좋겠지만 지갑사정이 부담이라\n엑시노스가 커뮤에서 악명 높은건 알고있어서\n겜 + 서핑용으로 4년정도 사용하는건 지장 없겠죠?"
+    },
+    {
+      "id": 270579,
+      "auto": "positive_general",
+      "llm": "comparison",
+      "content": "The difference between Fold 6 and 7 is big, so if you can spend money, I recommend 7."
+    },
+    {
+      "id": 749735,
+      "auto": "negative_general",
+      "llm": "price_purchase",
+      "content": "Is it a waste of money to buy AirPods Pro 3 instead of Buds 4 Pro?\nI was thinking of buying Buds 3 Pro.\nThere was so much talk that I gave up.\nI'm planning to buy Buds 4 Pro this time.\nThey say there "
+    },
+    {
+      "id": 185021,
+      "auto": "price_purchase",
+      "llm": "question",
+      "content": "s26u 샀는데 전작보다\n배터리 사이클 줄었다는데 1000몇회 이렇게 하니까 이해가 안돼는데 대충 몇년쓸거 몇년으로 줄었다 설명 좀 해주라"
+    },
+    {
+      "id": 976877,
+      "auto": "positive_general",
+      "llm": "comparison",
+      "content": "Is the alternative really better overall. We upgraded to a samsung fridge last year from two consecutive cheapo-chinese-local walmart-brands and it was worth every penny. It will pay itself in energy "
+    },
+    {
+      "id": 191026,
+      "auto": "comparison",
+      "llm": "experience",
+      "content": "iPhone 17 Pro Max 딥 블루 1TB 자급제 약 3달 사용기\n원 글은 티스토리에 올렸던 건데\n티스토리 원 글에는 사진이 30개가 넘어가고 내용이 길어서\n여기 올릴 때는 사진을 추리고\n내용도 약 3달간 사용해본 경험 위주로 요약해서 올립니다.\n내용을 요약하다보니\n다소 문체나 어투가 정제 되지 않은 점 양해 바라며,\n원본 사용기는 제 티스토리에서 확"
+    }
+  ],
+  "advice": []
+}

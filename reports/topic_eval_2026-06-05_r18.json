@@ -1,0 +1,222 @@
+{
+  "date": "2026-06-05",
+  "round": "R13",
+  "model": "qwen2.5:14b",
+  "n_total": 100,
+  "per_topic": 11,
+  "extra_topic": "question",
+  "quota": {
+    "positive_general": 11,
+    "negative_general": 11,
+    "question": 12,
+    "comparison": 11,
+    "price_purchase": 11,
+    "service_repair": 11,
+    "experience": 11,
+    "expectation": 11,
+    "emotion_only": 11
+  },
+  "overall_accuracy": 0.64,
+  "r10_overall_accuracy": 0.678,
+  "delta_overall": -0.038,
+  "per_topic_metrics": {
+    "positive_general": {
+      "support": 11,
+      "llm_count": 6,
+      "correct": 4,
+      "precision": 0.364,
+      "recall": 0.667,
+      "f1": 0.471
+    },
+    "negative_general": {
+      "support": 11,
+      "llm_count": 9,
+      "correct": 6,
+      "precision": 0.545,
+      "recall": 0.667,
+      "f1": 0.6
+    },
+    "question": {
+      "support": 12,
+      "llm_count": 12,
+      "correct": 9,
+      "precision": 0.75,
+      "recall": 0.75,
+      "f1": 0.75
+    },
+    "comparison": {
+      "support": 11,
+      "llm_count": 18,
+      "correct": 6,
+      "precision": 0.545,
+      "recall": 0.333,
+      "f1": 0.414
+    },
+    "price_purchase": {
+      "support": 11,
+      "llm_count": 8,
+      "correct": 5,
+      "precision": 0.455,
+      "recall": 0.625,
+      "f1": 0.526
+    },
+    "service_repair": {
+      "support": 11,
+      "llm_count": 9,
+      "correct": 9,
+      "precision": 0.818,
+      "recall": 1.0,
+      "f1": 0.9
+    },
+    "experience": {
+      "support": 11,
+      "llm_count": 13,
+      "correct": 5,
+      "precision": 0.455,
+      "recall": 0.385,
+      "f1": 0.417
+    },
+    "expectation": {
+      "support": 11,
+      "llm_count": 10,
+      "correct": 9,
+      "precision": 0.818,
+      "recall": 0.9,
+      "f1": 0.857
+    },
+    "emotion_only": {
+      "support": 11,
+      "llm_count": 13,
+      "correct": 11,
+      "precision": 1.0,
+      "recall": 0.846,
+      "f1": 0.917
+    }
+  },
+  "r10_per_topic_f1": {
+    "positive_general": 0.533,
+    "negative_general": 0.632,
+    "question": 0.762,
+    "comparison": 0.48,
+    "price_purchase": 0.476,
+    "service_repair": 0.889,
+    "experience": 0.6,
+    "expectation": 0.842,
+    "emotion_only": 0.952
+  },
+  "confusion_matrix": {
+    "positive_general": {
+      "positive_general": 4,
+      "comparison": 2,
+      "experience": 3,
+      "other": 2
+    },
+    "price_purchase": {
+      "question": 2,
+      "price_purchase": 5,
+      "positive_general": 2,
+      "experience": 1,
+      "comparison": 1
+    },
+    "experience": {
+      "comparison": 5,
+      "experience": 5,
+      "negative_general": 1
+    },
+    "question": {
+      "question": 9,
+      "comparison": 1,
+      "expectation": 1,
+      "price_purchase": 1
+    },
+    "service_repair": {
+      "service_repair": 9,
+      "question": 1,
+      "experience": 1
+    },
+    "expectation": {
+      "expectation": 9,
+      "comparison": 1,
+      "emotion_only": 1
+    },
+    "negative_general": {
+      "emotion_only": 1,
+      "price_purchase": 1,
+      "negative_general": 6,
+      "comparison": 2,
+      "experience": 1
+    },
+    "comparison": {
+      "price_purchase": 1,
+      "experience": 2,
+      "comparison": 6,
+      "negative_general": 2
+    },
+    "emotion_only": {
+      "emotion_only": 11
+    }
+  },
+  "mismatches": [
+    {
+      "id": 548763,
+      "auto": "price_purchase",
+      "llm": "question",
+      "content": "Buds 4 Pro pre-order review Did you receive a Starbucks coupon?\nWhy don't you give it to me?"
+    },
+    {
+      "id": 978283,
+      "auto": "experience",
+      "llm": "comparison",
+      "content": "The Messages web app is pretty slow and flaky in my experience (I use it every day). The iMessage protocol seems more reliable across devices, but that's just anecdotal. The Reactions thing depends on"
+    },
+    {
+      "id": 1016513,
+      "auto": "negative_general",
+      "llm": "emotion_only",
+      "content": "우러급300은 아니지만 1.로 살아보고 후회중이지만 습관은 바꾸기힘든 건 사실 이라서 ㅠ\n돈습관도 중요하다 생각함"
+    },
+    {
+      "id": 977550,
+      "auto": "comparison",
+      "llm": "price_purchase",
+      "content": "I am creating a podcast on mac and used Audacity before switching to record on a portable recorder. I still edit in Audacity, which works fine but I would pay good money for something that could remov"
+    },
+    {
+      "id": 17598,
+      "auto": "service_repair",
+      "llm": "question",
+      "content": "Where to attach genuine Galaxy Tab AR film\nIs this possible at the service center?"
+    },
+    {
+      "id": 124267,
+      "auto": "price_purchase",
+      "llm": "positive_general",
+      "content": "I'm still very satisfied haha. I'm so happy that I bought a 2 million won item for 1.45 million won."
+    },
+    {
+      "id": 749735,
+      "auto": "negative_general",
+      "llm": "price_purchase",
+      "content": "Is it a waste of money to buy AirPods Pro 3 instead of Buds 4 Pro?\nI was thinking of buying Buds 3 Pro.\nThere was so much talk that I gave up.\nI'm planning to buy Buds 4 Pro this time.\nThey say there "
+    },
+    {
+      "id": 191026,
+      "auto": "comparison",
+      "llm": "experience",
+      "content": "iPhone 17 Pro Max 딥 블루 1TB 자급제 약 3달 사용기\n원 글은 티스토리에 올렸던 건데\n티스토리 원 글에는 사진이 30개가 넘어가고 내용이 길어서\n여기 올릴 때는 사진을 추리고\n내용도 약 3달간 사용해본 경험 위주로 요약해서 올립니다.\n내용을 요약하다보니\n다소 문체나 어투가 정제 되지 않은 점 양해 바라며,\n원본 사용기는 제 티스토리에서 확"
+    },
+    {
+      "id": 976877,
+      "auto": "positive_general",
+      "llm": "comparison",
+      "content": "Is the alternative really better overall. We upgraded to a samsung fridge last year from two consecutive cheapo-chinese-local walmart-brands and it was worth every penny. It will pay itself in energy "
+    },
+    {
+      "id": 957561,
+      "auto": "positive_general",
+      "llm": "experience",
+      "content": "Can agree. Switched from Samsung Galaxy S7 (the battery started to struggle) and was amazed.\n400€ and I got a solid phone with an excellent camera. The battery is decent, I can still play the occasion"
+    }
+  ],
+  "advice": []
+}

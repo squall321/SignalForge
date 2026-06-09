@@ -1,0 +1,15 @@
+{
+  "captured_at": "2026-05-26T00:30:00+00:00",
+  "target_date": "2026-05-26",
+  "status": "ok",
+  "voc_last": 707,
+  "voc_prev": null,
+  "sentiment_null_rate": 0.0,
+  "topic_rate": 0.7228,
+  "grounding_last": null,
+  "regression_ok_ratio": null,
+  "regression_failed": null,
+  "violations_count": 0,
+  "violations": [],
+  "_source": "backfill_from_db"
+}

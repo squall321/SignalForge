@@ -1,0 +1,58 @@
+[
+  {
+    "date": "2026-06-02",
+    "grounding_score": 0.4919,
+    "provider": "openai",
+    "used_tier": "high",
+    "tier_label": "high-shared:qwen2.5:14b",
+    "prompt_version": "v3-fewshot-grounded"
+  },
+  {
+    "date": "2026-06-03",
+    "grounding_score": 0.3013,
+    "provider": "openai",
+    "used_tier": "high",
+    "tier_label": "high-shared:qwen2.5:14b",
+    "prompt_version": "v3-fewshot-grounded"
+  },
+  {
+    "date": "2026-06-04",
+    "grounding_score": 0.3563,
+    "provider": "openai",
+    "used_tier": "high",
+    "tier_label": "high-shared:qwen2.5:14b",
+    "prompt_version": "v4-must-cite-5"
+  },
+  {
+    "date": "2026-06-05",
+    "grounding_score": 0.3596,
+    "provider": "openai",
+    "used_tier": "high",
+    "tier_label": "high-shared:qwen2.5:14b",
+    "prompt_version": "v4-must-cite-5"
+  },
+  {
+    "date": "2026-06-06",
+    "grounding_score": 0.2879,
+    "provider": "openai",
+    "used_tier": "high",
+    "tier_label": "high-shared:qwen2.5:7b",
+    "prompt_version": "v4-must-cite-5"
+  },
+  {
+    "date": "2026-06-07",
+    "grounding_score": 0.3637,
+    "provider": "openai",
+    "used_tier": "high",
+    "tier_label": "high-shared:qwen2.5:7b",
+    "prompt_version": "v4-must-cite-5"
+  },
+  {
+    "date": "2026-06-08",
+    "grounding_score": 0.2787,
+    "provider": "openai",
+    "used_tier": "high",
+    "tier_label": "high-shared:qwen2.5:14b",
+    "prompt_version": "v4-must-cite-5"
+  }
+]

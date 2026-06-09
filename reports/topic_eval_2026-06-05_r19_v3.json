@@ -1,0 +1,293 @@
+{
+  "date": "2026-06-05",
+  "round": "R19",
+  "model": "qwen2.5:14b",
+  "n_total": 100,
+  "per_topic": 11,
+  "extra_topic": "question",
+  "quota": {
+    "positive_general": 11,
+    "negative_general": 11,
+    "question": 12,
+    "comparison": 11,
+    "price_purchase": 11,
+    "service_repair": 11,
+    "experience": 11,
+    "expectation": 11,
+    "emotion_only": 11
+  },
+  "overall_accuracy_r19": 0.5,
+  "r10_overall": 0.678,
+  "r18_v1_overall": 0.64,
+  "delta_vs_r18": -0.14,
+  "per_topic_metrics": {
+    "positive_general": {
+      "support": 8,
+      "llm_count": 6,
+      "correct": 4,
+      "precision": 0.5,
+      "recall": 0.667,
+      "f1": 0.571
+    },
+    "negative_general": {
+      "support": 2,
+      "llm_count": 8,
+      "correct": 2,
+      "precision": 1.0,
+      "recall": 0.25,
+      "f1": 0.4
+    },
+    "question": {
+      "support": 12,
+      "llm_count": 13,
+      "correct": 9,
+      "precision": 0.75,
+      "recall": 0.692,
+      "f1": 0.72
+    },
+    "comparison": {
+      "support": 5,
+      "llm_count": 19,
+      "correct": 3,
+      "precision": 0.6,
+      "recall": 0.158,
+      "f1": 0.25
+    },
+    "price_purchase": {
+      "support": 10,
+      "llm_count": 11,
+      "correct": 5,
+      "precision": 0.5,
+      "recall": 0.455,
+      "f1": 0.476
+    },
+    "service_repair": {
+      "support": 6,
+      "llm_count": 8,
+      "correct": 5,
+      "precision": 0.833,
+      "recall": 0.625,
+      "f1": 0.714
+    },
+    "experience": {
+      "support": 5,
+      "llm_count": 10,
+      "correct": 3,
+      "precision": 0.6,
+      "recall": 0.3,
+      "f1": 0.4
+    },
+    "expectation": {
+      "support": 10,
+      "llm_count": 12,
+      "correct": 8,
+      "precision": 0.8,
+      "recall": 0.667,
+      "f1": 0.727
+    },
+    "emotion_only": {
+      "support": 11,
+      "llm_count": 12,
+      "correct": 11,
+      "precision": 1.0,
+      "recall": 0.917,
+      "f1": 0.957
+    }
+  },
+  "r10_per_topic_f1": {
+    "positive_general": 0.533,
+    "negative_general": 0.632,
+    "question": 0.762,
+    "comparison": 0.48,
+    "price_purchase": 0.476,
+    "service_repair": 0.889,
+    "experience": 0.6,
+    "expectation": 0.842,
+    "emotion_only": 0.952
+  },
+  "r18_v1_per_topic_f1": {
+    "positive_general": 0.471,
+    "negative_general": 0.6,
+    "question": 0.75,
+    "comparison": 0.414,
+    "price_purchase": 0.526,
+    "service_repair": 0.9,
+    "experience": 0.417,
+    "expectation": 0.857,
+    "emotion_only": 0.917
+  },
+  "confusion_matrix": {
+    "positive_general": {
+      "positive_general": 4,
+      "experience": 1,
+      "comparison": 2,
+      "other": 1
+    },
+    "price_purchase": {
+      "price_purchase": 5,
+      "question": 2,
+      "experience": 1,
+      "positive_general": 1,
+      "comparison": 1
+    },
+    "experience": {
+      "comparison": 2,
+      "experience": 3
+    },
+    "question": {
+      "question": 9,
+      "comparison": 2,
+      "expectation": 1
+    },
+    "no_match": {
+      "service_repair": 3,
+      "comparison": 8,
+      "price_purchase": 5,
+      "question": 2,
+      "expectation": 3,
+      "experience": 3,
+      "negative_general": 6,
+      "positive_general": 1
+    },
+    "expectation": {
+      "expectation": 8,
+      "comparison": 1,
+      "emotion_only": 1
+    },
+    "negative_general": {
+      "negative_general": 2
+    },
+    "comparison": {
+      "experience": 1,
+      "comparison": 3,
+      "price_purchase": 1
+    },
+    "emotion_only": {
+      "emotion_only": 11
+    },
+    "service_repair": {
+      "service_repair": 5,
+      "experience": 1
+    }
+  },
+  "no_match": {
+    "service_repair": 5,
+    "negative_general": 9,
+    "comparison": 6,
+    "experience": 5,
+    "positive_general": 3,
+    "expectation": 1,
+    "price_purchase": 2
+  },
+  "mismatches": [
+    {
+      "id": 958372,
+      "db_primary": "experience",
+      "r19_primary": "experience",
+      "r19_topics": [
+        "experience"
+      ],
+      "llm": "comparison",
+      "content": "I constantly hear people make this claim, but in my experience, it is not true. I have owned tons of Android devices and they have really gotten a lot smoother and responsive, especially with 4.1/4.2 "
+    },
+    {
+      "id": 23631,
+      "db_primary": "service_repair",
+      "r19_primary": "no_match",
+      "r19_topics": [],
+      "llm": "service_repair",
+      "content": "The LG U Mobile Galaxy phone does not support two SIM cards.\nI am using an S25+LG U Mobile line E-SIM, but I want to sign up for an additional LG U Mobile E-SIM event, so my Galaxy phone has at least "
+    },
+    {
+      "id": 983468,
+      "db_primary": "positive_general",
+      "r19_primary": "positive_general",
+      "r19_topics": [
+        "positive_general"
+      ],
+      "llm": "experience",
+      "content": "The Lumia 950 XL shipped with Windows 10 native and was Microsoft's flagship phone, so it got updates for longer. But, yeah, live tiles were great and the UI was just super smooth. The dedicated camer"
+    },
+    {
+      "id": 6148,
+      "db_primary": "service_repair",
+      "r19_primary": "no_match",
+      "r19_topics": [],
+      "llm": "service_repair",
+      "content": "These days, the quality of service seems to be becoming more and more similar no matter which company's product you use. In the past, they said they used the company's products because of the repair s"
+    },
+    {
+      "id": 191026,
+      "db_primary": "comparison",
+      "r19_primary": "comparison",
+      "r19_topics": [
+        "comparison",
+        "experience"
+      ],
+      "llm": "experience",
+      "content": "iPhone 17 Pro Max 딥 블루 1TB 자급제 약 3달 사용기\n원 글은 티스토리에 올렸던 건데\n티스토리 원 글에는 사진이 30개가 넘어가고 내용이 길어서\n여기 올릴 때는 사진을 추리고\n내용도 약 3달간 사용해본 경험 위주로 요약해서 올립니다.\n내용을 요약하다보니\n다소 문체나 어투가 정제 되지 않은 점 양해 바라며,\n원본 사용기는 제 티스토리에서 확"
+    },
+    {
+      "id": 548763,
+      "db_primary": "price_purchase",
+      "r19_primary": "price_purchase",
+      "r19_topics": [
+        "price_purchase"
+      ],
+      "llm": "question",
+      "content": "Buds 4 Pro pre-order review Did you receive a Starbucks coupon?\nWhy don't you give it to me?"
+    },
+    {
+      "id": 835184,
+      "db_primary": "negative_general",
+      "r19_primary": "no_match",
+      "r19_topics": [],
+      "llm": "comparison",
+      "content": "It's definitely easier on the eyes to see Quantum 6 after looking at S23.\nIs the s23 display very bad?"
+    },
+    {
+      "id": 283084,
+      "db_primary": "comparison",
+      "r19_primary": "no_match",
+      "r19_topics": [],
+      "llm": "comparison",
+      "content": "Isn't it because all the older guys in their 30's and 40's use iPhones? Maybe it's because there is a difference in the number of teenagers who use Samsung?"
+    },
+    {
+      "id": 590844,
+      "db_primary": "negative_general",
+      "r19_primary": "no_match",
+      "r19_topics": [],
+      "llm": "price_purchase",
+      "content": "Galaxy 26 Ultra Samsung.com price?\nI'm watching Silver Shadow.\n256GB was sold for around 1.5 million won yesterday.\nWill it go up to 1.6 million won today?\nIs this a different price per month? Is the "
+    },
+    {
+      "id": 976877,
+      "db_primary": "positive_general",
+      "r19_primary": "positive_general",
+      "r19_topics": [
+        "positive_general"
+      ],
+      "llm": "comparison",
+      "content": "Is the alternative really better overall. We upgraded to a samsung fridge last year from two consecutive cheapo-chinese-local walmart-brands and it was worth every penny. It will pay itself in energy "
+    },
+    {
+      "id": 1047745,
+      "db_primary": "comparison",
+      "r19_primary": "no_match",
+      "r19_topics": [],
+      "llm": "question",
+      "content": "If it weren't for a large company, would you have been inclined to contact me? If you really like that person, let him go. Wouldn’t it be much better to meet someone better than you who works at a lar"
+    },
+    {
+      "id": 3128,
+      "db_primary": "positive_general",
+      "r19_primary": "positive_general",
+      "r19_topics": [
+        "positive_general"
+      ],
+      "llm": "comparison",
+      "content": "In fact, it has a structure that folds and unfolds, but I think its current durability is excellent. The connection part will be connected to the LCD, hinge, and data cable, and of course, this is bou"
+    }
+  ]
+}

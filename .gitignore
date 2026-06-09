@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+.env
+.env.local
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Data + 백업 (큰 파일 / 비밀 정보)
+data/
+backups/
+/backups/*.sql.gz
+/backups/*.sha256
+logs/
+*.log
+*.pid
+
+# Apptainer SIF (큰 바이너리, Drive 보관)
+apptainer/sif/*.sif*
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+
+# IDE
+.vscode/
+.idea/
+
+# Celery
+celerybeat-schedule*
+
+# Drive sync state
+.sf_last_sync.json

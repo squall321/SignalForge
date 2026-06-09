@@ -1,0 +1,510 @@
+{
+  "date": "2026-06-05",
+  "model": "qwen2.5:14b",
+  "targets": [
+    "positive_general",
+    "comparison",
+    "experience"
+  ],
+  "per_topic": 15,
+  "seed": 20260605,
+  "apply": false,
+  "applied_n": 0,
+  "summary": {
+    "total": 45,
+    "agree": 23,
+    "agree_rate": 0.511,
+    "pair_counts": {
+      "comparison": {
+        "comparison": 12,
+        "negative_general": 1,
+        "question": 2
+      },
+      "experience": {
+        "comparison": 6,
+        "positive_general": 1,
+        "experience": 4,
+        "expectation": 1,
+        "emotion_only": 2,
+        "negative_general": 1
+      },
+      "positive_general": {
+        "positive_general": 7,
+        "comparison": 4,
+        "expectation": 1,
+        "other": 1,
+        "price_purchase": 1,
+        "question": 1
+      }
+    },
+    "top_drift_pairs": [
+      {
+        "db": "experience",
+        "llm": "comparison",
+        "n": 6
+      },
+      {
+        "db": "positive_general",
+        "llm": "comparison",
+        "n": 4
+      },
+      {
+        "db": "experience",
+        "llm": "emotion_only",
+        "n": 2
+      },
+      {
+        "db": "comparison",
+        "llm": "question",
+        "n": 2
+      },
+      {
+        "db": "experience",
+        "llm": "positive_general",
+        "n": 1
+      },
+      {
+        "db": "comparison",
+        "llm": "negative_general",
+        "n": 1
+      },
+      {
+        "db": "positive_general",
+        "llm": "expectation",
+        "n": 1
+      },
+      {
+        "db": "experience",
+        "llm": "expectation",
+        "n": 1
+      },
+      {
+        "db": "positive_general",
+        "llm": "other",
+        "n": 1
+      },
+      {
+        "db": "experience",
+        "llm": "negative_general",
+        "n": 1
+      },
+      {
+        "db": "positive_general",
+        "llm": "price_purchase",
+        "n": 1
+      },
+      {
+        "db": "positive_general",
+        "llm": "question",
+        "n": 1
+      }
+    ]
+  },
+  "rows": [
+    {
+      "id": 107637,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "배터리 어떰 플립5보다 나음?  -Join the Flip Side"
+    },
+    {
+      "id": 9650,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "@First.\nI guess there is a difference because I am 23U."
+    },
+    {
+      "id": 951471,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "I think the ignorance point was more about ignoring the entire Android userbase who wouldn't benefit from these donated AirTags, which is a valid point for a government program. (I also currently own an iPhone mini 12 but my Galaxy S23 Ultra is my daily driver, no accounting for taste and such)."
+    },
+    {
+      "id": 3645,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "I'm still using the iPhone SE 2nd generation model and I'm jealous."
+    },
+    {
+      "id": 8784,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "@window\nI also think Narwal is better."
+    },
+    {
+      "id": 9543,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "positive_general",
+      "content_excerpt": "@\nYou are the best value for money."
+    },
+    {
+      "id": 252647,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "trucksmoveamerica#AC said:\nI was using gestures on phones way back when nova had them while Google and Samsung was not. Then I went to a app called edge gestures.\nNow with goodlock I use Samsung's edge gestures. I prefer the side gestures. I have it set up right below the edge panel pull out bar.\nCl"
+    },
+    {
+      "id": 7811,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "positive_general",
+      "content_excerpt": "@\nSince you are not fanless, of course there is fan noise :)\nIt varies from user to user, but in most cases, it seems difficult to hear fan noise when the power is off.\nI plan to use this part more and post it on actual usage :)"
+    },
+    {
+      "id": 572148,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "negative_general",
+      "content_excerpt": "Is the Buds Pro 4 no-can really this trash?\nI was using AirPod Pro 2, but when I switched to a Galaxy phone, I moved on to Buds Pro 4, but the no-can is too bad.\nfirst time\nI wondered if there was a problem with the N No Can performance, so I had it checked at a service center 10 minutes away from m"
+    },
+    {
+      "id": 982139,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "I’ve frankly have had worse experience with Samsung and better experiences with LG. The model I have is pretty bare bones, which is much better than the Samsung 27 inch 5k I had that just died on me after a couple of years. The LG 28 inch 4k is going on its 6th year. I think if I buy a 6K, I’ll wait"
+    },
+    {
+      "id": 11994,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "Even if it’s s20 for A… Because it is a better model than A.\nA flagship is a flagship.\nOtherwise, I recommend the s10 series for its excellent cost-effectiveness."
+    },
+    {
+      "id": 1380,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "experience",
+      "content_excerpt": "I will write well.\nI've used it for a while and it's good ^^"
+    },
+    {
+      "id": 1126517,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "positive_general",
+      "content_excerpt": "It's awesome. Look at the comment there. He's showing off. Haha."
+    },
+    {
+      "id": 5504,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "expectation",
+      "content_excerpt": "삼성전자, 갤럭시의 혁신 기술로 2026 밀라노 코르티나 동계올림픽 감동을 전 세계에 \n삼성전자, 갤럭시의 혁신 기술로 2026 밀라노 코르티나 동계올림픽 감동을 전 세계에 전달\n국제올림픽위원회(IOC)의 공식 파트너(Worldwide Partner)인 삼성전자가 2026 밀라노 코르티나 동계올림픽에서 모바일 혁신 기술을 통해 선수, 팬, 커뮤니티를 더욱 가깝게 연결한다.\n삼성전자는 ▲갤럭시 S25 울트라를 활용한 개막식 생중계 ▲갤럭시 AI 기반 실시간 통역 소통 지원 ▲삼성전자 모니터를 활용한 경기 판독 환경 구축 ▲갤럭시 충전"
+    },
+    {
+      "id": 280027,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "expectation",
+      "content_excerpt": "The 9600 will be released in a month. Will it be equipped with the 9500 or the 9600?"
+    },
+    {
+      "id": 138329,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "Is it better than Hello Mobile?"
+    },
+    {
+      "id": 89271,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "From the perspective of someone who doesn't play games, there doesn't seem to be any benefit to changing to 26 wool unless you want to use the privacy feature.\nI think it would be better to use 24 wool a little more and then change to 27 wool or 28 wool."
+    },
+    {
+      "id": 7109,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "1. As you know, AI depends on your taste... The reason is that chatgpt is the most general purpose, and the rest are specialized, so I recommend using additional ones depending on your own use. People who use AI for work usually have five basics. I also saw people using as many as 10 paid services.\n"
+    },
+    {
+      "id": 163842,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "If you go from the entry-level Galaxy A to the S25 Ultra,\nIs it a new world???\nrecommended\n0\nshare"
+    },
+    {
+      "id": 17811,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "@Galbungi1 (211.235) You should not compare it with Edge, but with Normal or Pro Line."
+    },
+    {
+      "id": 959111,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "positive_general",
+      "content_excerpt": "I second this. It is my only phone, and aside from the camera, it is a great phone at an awesome price. There has been a lot of discussion of screen size in the Moto X thread [0], and I tend to agree that the old Moto G's screen size was great. I previously had a Galaxy S3 and did not mind the large"
+    },
+    {
+      "id": 13276,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "emotion_only",
+      "content_excerpt": "I’m so stressed because of the S26 Ultra..lol.\nI switched from iPhone 17 during this crisis and I really like it.\nAh, but I've been using it for a few days now, and the pain in my hands and wrists doesn't go away.\nI thought I would get used to it in a day or two, but it actually got worse.\nWe do not"
+    },
+    {
+      "id": 962436,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "other",
+      "content_excerpt": "It is written in the annals of the galaxy that the Great Prophet Zarquon on his return will bring with him the first publicly useable version of GNU/Hurd which will signify a change for the universe so great as to be incomprehensible to mere mortals. Elsewhere it is written that Zarquon shows up in "
+    },
+    {
+      "id": 979955,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "You probably have battery issues because you are using SmartThings as the zigbee hub and it's polling the remote way too much. I have switched to HomeAssistant with a Zigbee USB adaptor and there are no more battery issues. SmartThings are aware of the issue but do not care enough to fix it."
+    },
+    {
+      "id": 961597,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "positive_general",
+      "content_excerpt": "I agree with this as well.  I spent 7 years at my first job, and would have been much better off moving at least once.  After that I tended to average closer to 3 - 4 years at jobs. I would recommend having at least one stop where you spend more than a year or two, just to show that you can get past"
+    },
+    {
+      "id": 9028,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "experience",
+      "content_excerpt": "｢@Ocho＊kelo＊｣\nI'm also using it\nI run 200 kilometers a month.\nIn conclusion, there are no shortcomings.\nSometimes my heart rate jumps suddenly.\nChange the band and tighten it as much as possible during exercise.\nIt measures well.\nGPS accuracy is also quite usable.\nI go around the same course every t"
+    },
+    {
+      "id": 971690,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "positive_general",
+      "content_excerpt": "Love this. Using a piano as a macro board is the kind of creative dev tooling I wish I saw more of. Have you considered letting users define their own key mappings in a YAML config? That way people could customize it for their specific DAW workflow without touching the code."
+    },
+    {
+      "id": 1011417,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "question",
+      "content_excerpt": "> I'd enable that setting and I imagine lots of others would I absolutely would - I run a few sites under Cloudflare. Instead of slowing down the traffic coming from the FCC (which is likely to be small), I'd recommend throttling by geography. For example, Comcast is based in Philadelphia (they alre"
+    },
+    {
+      "id": 172119,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "To be honest, as a writer, I don't know if I'm reading a PDF, but I'm enlarging my handwriting, so I don't think the ratio is a problem.\nThe writing feel of the iPad is so great that the Galaxy Tab has a comparative advantage over the Apad just because of the writing feel."
+    },
+    {
+      "id": 159008,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "I'm using the Fold 5, but I want the Fold 7 because it's thin. Haha\nThe Fold's large screen is also useful when watching Netflix or YouTube while lying on the sofa.\nWhen I drive, I turn on T Map on my phone. It's great to split the screen into two and drive with T Map on one side and YouTube Music o"
+    },
+    {
+      "id": 156605,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "experience",
+      "content_excerpt": "had it for almost exactly 2 years before i had to get a replacement through T Mobile. The inner screen started lifting and then a huge black line showed up on the crease.\n\n  \nI used it a LOT as a daily driver and wrote a ton of notes on it on the go, that fold was opened and closed like 50 times a d"
+    },
+    {
+      "id": 412350,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "question",
+      "content_excerpt": "If you replace the back of the Galaxy S23 Plus, does the battery also change??\nI asked because there was no English under Samsung on the back panel.\nI heard it broke and I changed it once.\nFrom what I remember, if you replace the 23PL back panel, you have to replace the battery as well.\nI heard it r"
+    },
+    {
+      "id": 115833,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "@글쓴 갤붕이(211.105) 애초에 작은폰이 아니라니카 그러네\n애플프로는 노말단처럼 기본사이즈에서 스펙업시킨거라 비교가 안맞는거야\n지금 빙낭유출크기로 나오면 내년 이맘때 이번 울트라막큼 가격꺽일거다\n울트라랑 스펙도 딸리고 작은폰도 아니고 이도저도 아닌 애매한 포지션이야 지금은  - dc App"
+    },
+    {
+      "id": 7585,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "@Yongi-hyung\nThird parties (Thunderbird, Apple Calendar) can synchronize all schedules, but Google products only synchronize for one year...\nIt's really absurd. I think the iPhone, not Android, can best utilize Google services."
+    },
+    {
+      "id": 391852,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "Why do Samsung keep changing the UI in less than a year?\nI think everyone will like it if I change it unconditionally.\nI also use an iPad, and after using it for several years, there hasn't been any major change in the UI. I'm satisfied with everything except for the split screen change, so I'm losi"
+    },
+    {
+      "id": 449576,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "Performance is better with 26\nThe overall performance ratio is better at 25."
+    },
+    {
+      "id": 55498,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "experience",
+      "content_excerpt": "Yes, it came out and I am using it well."
+    },
+    {
+      "id": 978022,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "I have been an iPhone user since 2009, but take 'Android-excursions' every few years. I am currently using a Pixel 9 and I can't see why it would be worse than an iPhone. Functionality-wise they are pretty much on-par. Sure, there are some differences, Pixels have much better AI functionality, iPhon"
+    },
+    {
+      "id": 283813,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "negative_general",
+      "content_excerpt": "These bastards are really fucking idiots... It's not like they'll be in business for a year and then quit.\nThe S25 series is also supported from the beginning! If I had said that, it would have been likeable right away.\nThey put out a notice saying they won't do it, but it seems like public sentimen"
+    },
+    {
+      "id": 8804,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "positive_general",
+      "content_excerpt": "@mobilem\nMr.\nOh, it's the best.\nIt's nice to be able to buy it used."
+    },
+    {
+      "id": 13672,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "price_purchase",
+      "content_excerpt": "Galcams S26 Ultra 512gb for recording\nI had to change my phone a few days ago, so I went to the store and kept looking.\nI can't put it off any longer, so I just compromise and purchase it through Galcams.\nConsidering the Ai Club Mintit additional compensation + subscription club additional cashback,"
+    },
+    {
+      "id": 380457,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "positive_general",
+      "content_excerpt": "I'll post this. I recommend this."
+    },
+    {
+      "id": 9070,
+      "db_primary": "comparison",
+      "db_topics": [
+        "comparison"
+      ],
+      "llm_label": "comparison",
+      "content_excerpt": "@\nI'm not sure about the difference in performance, but there seems to be a big difference in appearance between the band and the watch. Fit 3, which belongs to the band category, seems to be more compact and lighter. When I wear it as a person of my size, it looks a bit unbalanced no matter how big"
+    },
+    {
+      "id": 1114095,
+      "db_primary": "positive_general",
+      "db_topics": [
+        "positive_general"
+      ],
+      "llm_label": "question",
+      "content_excerpt": "@Kimppaggujjing\nMr.\nI also buy a carnival limousine and it's perfect for looking for a TV. tivo stream 4k\nWhich shopping mall did you purchase from?"
+    },
+    {
+      "id": 285042,
+      "db_primary": "experience",
+      "db_topics": [
+        "experience"
+      ],
+      "llm_label": "emotion_only",
+      "content_excerpt": "I'm currently writing 23 Ullari, but I guess it's just my mood."
+    }
+  ]
+}

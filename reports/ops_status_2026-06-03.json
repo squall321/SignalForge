@@ -1,0 +1,15 @@
+{
+  "captured_at": "2026-06-03T00:30:00+00:00",
+  "target_date": "2026-06-03",
+  "status": "critical",
+  "voc_last": 37135,
+  "voc_prev": 4765,
+  "sentiment_null_rate": 0.0,
+  "topic_rate": 0.978,
+  "grounding_last": null,
+  "regression_ok_ratio": null,
+  "regression_failed": null,
+  "violations_count": 415,
+  "violations": [],
+  "_source": "backfill_from_db"
+}

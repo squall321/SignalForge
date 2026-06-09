@@ -1,0 +1,63 @@
+Bootstrap: docker
+From: node:20-bookworm-slim
+
+# ── SignalForge Web (frontend) container ────────────────────────────────────────────────────────
+# MX White Paper 패턴 그대로 이식.
+# 1) SPA dist 는 *빌드 시점*에 호스트에서 미리 만들어져 있어야 한다 (apptainer build 가 dist 를 베이크).
+#    포털 prefix 가 박혀야 하므로 반드시 아래 명령으로 dist 를 재생성한 뒤 빌드한다:
+#      cd $PROJECT_ROOT/frontend && VITE_BASE_PATH=/signalforge/ npm run build
+#    그러면 dist/index.html 의 asset URL 이 /signalforge/assets/... 로 prefix 된다.
+# 2) %files 로 dist 를 /opt/web/dist 에 베이크 → 컨테이너 안에 npm/pnpm/node_modules 가 필요 없다.
+# 3) %startscript 가 `serve -s` 로 SPA fallback 정적 서빙 → 어떤 deep-link refresh 도 index.html 로 폴백.
+# 4) /api 프록시는 컨테이너 안에서 처리하지 않는다. HWAX 포털 nginx 가 /signalforge/api → backend:18000 으로 포워딩.
+#    standalone 으로 띄울 땐 별도 reverse-proxy (또는 VITE_API_BASE_URL 절대 URL 지정) 가 필요하다.
+
+%labels
+    Maintainer  squall321@gmail.com
+    Component   signalforge-frontend
+    Version     0.1.0
+
+%files
+    # 사전 빌드된 SPA. 빌드 머신에서 VITE_BASE_PATH=/signalforge/ npm run build 후 dist 가 존재해야 함.
+    frontend/dist /opt/web/dist
+
+%post
+    set -eux
+    # tiny static file server. 빌드 시점에 한 번만 npm 접근 → 런타임 네트워크 의존도 0.
+    npm install -g serve@14
+    mkdir -p /opt/web/dist
+
+%environment
+    export PATH=/usr/local/bin:$PATH
+    export NODE_ENV=production
+    # 컨테이너가 LISTEN 할 포트. up.sh 에서 host:17370 을 컨테이너:5173 으로 매핑한다.
+    export SF_WEB_PORT=5173
+
+%runscript
+    # 디버깅용 foreground. logs 가 stdout 으로 직행한다.
+    exec serve -s /opt/web/dist -l "tcp://0.0.0.0:${SF_WEB_PORT:-5173}" "$@"
+
+%startscript
+    # PRODUCTION: instance start. setsid+nohup 으로 startscript shell 이 종료돼도 daemon 이 살아남도록.
+    setsid nohup serve -s /opt/web/dist -l "tcp://0.0.0.0:${SF_WEB_PORT:-5173}" \
+        > /tmp/sf-web.log 2>&1 < /dev/null &
+
+%help
+    SignalForge frontend container (static-serve of prebuilt SPA).
+
+    PRODUCTION (cae00 / portal):
+      1. 빌드 머신에서:
+           cd $PROJECT_ROOT/frontend && VITE_BASE_PATH=/signalforge/ npm run build
+         → dist/ 의 asset URL 이 /signalforge/ prefix 로 베이크된다.
+      2. apptainer build apptainer/sif/frontend.sif apptainer/frontend.def
+         → dist 가 /opt/web/dist 로 image 에 베이크된다.
+      3. up.sh 에서 apptainer instance start frontend.sif --bind ... 로 기동.
+         5173 포트가 열리고, HWAX nginx 가 /signalforge/ → 해당 instance 로 reverse-proxy.
+
+    DEV (online 호스트):
+      apptainer run frontend.sif  → 같은 dist 를 foreground 로 서빙 (디버그용).
+      실 dev HMR 은 호스트 vite (npm run dev) 를 그대로 쓰면 된다.
+
+    /api 는 컨테이너 밖에서 처리:
+      - HWAX 포털 nginx 가 /signalforge/api/* → backend:18000/api/* 포워딩.
+      - standalone 이면 별도 reverse-proxy 또는 VITE_API_BASE_URL=절대URL 빌드 필요.

@@ -1,0 +1,19 @@
+{
+  "sync_run_id": "1780875990-195357",
+  "timestamp": "2026-06-07T23:46:30Z",
+  "source_host": "smarttwincluster",
+  "alembic_head": "0018",
+  "voc_count": 138805,
+  "db_dump": {
+    "sha256": "38f8b98acee94ed0379f1f9dbefb552797c69f0bd91c03b4a99f073bc2be336a",
+    "size_mb": 50,
+    "filename": "sf-db-20260607-231546Z.sql.gz"
+  },
+  "sif_changed": [],
+  "sif_sha256sums": {
+    "backend": "008bb98629a8eb8541a93170de51792108783622edc9e6e82d4c2a8853a645e2",
+    "crawler": "7ea59f2fc33510a6774a59533c20d4650d8c27a1cb4247c3aa8925d8aa4d3cbf",
+    "frontend": "4c817ae38410529bbd5a2e1594c72fa8acd90cd9d24cac34ed927ced4b017e0d",
+    "mcp": "a772deab4b2b3b59885809e757bc3c2ad8f12fd5a2a23e06a9e3527c8546d209"
+  }
+}

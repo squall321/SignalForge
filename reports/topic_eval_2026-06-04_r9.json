@@ -1,0 +1,207 @@
+{
+  "date": "2026-06-04",
+  "model": "qwen2.5:14b",
+  "n_total": 90,
+  "per_topic": 10,
+  "overall_accuracy": 0.456,
+  "per_topic_metrics": {
+    "positive_general": {
+      "support": 10,
+      "llm_count": 1,
+      "correct": 1,
+      "precision": 0.1,
+      "recall": 1.0,
+      "f1": 0.182
+    },
+    "negative_general": {
+      "support": 10,
+      "llm_count": 6,
+      "correct": 3,
+      "precision": 0.3,
+      "recall": 0.5,
+      "f1": 0.375
+    },
+    "question": {
+      "support": 10,
+      "llm_count": 12,
+      "correct": 5,
+      "precision": 0.5,
+      "recall": 0.417,
+      "f1": 0.455
+    },
+    "comparison": {
+      "support": 10,
+      "llm_count": 16,
+      "correct": 5,
+      "precision": 0.5,
+      "recall": 0.312,
+      "f1": 0.385
+    },
+    "price_purchase": {
+      "support": 10,
+      "llm_count": 7,
+      "correct": 1,
+      "precision": 0.1,
+      "recall": 0.143,
+      "f1": 0.118
+    },
+    "service_repair": {
+      "support": 10,
+      "llm_count": 8,
+      "correct": 6,
+      "precision": 0.6,
+      "recall": 0.75,
+      "f1": 0.667
+    },
+    "experience": {
+      "support": 10,
+      "llm_count": 6,
+      "correct": 4,
+      "precision": 0.4,
+      "recall": 0.667,
+      "f1": 0.5
+    },
+    "expectation": {
+      "support": 10,
+      "llm_count": 11,
+      "correct": 6,
+      "precision": 0.6,
+      "recall": 0.545,
+      "f1": 0.571
+    },
+    "emotion_only": {
+      "support": 10,
+      "llm_count": 11,
+      "correct": 10,
+      "precision": 1.0,
+      "recall": 0.909,
+      "f1": 0.952
+    }
+  },
+  "confusion_matrix": {
+    "negative_general": {
+      "comparison": 3,
+      "other": 2,
+      "negative_general": 3,
+      "question": 1,
+      "expectation": 1
+    },
+    "positive_general": {
+      "other": 3,
+      "negative_general": 1,
+      "expectation": 2,
+      "comparison": 1,
+      "positive_general": 1,
+      "service_repair": 1,
+      "price_purchase": 1
+    },
+    "price_purchase": {
+      "question": 5,
+      "negative_general": 1,
+      "other": 1,
+      "expectation": 2,
+      "price_purchase": 1
+    },
+    "emotion_only": {
+      "emotion_only": 10
+    },
+    "experience": {
+      "other": 1,
+      "price_purchase": 1,
+      "experience": 4,
+      "comparison": 3,
+      "service_repair": 1
+    },
+    "comparison": {
+      "comparison": 5,
+      "other": 3,
+      "price_purchase": 2
+    },
+    "expectation": {
+      "expectation": 6,
+      "negative_general": 1,
+      "emotion_only": 1,
+      "comparison": 1,
+      "other": 1
+    },
+    "service_repair": {
+      "service_repair": 6,
+      "question": 1,
+      "other": 1,
+      "comparison": 1,
+      "experience": 1
+    },
+    "question": {
+      "question": 5,
+      "comparison": 2,
+      "experience": 1,
+      "price_purchase": 2
+    }
+  },
+  "mismatches": [
+    {
+      "id": 966547,
+      "auto": "negative_general",
+      "llm": "comparison",
+      "content": "Stronger by Science covered this in a podcast episode maybe a year ago or so. There does seem to be reasonably good evidence that basal metabolic rates have dropped over the last century without any c"
+    },
+    {
+      "id": 954413,
+      "auto": "positive_general",
+      "llm": "other",
+      "content": "* Blog Post: https://blog.roboflow.com/roboflow-100/ * Paper: https://arxiv.org/abs/2211.13523 * Github: https://github.com/roboflow-ai/roboflow-100-benchmark At Roboflow, we've seen users fine-tune h"
+    },
+    {
+      "id": 548763,
+      "auto": "price_purchase",
+      "llm": "question",
+      "content": "Buds 4 Pro pre-order review Did you receive a Starbucks coupon?\nWhy don't you give it to me?"
+    },
+    {
+      "id": 976657,
+      "auto": "experience",
+      "llm": "other",
+      "content": "Show HN: Braand.co\nOver the last 15 years I’ve been responsible for brand design across household names including Samsung, PayPal and LG Mobile. In addition to my design experience, I’ve developed a p"
+    },
+    {
+      "id": 979405,
+      "auto": "negative_general",
+      "llm": "other",
+      "content": "in response to the unfortunately flagged sibling comment, the planned vaguely-rio-like windowing system for yeso is called wercam, but there is only a prototype implementation of it in the repo so far"
+    },
+    {
+      "id": 370131,
+      "auto": "expectation",
+      "llm": "negative_general",
+      "content": "What’s disappointing about the wide fold\nIt seems like the established theory is to go for the cheaper version by reducing costs more than the regular fold, but in fact, there are a lot more users who"
+    },
+    {
+      "id": 51370,
+      "auto": "positive_general",
+      "llm": "negative_general",
+      "content": "와이드폴드 나와도 만족못할듯\n작는걸론 만족 못하는 몸뚱이가 되어버림ㅠ\n- dc official App"
+    },
+    {
+      "id": 975306,
+      "auto": "positive_general",
+      "llm": "other",
+      "content": "Vernor Vinge's A Fire Upon the Deep (1992) depicts a galaxy of countless highly advanced civilizations in the far future - and describes its \"net\" as \"the net of a million lies\". However, it also depi"
+    },
+    {
+      "id": 967101,
+      "auto": "negative_general",
+      "llm": "other",
+      "content": ">The universe will collapse into a single black hole. Basically no one believes the Big Crunch theory is likely to be accurate these days, which is what I imagine he is referring to here - but it's al"
+    },
+    {
+      "id": 178150,
+      "auto": "experience",
+      "llm": "price_purchase",
+      "content": "I sold my Galaxy 25 Ultra 256GB at Sello last week.\nAfter inspecting, there was one small blemish, so 120,000 won was deducted...\nDid you just sell it because there was a 100,000 won additional fee pr"
+    }
+  ],
+  "advice": [
+    "- positive_general: precision=0.1 (support=10) — 키워드 사전 보강 권고",
+    "- price_purchase: precision=0.1 (support=10) — 키워드 사전 보강 권고"
+  ]
+}

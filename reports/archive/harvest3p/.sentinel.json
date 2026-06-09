@@ -1,0 +1,1 @@
+{"round": "harvest3p", "kind": "sentinel", "note": "Retroactive sentinel created by Harvest 4 H1 — harvest3p audit ran with empty affected_ids, archive folder absent until now", "related_run_ids": ["254323ab3a56", "2cd0418d4bf8", "d1f9c54d5d9a", "a76e5c3b35a8"], "created_at": "2026-06-06T12:44:01+00:00", "created_by": "crawler/base/audit.py H1 backfill", "status": "ok"}

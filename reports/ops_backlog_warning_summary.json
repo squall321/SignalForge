@@ -1,0 +1,29 @@
+{
+  "updated_at": "2026-06-09T22:45:00+00:00",
+  "days": {
+    "2026-06-04": {
+      "warning_count": 1,
+      "metrics": [
+        "data_quality_alerts_count"
+      ]
+    },
+    "2026-06-05": {
+      "warning_count": 1,
+      "metrics": [
+        "voc_daily_drop_pct"
+      ]
+    },
+    "2026-06-07": {
+      "warning_count": 1,
+      "metrics": [
+        "topic_classified_rate_drop"
+      ]
+    },
+    "2026-06-08": {
+      "warning_count": 1,
+      "metrics": [
+        "llm_grounding_last"
+      ]
+    }
+  }
+}

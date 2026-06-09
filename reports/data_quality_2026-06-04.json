@@ -1,0 +1,36 @@
+{
+  "hours": 24,
+  "window_start": "2026-06-03T22:19:37+00:00",
+  "window_end": "2026-06-04T22:19:37+00:00",
+  "new_voc_count": 38895,
+  "length_dist": {
+    "n": 38895,
+    "avg": 668.3,
+    "p10": 34.0,
+    "p90": 1658.6
+  },
+  "duplicate_rate": 0.0587,
+  "duplicate_count": 2283,
+  "product_match_rate": 0.2192,
+  "sentiment_null_rate": 0.0,
+  "topic_classified_rate": 0.9827,
+  "active_platforms": 43,
+  "thresholds": {
+    "content_length_avg_min": 20.0,
+    "duplicate_rate_max": 0.05,
+    "product_match_rate_min": 0.05,
+    "sentiment_null_rate_max": 0.3,
+    "topic_classified_rate_min": 0.1,
+    "active_platforms_min": 10
+  },
+  "alerts": [
+    {
+      "metric": "duplicate_rate",
+      "level": "warning",
+      "value": 0.0587,
+      "threshold": 0.05,
+      "reason": "중복 본문 비율 초과 — 크롤러 페이지네이션/dedup 점검"
+    }
+  ],
+  "generated_at": "2026-06-04T22:19:37+00:00"
+}

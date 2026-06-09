@@ -1,0 +1,229 @@
+{
+  "date": "2026-06-04",
+  "round": "R13",
+  "model": "qwen2.5:14b",
+  "n_total": 100,
+  "per_topic": 11,
+  "extra_topic": "question",
+  "quota": {
+    "positive_general": 11,
+    "negative_general": 11,
+    "question": 12,
+    "comparison": 11,
+    "price_purchase": 11,
+    "service_repair": 11,
+    "experience": 11,
+    "expectation": 11,
+    "emotion_only": 11
+  },
+  "overall_accuracy": 0.57,
+  "r10_overall_accuracy": 0.678,
+  "delta_overall": -0.108,
+  "per_topic_metrics": {
+    "positive_general": {
+      "support": 11,
+      "llm_count": 3,
+      "correct": 3,
+      "precision": 0.273,
+      "recall": 1.0,
+      "f1": 0.429
+    },
+    "negative_general": {
+      "support": 11,
+      "llm_count": 8,
+      "correct": 5,
+      "precision": 0.455,
+      "recall": 0.625,
+      "f1": 0.526
+    },
+    "question": {
+      "support": 12,
+      "llm_count": 13,
+      "correct": 8,
+      "precision": 0.667,
+      "recall": 0.615,
+      "f1": 0.64
+    },
+    "comparison": {
+      "support": 11,
+      "llm_count": 20,
+      "correct": 7,
+      "precision": 0.636,
+      "recall": 0.35,
+      "f1": 0.452
+    },
+    "price_purchase": {
+      "support": 11,
+      "llm_count": 17,
+      "correct": 6,
+      "precision": 0.545,
+      "recall": 0.353,
+      "f1": 0.429
+    },
+    "service_repair": {
+      "support": 11,
+      "llm_count": 6,
+      "correct": 5,
+      "precision": 0.455,
+      "recall": 0.833,
+      "f1": 0.588
+    },
+    "experience": {
+      "support": 11,
+      "llm_count": 8,
+      "correct": 4,
+      "precision": 0.364,
+      "recall": 0.5,
+      "f1": 0.421
+    },
+    "expectation": {
+      "support": 11,
+      "llm_count": 12,
+      "correct": 8,
+      "precision": 0.727,
+      "recall": 0.667,
+      "f1": 0.696
+    },
+    "emotion_only": {
+      "support": 11,
+      "llm_count": 12,
+      "correct": 11,
+      "precision": 1.0,
+      "recall": 0.917,
+      "f1": 0.957
+    }
+  },
+  "r10_per_topic_f1": {
+    "positive_general": 0.533,
+    "negative_general": 0.632,
+    "question": 0.762,
+    "comparison": 0.48,
+    "price_purchase": 0.476,
+    "service_repair": 0.889,
+    "experience": 0.6,
+    "expectation": 0.842,
+    "emotion_only": 0.952
+  },
+  "confusion_matrix": {
+    "positive_general": {
+      "price_purchase": 2,
+      "comparison": 3,
+      "positive_general": 3,
+      "expectation": 2,
+      "experience": 1
+    },
+    "price_purchase": {
+      "price_purchase": 6,
+      "question": 3,
+      "comparison": 1,
+      "negative_general": 1
+    },
+    "experience": {
+      "price_purchase": 2,
+      "question": 1,
+      "experience": 4,
+      "negative_general": 1,
+      "service_repair": 1,
+      "comparison": 1,
+      "other": 1
+    },
+    "question": {
+      "question": 8,
+      "comparison": 2,
+      "expectation": 1,
+      "price_purchase": 1
+    },
+    "service_repair": {
+      "price_purchase": 4,
+      "service_repair": 5,
+      "comparison": 1,
+      "question": 1
+    },
+    "expectation": {
+      "expectation": 8,
+      "emotion_only": 1,
+      "comparison": 1,
+      "negative_general": 1
+    },
+    "negative_general": {
+      "comparison": 4,
+      "negative_general": 5,
+      "price_purchase": 1,
+      "experience": 1
+    },
+    "comparison": {
+      "comparison": 7,
+      "experience": 2,
+      "price_purchase": 1,
+      "expectation": 1
+    },
+    "emotion_only": {
+      "emotion_only": 11
+    }
+  },
+  "mismatches": [
+    {
+      "id": 75136,
+      "auto": "positive_general",
+      "llm": "price_purchase",
+      "content": "@Writer Galboongi (218.146) Notify the remaining contract amount and sell it as a SIM card or go around and find a good article."
+    },
+    {
+      "id": 139641,
+      "auto": "experience",
+      "llm": "price_purchase",
+      "content": "@글쓴 갤붕이(211.117) 부모님이 사주시는거면 그냥 받아서 사용하고 본인이 사는거면 실사용 기준으로 4년이면 한달에 만원 차이도 안남"
+    },
+    {
+      "id": 905601,
+      "auto": "service_repair",
+      "llm": "price_purchase",
+      "content": "Buy an LCD screen from Ali, repair it yourself, and use it as an air machine. If you are not skilled with your hands, just sell it."
+    },
+    {
+      "id": 701400,
+      "auto": "positive_general",
+      "llm": "comparison",
+      "content": "I also used both, but the PMac produces better heat, and so does the battery.\n  -dc App"
+    },
+    {
+      "id": 835184,
+      "auto": "negative_general",
+      "llm": "comparison",
+      "content": "It's definitely easier on the eyes to see Quantum 6 after looking at S23.\nIs the s23 display very bad?"
+    },
+    {
+      "id": 972863,
+      "auto": "expectation",
+      "llm": "emotion_only",
+      "content": "I feel the same way. The initial magic of real-timeness felt like a glimpse into a future that... where is it? I'm still excited about the prospects of it — shameless plug: actually building a tool wi"
+    },
+    {
+      "id": 12769,
+      "auto": "service_repair",
+      "llm": "comparison",
+      "content": "If you want to repair the Note 10+ screen\nYou should buy a used S23. It will be ten times faster.\nA17 is twice as slow as Note 10"
+    },
+    {
+      "id": 976284,
+      "auto": "question",
+      "llm": "comparison",
+      "content": "Agree. They should make the desktop UI similar to what is there on ChromeOS or Samsung Dex. The top bar doesn&#x27;t make sense at all."
+    },
+    {
+      "id": 54089,
+      "auto": "price_purchase",
+      "llm": "question",
+      "content": "Oh, why Motorola! But I don't have the device because I already released it. When I purchased it in January last year, I booted it for the first time and updated it all day long."
+    },
+    {
+      "id": 590844,
+      "auto": "negative_general",
+      "llm": "price_purchase",
+      "content": "Galaxy 26 Ultra Samsung.com price?\nI'm watching Silver Shadow.\n256GB was sold for around 1.5 million won yesterday.\nWill it go up to 1.6 million won today?\nIs this a different price per month? Is the "
+    }
+  ],
+  "advice": [
+    "- positive_general: precision=0.273 (support=11) — 키워드 사전 보강 권고"
+  ]
+}

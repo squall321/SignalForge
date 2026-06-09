@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SignalForge — 시장의 목소리로 스마트폰을 진단한다</title>
+<style>
+:root{
+  --bg:#05070d; --bg2:#0a0f1c; --panel:rgba(255,255,255,.045);
+  --cyan:#22d3ee; --amber:#fbbf24; --magenta:#f0438c; --green:#34d399;
+  --red:#fb5e5e; --purple:#a78bfa; --ink:#e8eefc; --dim:#7c8bb0;
+  --line:rgba(120,160,230,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{font-family:'Segoe UI','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  background:var(--bg);color:var(--ink);overflow-x:hidden;
+  scroll-snap-type:y mandatory;overflow-y:scroll;height:100vh;}
+.mono{font-family:'Consolas','SF Mono','Menlo',monospace;}
+
+.dots{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:90;
+  display:flex;flex-direction:column;gap:14px;}
+.dots a{width:11px;height:11px;border-radius:50%;border:1.5px solid rgba(120,160,230,.4);
+  display:block;transition:.3s;cursor:pointer;}
+.dots a:hover,.dots a.on{background:var(--cyan);border-color:var(--cyan);
+  box-shadow:0 0 14px var(--cyan);}
+
+.page{min-height:100vh;scroll-snap-align:start;position:relative;
+  display:flex;flex-direction:column;justify-content:center;padding:4vh 5vw;overflow:hidden;}
+.gridbg{position:absolute;inset:0;z-index:0;
+  background-image:linear-gradient(rgba(120,160,230,.045) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(120,160,230,.045) 1px,transparent 1px);
+  background-size:48px 48px;mask-image:radial-gradient(ellipse 85% 75% at 50% 45%,#000 30%,transparent 100%);}
+.glow{position:absolute;border-radius:50%;filter:blur(90px);z-index:0;opacity:.5;pointer-events:none;}
+
+/* HERO */
+#p1{background:radial-gradient(ellipse 120% 90% at 50% 0%,#0c1530,#05070d 70%);}
+#hero-cv{position:absolute;inset:0;z-index:1;}
+.hero-in{position:relative;z-index:3;max-width:1200px;}
+.eyebrow{font-size:.74rem;font-weight:800;letter-spacing:.38em;color:var(--cyan);
+  text-transform:uppercase;margin-bottom:1.4rem;display:flex;align-items:center;gap:.9rem;}
+.eyebrow::before{content:'';width:46px;height:2px;background:linear-gradient(90deg,var(--cyan),transparent);}
+.live-chip{display:inline-flex;align-items:center;gap:.45rem;background:rgba(244,67,140,.12);
+  border:1px solid rgba(244,67,140,.4);color:#ff86b7;font-size:.62rem;font-weight:800;
+  padding:.22rem .6rem;border-radius:100px;letter-spacing:.12em;}
+.live-chip i{width:7px;height:7px;border-radius:50%;background:#ff4d94;
+  box-shadow:0 0 8px #ff4d94;animation:blink 1.3s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
+.h1{font-size:clamp(2.6rem,7vw,5.4rem);font-weight:900;line-height:1.02;
+  letter-spacing:-.03em;margin-bottom:.8rem;}
+.h1 .grad{background:linear-gradient(100deg,#fff 10%,var(--cyan) 50%,var(--amber) 90%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;}
+.h1 .sub2{display:block;font-size:clamp(1rem,2.4vw,1.85rem);font-weight:800;
+  color:var(--amber);margin-top:.5rem;letter-spacing:-.01em;}
+.hero-sub{font-size:clamp(.9rem,1.4vw,1.1rem);color:var(--dim);max-width:780px;
+  line-height:1.7;margin-bottom:2.3rem;}
+.hero-sub b{color:var(--ink);}
+.kpis{display:flex;gap:1.1rem;flex-wrap:wrap;}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:1.1rem 1.4rem;backdrop-filter:blur(8px);min-width:150px;position:relative;overflow:hidden;}
+.kpi::after{content:'';position:absolute;left:0;top:0;height:2px;width:100%;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.6;}
+.kpi .n{font-size:2.45rem;font-weight:900;line-height:1;letter-spacing:-.02em;}
+.kpi .n em{font-style:normal;color:var(--cyan);}
+.kpi .l{font-size:.66rem;color:var(--dim);text-transform:uppercase;letter-spacing:.14em;
+  margin-top:.5rem;font-weight:700;}
+.scrollcue{position:absolute;bottom:3vh;left:50%;transform:translateX(-50%);z-index:3;
+  font-size:.64rem;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;
+  display:flex;flex-direction:column;align-items:center;gap:.5rem;}
+.scrollcue .arr{width:18px;height:18px;border-right:2px solid var(--cyan);
+  border-bottom:2px solid var(--cyan);transform:rotate(45deg);animation:bob 1.6s infinite;}
+@keyframes bob{0%,100%{transform:rotate(45deg) translate(0,0);opacity:.4;}
+  50%{transform:rotate(45deg) translate(4px,4px);opacity:1;}}
+
+/* PAGE 2 — LIVE ANALYSIS */
+#p2{background:radial-gradient(ellipse 100% 80% at 70% 50%,#0a1228,#05070d 75%);}
+.p2-head{position:relative;z-index:3;margin-bottom:1rem;}
+.sec-tag{font-size:.68rem;font-weight:800;letter-spacing:.26em;color:var(--cyan);
+  text-transform:uppercase;margin-bottom:.4rem;}
+.sec-h{font-size:clamp(1.4rem,3.2vw,2.4rem);font-weight:900;letter-spacing:-.02em;}
+.sec-h em{font-style:normal;color:var(--amber);}
+.p2-grid{position:relative;z-index:3;display:grid;
+  grid-template-columns:1.3fr 1fr;gap:1rem;align-items:stretch;}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:1rem 1.15rem;backdrop-filter:blur(6px);position:relative;overflow:hidden;}
+.card-h{font-size:.65rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--cyan);margin-bottom:.7rem;display:flex;justify-content:space-between;align-items:baseline;}
+.card-h .meta{font-size:.6rem;color:var(--dim);letter-spacing:.1em;font-weight:600;}
+
+/* site reputation grid */
+.sites{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;}
+.site{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:9px;
+  padding:.55rem .75rem;}
+.site .nm{display:flex;justify-content:space-between;align-items:baseline;font-size:.72rem;margin-bottom:.28rem;}
+.site .nm b{font-weight:800;color:var(--ink);}
+.site .nm .vol{color:var(--amber);font-family:'Consolas',monospace;font-weight:800;font-size:.68rem;}
+.site .nm .reg{font-size:.52rem;color:var(--dim);background:rgba(255,255,255,.06);
+  padding:.05rem .35rem;border-radius:3px;letter-spacing:.06em;margin-right:.35rem;}
+.bar3{height:6px;border-radius:3px;display:flex;overflow:hidden;background:rgba(120,160,230,.08);}
+.bar3 .b{height:100%;transition:width 1s cubic-bezier(.2,.8,.2,1);width:0;}
+.bar3 .pos{background:#34d399;} .bar3 .neu{background:#fbbf24;} .bar3 .neg{background:#fb5e5e;}
+.site .pct{font-size:.56rem;color:var(--dim);margin-top:.2rem;display:flex;gap:.5rem;}
+.site .pct span{font-family:'Consolas',monospace;font-weight:700;}
+.site .pct .p{color:#34d399;} .site .pct .g{color:#fb5e5e;}
+
+/* time series chart */
+.ts-wrap{height:200px;position:relative;margin-top:.4rem;}
+#ts-svg{width:100%;height:100%;display:block;overflow:visible;}
+#ts-svg text{font-family:'Segoe UI','Noto Sans KR',sans-serif;}
+.ts-legend{display:flex;gap:.8rem;font-size:.62rem;color:var(--dim);margin-top:.4rem;flex-wrap:wrap;}
+.ts-legend span{display:flex;align-items:center;gap:.3rem;}
+.ts-legend i{width:12px;height:3px;border-radius:2px;display:inline-block;}
+
+/* competitor radar */
+.cmp-wrap{display:flex;gap:.5rem;align-items:center;margin-top:.3rem;flex-wrap:wrap;justify-content:center;}
+#cmp-svg{width:280px;height:240px;max-width:100%;}
+.cmp-meta{font-size:.66rem;color:var(--dim);line-height:1.55;flex:1;min-width:160px;}
+.cmp-meta b{color:var(--amber);}
+
+/* ticker */
+.ticker-card{padding:.8rem 1rem;}
+.tk-feed{display:flex;flex-direction:column;gap:.32rem;height:180px;overflow:hidden;}
+.tk{display:flex;gap:.45rem;align-items:center;font-size:.66rem;animation:slidein .5s ease;opacity:.96;}
+@keyframes slidein{from{opacity:0;transform:translateX(-12px);}to{opacity:.96;transform:none;}}
+.tk .pl{font-family:'Consolas',monospace;font-size:.54rem;color:var(--dim);
+  border:1px solid var(--line);border-radius:4px;padding:.05rem .28rem;flex-shrink:0;}
+.tk .pr{font-weight:800;font-size:.6rem;flex-shrink:0;}
+.tk .tx{color:#c4d0ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tk .sd{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+/* PAGE 3 */
+#p3{background:radial-gradient(ellipse 110% 90% at 30% 30%,#101023,#05070d 72%);}
+.p3-in{position:relative;z-index:3;max-width:1200px;margin:0 auto;width:100%;}
+.p3-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:1.3rem;align-items:start;margin-top:1.2rem;}
+.console{background:#070b16;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  box-shadow:0 30px 70px rgba(0,0,0,.6);}
+.console .bar{background:#0d1426;padding:.5rem .9rem;display:flex;align-items:center;gap:.4rem;
+  border-bottom:1px solid var(--line);}
+.console .bar i{width:10px;height:10px;border-radius:50%;}
+.console .bar .ti{margin-left:.6rem;font-size:.62rem;color:var(--dim);
+  font-family:'Consolas',monospace;letter-spacing:.06em;}
+.cs-body{padding:1rem 1.1rem;font-family:'Consolas','Menlo',monospace;font-size:.74rem;
+  line-height:1.85;min-height:340px;}
+.cs-body .q{color:var(--amber);font-weight:700;}
+.cs-body .tool{color:var(--cyan);}
+.cs-body .c{color:var(--dim);}
+.cs-body .a{color:#d6e0fa;}
+.cs-body .a b{color:var(--green);font-weight:800;}
+.cs-body .cursor{display:inline-block;width:8px;height:1rem;background:var(--cyan);
+  vertical-align:-2px;animation:blink .9s steps(1) infinite;}
+
+.findings{display:flex;flex-direction:column;gap:.75rem;}
+.find{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+  padding:.9rem 1.1rem;backdrop-filter:blur(6px);position:relative;overflow:hidden;
+  opacity:0;transform:translateY(24px);transition:.7s cubic-bezier(.2,.8,.2,1);
+  border-left:3px solid var(--c,var(--cyan));}
+.find.show{opacity:1;transform:none;}
+.find .top{display:flex;justify-content:space-between;align-items:baseline;}
+.find .rk{font-size:.6rem;font-weight:800;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;}
+.find .big{font-size:2rem;font-weight:900;color:var(--c,var(--cyan));line-height:1;letter-spacing:-.02em;}
+.find .big small{font-size:.85rem;}
+.find .nm{font-size:.88rem;font-weight:800;margin:.2rem 0 .15rem;}
+.find .ds{font-size:.7rem;color:var(--dim);line-height:1.55;}
+.find .ds em{font-style:normal;color:var(--ink);font-weight:700;}
+
+.closing{margin-top:1.4rem;text-align:center;position:relative;z-index:3;}
+.closing .ln{font-size:clamp(1.05rem,2.4vw,1.7rem);font-weight:900;letter-spacing:-.01em;}
+.closing .ln em{font-style:normal;
+  background:linear-gradient(100deg,var(--cyan),var(--amber));
+  -webkit-background-clip:text;background-clip:text;color:transparent;}
+.closing .sub{font-size:.76rem;color:var(--dim);margin-top:.5rem;}
+
+.reveal{opacity:0;transform:translateY(28px);transition:.9s cubic-bezier(.2,.8,.2,1);}
+.reveal.show{opacity:1;transform:none;}
+
+@media(max-width:920px){
+  .page{padding:5vh 5vw;} .p2-grid,.p3-grid{grid-template-columns:1fr;}
+  .sites{grid-template-columns:1fr;} .dots{right:10px;}
+  .kpi .n{font-size:1.95rem;}
+}
+</style>
+</head>
+<body>
+
+<div class="dots">
+  <a data-d="0" class="on" onclick="document.getElementById('p1').scrollIntoView()"></a>
+  <a data-d="1" onclick="document.getElementById('p2').scrollIntoView()"></a>
+  <a data-d="2" onclick="document.getElementById('p3').scrollIntoView()"></a>
+</div>
+
+<!-- ═══ PAGE 1 HERO ═══ -->
+<section class="page" id="p1">
+  <canvas id="hero-cv"></canvas>
+  <div class="gridbg"></div>
+  <div class="glow" style="width:520px;height:520px;background:#1564d8;left:-120px;top:-100px;"></div>
+  <div class="glow" style="width:440px;height:440px;background:#b45309;right:-100px;bottom:-120px;"></div>
+
+  <div class="hero-in">
+    <div class="eyebrow">MX VOC Intelligence Platform · 2026
+      <span class="live-chip"><i></i>14 SITES · LIVE CRAWLING</span>
+    </div>
+    <h1 class="h1">
+      <span class="grad">SignalForge</span>
+      <span class="sub2">시장의 목소리가 곧 개선의 지도다</span>
+    </h1>
+    <p class="hero-sub">
+      국내 8개 + 글로벌 6개 — 도합 <b>14개 커뮤니티</b>를 분산 로테이션으로 수집하고,
+      한국어 네이티브 감성으로 정제한 뒤, <b>LLM이 MCP로 직접 질의</b>하여
+      <b>어디서 평판이 좋고 나쁜지·시간에 따라 어떻게 변하는지·경쟁사 대비 어떤지</b>를 한 화면에서 본다.
+    </p>
+    <div class="kpis">
+      <div class="kpi"><div class="n"><em data-count="61663">0</em></div><div class="l">수집 VOC</div></div>
+      <div class="kpi"><div class="n"><em data-count="14">0</em></div><div class="l">크롤링 사이트</div></div>
+      <div class="kpi"><div class="n"><em data-count="41">0</em></div><div class="l">제품군 추적</div></div>
+      <div class="kpi"><div class="n">2024<em>→26</em></div><div class="l">시계열 분석</div></div>
+    </div>
+  </div>
+  <div class="scrollcue">SCROLL<div class="arr"></div></div>
+</section>
+
+<!-- ═══ PAGE 2 LIVE ANALYSIS ═══ -->
+<section class="page" id="p2">
+  <div class="gridbg"></div>
+  <div class="glow" style="width:560px;height:560px;background:#0e7490;right:-160px;top:30%;"></div>
+
+  <div class="p2-head reveal">
+    <div class="sec-tag">◆ Live Analysis Engine</div>
+    <div class="sec-h">14개 커뮤니티의 <em>평판·추이·경쟁구도</em>가 한눈에</div>
+  </div>
+
+  <div class="p2-grid">
+    <!-- 좌측: 사이트 평판 + 시계열 -->
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+      <div class="card reveal">
+        <div class="card-h">
+          <span>◇ 사이트별 평판 — 어디서 좋고 나쁜가</span>
+          <span class="meta">긍정·중립·부정 비율 (감성 라벨)</span>
+        </div>
+        <div class="sites" id="sites"></div>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-h">
+          <span>◇ 시계열 — 감성점수 추이 (월별, 2024.01 → 2026.05)</span>
+          <span class="meta">Galaxy S vs Z vs iPhone</span>
+        </div>
+        <div class="ts-wrap"><svg id="ts-svg" viewBox="0 0 600 200" preserveAspectRatio="none"></svg></div>
+        <div class="ts-legend">
+          <span><i style="background:#fbbf24"></i>Galaxy S 시리즈</span>
+          <span><i style="background:#22d3ee"></i>Galaxy Z 시리즈 (폴더블)</span>
+          <span><i style="background:#fb5e5e"></i>iPhone (경쟁사)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 우측: 경쟁사 비교 + 티커 -->
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+      <div class="card reveal">
+        <div class="card-h">
+          <span>◇ 경쟁사 비교 — Galaxy vs iPhone</span>
+          <span class="meta">감성 평균(0~100) · 카테고리별</span>
+        </div>
+        <div class="cmp-wrap">
+          <svg id="cmp-svg" viewBox="-140 -120 280 240"></svg>
+          <div class="cmp-meta">
+            <div style="color:#fbbf24;font-weight:800;font-size:.8rem;margin-bottom:.2rem;">Galaxy S 평균 51점</div>
+            <div style="margin-bottom:.6rem;">전체 2,320건 · 화제는 <b>경쟁비교(389)</b>, 가장 큰 약점은 <b>발열·성능</b></div>
+            <div style="color:#fb5e5e;font-weight:800;font-size:.8rem;margin-bottom:.2rem;">iPhone 평균 61점</div>
+            <div>95건(소량) · 한국 커뮤니티 비교글 위주. <b>가격 불만 적음</b>이 특징</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card ticker-card reveal">
+        <div class="card-h">
+          <span>◇ LIVE VOC STREAM · 실제 수집 데이터</span>
+          <span class="meta">3초마다 갱신</span>
+        </div>
+        <div class="tk-feed" id="tk"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PAGE 3 INSIGHT ═══ -->
+<section class="page" id="p3">
+  <div class="gridbg"></div>
+  <div class="glow" style="width:480px;height:480px;background:#7c3aed;left:-120px;top:10%;"></div>
+  <div class="glow" style="width:420px;height:420px;background:#b45309;right:-100px;bottom:-80px;"></div>
+
+  <div class="p3-in">
+    <div class="reveal">
+      <div class="sec-tag" style="color:var(--amber)">◆ From Voice to Action</div>
+      <div class="sec-h">LLM이 데이터에게 <em>직접 묻는다</em></div>
+    </div>
+
+    <div class="p3-grid">
+      <div class="console reveal">
+        <div class="bar">
+          <i style="background:#fb5e5e"></i><i style="background:#fbbf24"></i><i style="background:#34d399"></i>
+          <span class="ti">signalforge — MCP query session · GS25 vs AP16</span>
+        </div>
+        <div class="cs-body" id="console"></div>
+      </div>
+
+      <div class="findings">
+        <div class="find" style="--c:#fb5e5e">
+          <div class="top"><span class="rk">최대 우려</span><span class="big" id="f1">0</span></div>
+          <div class="nm">발열·성능 · Galaxy S 시리즈</div>
+          <div class="ds"><em>S25</em>는 발열 신호가 가장 굵음 — 2026-05 감성 평균 <em>+0.02</em>로 중립 수렴</div>
+        </div>
+        <div class="find" style="--c:#22d3ee">
+          <div class="top"><span class="rk">강점</span><span class="big" id="f2">0<small>%</small></span></div>
+          <div class="nm">폴더블 시리즈 평판 상승</div>
+          <div class="ds">Z 시리즈 평균 감성 <em>1.8%P 상승</em> (2024H1 → 2026Q2). 신뢰 회복 진행 중</div>
+        </div>
+        <div class="find" style="--c:#fbbf24">
+          <div class="top"><span class="rk">최다 언급</span><span class="big" id="f3">0</span></div>
+          <div class="nm">가격 · 경쟁비교 화두</div>
+          <div class="ds">전 제품군 통합 <em>3,800건+</em>이 가격·경쟁비교에 집중 — 메시지 전략 우선순위</div>
+        </div>
+        <div class="find" style="--c:#34d399">
+          <div class="top"><span class="rk">신규 채널</span><span class="big">+7</span></div>
+          <div class="nm">글로벌 6 / 국내 8</div>
+          <div class="ds">Reddit·HN·StackExchange·GSMArena·Samsung Members 등 <em>이번 라운드 7개 신규</em></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="closing reveal">
+      <div class="ln">시장의 목소리를 <em>데이터로</em>, 데이터를 <em>개선의 방향으로</em></div>
+      <div class="sub">SignalForge · Samsung MX VOC Intelligence Platform · 2026</div>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ═══ DATA (실측 DB 기반) ═══ */
+const SITES=[
+  ["dcinside","KR",38448,3514,3326,31608],
+  ["ppomppu","KR",10795,1092,875,8828],
+  ["clien","KR",9092,1539,1216,6337],
+  ["reddit","GLOBAL",1288,582,264,442],
+  ["mlbpark","KR",538,106,54,378],
+  ["hackernews","GLOBAL",307,172,65,70],
+  ["fmkorea","KR",277,36,38,203],
+  ["samsung_community","GLOBAL",272,95,41,136],
+  ["gsmarena","GLOBAL",245,140,38,67],
+  ["stackexchange","GLOBAL",180,84,46,50],
+  ["xda","GLOBAL",77,29,6,42],
+  ["theqoo","KR",69,7,9,53],
+  ["9to5google","GLOBAL",60,23,8,29],
+  ["bobaedream","KR",15,1,1,13],
+];
+// 시계열: [ym, GS_score, GZ_score, AP_score] (값 없으면 null)
+const TS=[
+  ["24-01",0.092,0.092,null],["24-02",-0.002,-0.418,null],["24-03",0.014,-0.146,null],
+  ["24-04",null,0.087,null],["24-05",-0.283,-0.142,null],["24-07",0.204,0.241,null],
+  ["24-08",-0.417,null,null],["24-09",0.154,-0.119,null],["24-10",0.077,0.188,null],
+  ["24-11",-0.443,0.231,null],["24-12",-0.328,0.000,null],
+  ["25-01",0.201,0.197,null],["25-02",-0.046,null,null],["25-03",-0.046,0.000,null],
+  ["25-04",0.189,null,null],["25-05",0.044,0.000,null],["25-06",-0.094,0.135,null],
+  ["25-07",-0.052,-0.005,0.119],["25-08",0.211,0.062,0.410],["25-09",0.072,0.191,0.278],
+  ["25-10",0.017,0.074,0.397],["25-11",-0.114,0.299,0.464],["25-12",0.255,0.115,0.187],
+  ["26-01",0.069,0.221,0.137],["26-02",0.152,0.222,0.411],["26-03",0.134,0.092,0.299],
+  ["26-04",-0.039,0.157,null],["26-05",0.022,-0.005,0.136],
+];
+// 경쟁사 비교 (카테고리별 점유율 정규화)
+const CMP_CATS=["가격","경쟁비교","배터리","카메라","발열","디자인","SW"];
+const CMP=[
+  // [series, label, color, percentages per CMP_CATS]
+  ["GS","Galaxy S","#fbbf24",[100,100,95,80,75,55,100]],
+  ["AP","iPhone","#fb5e5e",[12,100,42,38,40,28,22]],
+];
+const VOC=[
+  ["dcinside","GB3","p","버4프는 갓이야 버즈3fe 강제봉인됨"],
+  ["dcinside","GZF7","n","폴드8 많이 비싸지나 9월에 폴드7 싸게사고 끝낼까"],
+  ["dcinside","GS25","n","S25 10만 50만에 파는 것들 뭐가 문제임"],
+  ["dcinside","GS25","p","S25 통신사 있는거 58이면 비쌈? 상태 좋다고 함"],
+  ["reddit","GS25U","p","Good thing I just bought S25U lol"],
+  ["ppomppu","GS24U","n","oneui 8.5 오류 같네요 S24 울트라에서"],
+  ["clien","GW6","p","워치6 클래식 베타 나름 쓸만합니다"],
+  ["dcinside","GW8","p","워치6 쓰는중인데 워치8 넘어갈 필요 딱히 없지"],
+  ["dcinside","GS23","n","s23 중고 업체 별론가? 카드할부로 사고싶어서"],
+  ["dcinside","GS25","n","S25 너무 작아서 불편할려나"],
+  ["hackernews","GS25","p","Samsung Galaxy S25 Ultra review thoughts"],
+  ["samsung_community","GS25","n","Galaxy S25 Ultra freezing and buffering"],
+  ["gsmarena","AP16P","p","iPhone 16 Pro reliable choice after 13 Pro"],
+  ["dcinside","GZFL7","n","플립7 쓰로틀링 때문에 답답해 죽겠음"],
+  ["stackexchange","GS25","p","Samsung Galaxy S25 RCS messaging tips"],
+  ["mlbpark","GS25","p","S25 자급제 가격 인하 시점"],
+];
+
+/* ═══ 카운트업 ═══ */
+function countUp(el,to,ms){
+  const t0=performance.now();
+  (function tick(t){
+    const k=Math.min(1,(t-t0)/ms), e=1-Math.pow(1-k,3);
+    el.textContent=Math.round(to*e).toLocaleString();
+    if(k<1)requestAnimationFrame(tick);
+  })(t0);
+}
+
+/* ═══ Reveal + dot nav ═══ */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){
+    e.target.classList.add('show');
+    e.target.querySelectorAll('[data-count]').forEach(n=>{
+      if(!n.dataset.done){n.dataset.done=1;countUp(n,+n.dataset.count,1400);}
+    });
+  }
+}),{threshold:.2});
+document.querySelectorAll('.reveal,.kpi').forEach(el=>io.observe(el));
+
+const pages=[...document.querySelectorAll('.page')], dots=[...document.querySelectorAll('.dots a')];
+pages.forEach(p=>new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){
+    const i=pages.indexOf(e.target);
+    dots.forEach((d,j)=>d.classList.toggle('on',j===i));
+    if(i===1)initP2(); if(i===2)initP3();
+  }
+}),{threshold:.5}).observe(p));
+
+/* ═══ HERO 파티클 ═══ */
+(function(){
+  const cv=document.getElementById('hero-cv'),x=cv.getContext('2d');
+  let W,H,ps=[];
+  function rs(){W=cv.width=innerWidth;H=cv.height=innerHeight;
+    ps=[];for(let i=0;i<100;i++)ps.push({x:Math.random()*W,y:Math.random()*H,
+      vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,r:Math.random()*1.8+.4});}
+  rs();addEventListener('resize',rs);
+  (function loop(){
+    x.clearRect(0,0,W,H);
+    for(let i=0;i<ps.length;i++){
+      const p=ps[i];p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+      for(let j=i+1;j<ps.length;j++){
+        const q=ps[j],dx=p.x-q.x,dy=p.y-q.y,d=Math.hypot(dx,dy);
+        if(d<118){x.strokeStyle='rgba(34,211,238,'+(.13*(1-d/118))+')';
+          x.lineWidth=.6;x.beginPath();x.moveTo(p.x,p.y);x.lineTo(q.x,q.y);x.stroke();}
+      }
+      x.fillStyle='rgba(120,200,255,.55)';x.beginPath();x.arc(p.x,p.y,p.r,0,7);x.fill();
+    }
+    requestAnimationFrame(loop);
+  })();
+})();
+
+/* ═══ PAGE 2 init ═══ */
+let p2Started=false;
+function initP2(){
+  if(p2Started)return; p2Started=true;
+  renderSites(); renderTS(); renderCmp(); startTicker();
+}
+
+function renderSites(){
+  const wrap=document.getElementById('sites');
+  SITES.forEach(s=>{
+    const [code,reg,tot,pos,neg,neu]=s;
+    const pP=Math.round(pos/tot*100),pG=Math.round(neg/tot*100),pN=100-pP-pG;
+    const el=document.createElement('div'); el.className='site';
+    el.innerHTML=`<div class="nm">
+        <span><span class="reg">${reg==='KR'?'KR':'GL'}</span><b>${code}</b></span>
+        <span class="vol">${tot.toLocaleString()}</span>
+      </div>
+      <div class="bar3"><div class="b pos" data-w="${pP}"></div><div class="b neu" data-w="${pN}"></div><div class="b neg" data-w="${pG}"></div></div>
+      <div class="pct"><span class="p">▲${pP}%</span><span style="color:var(--dim)">●${pN}%</span><span class="g">▼${pG}%</span></div>`;
+    wrap.appendChild(el);
+  });
+  // animate bars
+  requestAnimationFrame(()=>setTimeout(()=>{
+    wrap.querySelectorAll('.bar3 .b').forEach(b=>b.style.width=b.dataset.w+'%');
+  },180));
+}
+
+function renderTS(){
+  const svg=document.getElementById('ts-svg');
+  const W=600,H=200, padL=42,padR=10,padT=18,padB=26;
+  const n=TS.length, xS=(W-padL-padR)/(n-1);
+  const yMin=-0.5, yMax=0.6;
+  const y=v=> padT + (1-(v-yMin)/(yMax-yMin)) * (H-padT-padB);
+  const NS="http://www.w3.org/2000/svg";
+  // grid + y labels
+  for(let v=-0.5; v<=0.6; v+=0.25){
+    const ln=document.createElementNS(NS,'line');
+    ln.setAttribute('x1',padL);ln.setAttribute('x2',W-padR);
+    ln.setAttribute('y1',y(v));ln.setAttribute('y2',y(v));
+    ln.setAttribute('stroke','rgba(120,160,230,.13)');ln.setAttribute('stroke-width','.8');
+    svg.appendChild(ln);
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',6);t.setAttribute('y',y(v)+3);t.setAttribute('font-size','9');
+    t.setAttribute('fill','#7c8bb0');t.textContent=v.toFixed(2);
+    svg.appendChild(t);
+  }
+  // x labels (every 4 months)
+  TS.forEach((d,i)=>{
+    if(i%4===0||i===n-1){
+      const t=document.createElementNS(NS,'text');
+      t.setAttribute('x',padL+xS*i);t.setAttribute('y',H-8);t.setAttribute('font-size','9');
+      t.setAttribute('fill','#7c8bb0');t.setAttribute('text-anchor','middle');
+      t.textContent=d[0]; svg.appendChild(t);
+    }
+  });
+  // lines for GS/GZ/AP
+  const series=[
+    {idx:1,color:'#fbbf24',label:'GS'},
+    {idx:2,color:'#22d3ee',label:'GZ'},
+    {idx:3,color:'#fb5e5e',label:'AP'},
+  ];
+  series.forEach(s=>{
+    let path=''; let started=false;
+    TS.forEach((d,i)=>{
+      const v=d[s.idx]; if(v==null) return;
+      const xx=padL+xS*i, yy=y(v);
+      if(!started){ path+=`M${xx},${yy}`; started=true;}
+      else path+=`L${xx},${yy}`;
+    });
+    const pl=document.createElementNS(NS,'path');
+    pl.setAttribute('d',path); pl.setAttribute('fill','none');
+    pl.setAttribute('stroke',s.color); pl.setAttribute('stroke-width','1.8');
+    pl.setAttribute('stroke-linecap','round');pl.setAttribute('stroke-linejoin','round');
+    pl.setAttribute('filter','drop-shadow(0 0 4px '+s.color+'90)');
+    // animate
+    const len=pl.getTotalLength?60:60;
+    pl.style.strokeDasharray='800';pl.style.strokeDashoffset='800';
+    pl.style.transition='stroke-dashoffset 1.6s cubic-bezier(.2,.8,.2,1)';
+    svg.appendChild(pl);
+    requestAnimationFrame(()=>setTimeout(()=>pl.style.strokeDashoffset='0',200));
+    // dots
+    TS.forEach((d,i)=>{
+      const v=d[s.idx]; if(v==null) return;
+      const c=document.createElementNS(NS,'circle');
+      c.setAttribute('cx',padL+xS*i);c.setAttribute('cy',y(v));c.setAttribute('r','2.2');
+      c.setAttribute('fill',s.color);c.setAttribute('opacity','.85');
+      svg.appendChild(c);
+    });
+  });
+  // zero line emphasized
+  const zl=document.createElementNS(NS,'line');
+  zl.setAttribute('x1',padL);zl.setAttribute('x2',W-padR);
+  zl.setAttribute('y1',y(0));zl.setAttribute('y2',y(0));
+  zl.setAttribute('stroke','rgba(232,238,252,.3)');zl.setAttribute('stroke-dasharray','3,3');
+  svg.appendChild(zl);
+}
+
+function renderCmp(){
+  const svg=document.getElementById('cmp-svg');
+  const NS="http://www.w3.org/2000/svg";
+  const N=CMP_CATS.length, R=95;
+  // grid rings
+  [0.33,0.66,1].forEach(k=>{
+    let pts='';
+    for(let i=0;i<N;i++){
+      const a=Math.PI*2*i/N - Math.PI/2;
+      pts+=(R*k*Math.cos(a))+','+(R*k*Math.sin(a))+' ';
+    }
+    const pg=document.createElementNS(NS,'polygon');
+    pg.setAttribute('points',pts.trim());
+    pg.setAttribute('fill','none');
+    pg.setAttribute('stroke','rgba(120,160,230,.18)');
+    pg.setAttribute('stroke-width','.8');
+    svg.appendChild(pg);
+  });
+  // axis labels
+  CMP_CATS.forEach((cat,i)=>{
+    const a=Math.PI*2*i/N - Math.PI/2;
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',(R+18)*Math.cos(a));t.setAttribute('y',(R+18)*Math.sin(a));
+    t.setAttribute('font-size','10');t.setAttribute('fill','#7c8bb0');
+    t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','middle');
+    t.setAttribute('font-weight','700'); t.textContent=cat; svg.appendChild(t);
+  });
+  // series polygons
+  CMP.forEach(([code,label,col,vals],idx)=>{
+    let pts='';
+    vals.forEach((v,i)=>{
+      const a=Math.PI*2*i/N - Math.PI/2;
+      const r=R*(v/100);
+      pts+=(r*Math.cos(a))+','+(r*Math.sin(a))+' ';
+    });
+    const pg=document.createElementNS(NS,'polygon');
+    pg.setAttribute('points',pts.trim());
+    pg.setAttribute('fill',col+'33');
+    pg.setAttribute('stroke',col);
+    pg.setAttribute('stroke-width','1.6');
+    pg.style.opacity='0';pg.style.transition='opacity 1s';
+    svg.appendChild(pg);
+    setTimeout(()=>pg.style.opacity='1',300+idx*200);
+  });
+}
+
+function startTicker(){
+  const feed=document.getElementById('tk'); let i=0;
+  const COL={p:'#34d399',n:'#fb5e5e'};
+  function push(){
+    const v=VOC[i%VOC.length]; i++;
+    const el=document.createElement('div'); el.className='tk';
+    el.innerHTML=`<span class="sd" style="background:${COL[v[2]]};box-shadow:0 0 7px ${COL[v[2]]}"></span>
+      <span class="pl">${v[0]}</span>
+      <span class="pr" style="color:${COL[v[2]]}">${v[2]==='p'?'▲':'▼'}</span>
+      <span class="tx">${v[3]}</span>`;
+    feed.prepend(el);
+    while(feed.children.length>6) feed.lastChild.remove();
+  }
+  for(let k=0;k<6;k++) push();
+  setInterval(push, 2400);
+}
+
+/* ═══ PAGE 3 — typewriter console + finding counters ═══ */
+let p3Started=false;
+function initP3(){
+  if(p3Started)return; p3Started=true;
+  document.getElementById('f1').textContent='+0.02';
+  document.getElementById('f2').textContent='+1.8%';
+  countUp(document.getElementById('f3'),3800,1500);
+  document.querySelectorAll('.find').forEach((f,i)=>setTimeout(()=>f.classList.add('show'),300+i*220));
+
+  const SCRIPT=[
+    ['c','// 개발자가 자연어로 묻는다'],
+    ['q','> 지금 Galaxy S25가 어디서 평판이 가장 안 좋아? iPhone이랑 비교해서'],
+    ['gap',280],
+    ['c','// LLM → MCP 도구 호출'],
+    ['tool','  get_top_issues(product="GS25", period_days=180)'],
+    ['tool','  compare_products(products=["GS25","AP16P"], categories=["발열","가격","비교"])'],
+    ['tool','  platform_reputation(product="GS25")'],
+    ['gap',320],
+    ['a','◆ 분석 결과 — Galaxy S25 (2025-Q3 → 2026-Q2)'],
+    ['a','  · 가장 부정적인 사이트: [b]dcinside[/b] (부정 18%) — 가격·발열 불만 집중'],
+    ['a','  · 가장 우호적인 사이트: [b]gsmarena[/b] (긍정 57%) — 해외 리뷰 호평'],
+    ['a','  · 감성 추이: 2024H1 -0.18 → 2026Q2 +0.02 (회복 추세)'],
+    ['gap',300],
+    ['a','▶ iPhone 비교 — 평균 감성 [b]+0.22[/b] vs Galaxy S [b]+0.03[/b]'],
+    ['a','  · 화제: iPhone은 가격·SW 불만 적음 / Galaxy는 가격이 항상 1순위'],
+    ['gap',280],
+    ['a','▶ 개선 방향'],
+    ['a','  1. dcinside·ppomppu 가격 메시지 재정렬 (대란 제도 정비)'],
+    ['a','  2. 발열 이슈 — 펌웨어 OTA 우선순위 상향'],
+    ['a','  3. 글로벌(Reddit·HN) 호평 콘텐츠 → 국내 마케팅 역활용'],
+  ];
+  const box=document.getElementById('console'); let li=0;
+  function next(){
+    if(li>=SCRIPT.length)return;
+    const [type,val]=SCRIPT[li++];
+    if(type==='gap'){setTimeout(next,val);return;}
+    const line=document.createElement('div'); line.className=type;
+    box.appendChild(line);
+    const cur=document.createElement('span'); cur.className='cursor'; line.appendChild(cur);
+    const txt=String(val); let ci=0;
+    (function type_(){
+      if(ci<txt.length){
+        cur.insertAdjacentText('beforebegin',txt[ci++]);
+        setTimeout(type_, type==='c'?9:type==='tool'?13:18);
+      } else {
+        cur.remove();
+        line.innerHTML=line.innerHTML.replace(/\[b\]/g,'<b>').replace(/\[\/b\]/g,'</b>');
+        setTimeout(next, type==='q'?260:80);
+      }
+    })();
+  }
+  next();
+}
+</script>
+</body>
+</html>

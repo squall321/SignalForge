@@ -1,0 +1,84 @@
+name: Deploy Dashboard (frontend → on-prem Nginx)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-dashboard
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build & rsync to signalforge.internal
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      FRONTEND_DIR: frontend
+      REMOTE_HOST:  ${{ secrets.DEPLOY_HOST }}      # e.g. signalforge.internal
+      REMOTE_USER:  ${{ secrets.DEPLOY_USER }}      # e.g. deploy
+      REMOTE_PATH:  /var/www/signalforge/dashboard/
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ${{ env.FRONTEND_DIR }}/package-lock.json
+
+      - name: Install deps
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm ci
+
+      - name: Build (Vite)
+        working-directory: ${{ env.FRONTEND_DIR }}
+        env:
+          # Vite needs base=/dashboard/ so assets resolve under the Nginx prefix
+          VITE_API_BASE: /api
+          VITE_WS_BASE:  /ws
+        run: npm run build -- --base=/dashboard/
+
+      - name: Verify build artifact exists
+        run: |
+          test -d "${FRONTEND_DIR}/dist" || { echo "dist/ missing"; exit 1; }
+          ls -la "${FRONTEND_DIR}/dist" | head
+
+      # --- SSH key setup ----------------------------------------------------
+      # Required GitHub secrets:
+      #   SSH_KEY      : private key (ed25519 or rsa) authorised on the server
+      #   SSH_KNOWN_HOSTS : output of `ssh-keyscan signalforge.internal`
+      #   DEPLOY_HOST  : signalforge.internal (or IP)
+      #   DEPLOY_USER  : deploy
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Rsync to server
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes" \
+            "${FRONTEND_DIR}/dist/" \
+            "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}"
+
+      - name: Smoke check (HTTP 200 / 401)
+        run: |
+          # Behind Basic Auth the public probe should be 401 (auth required),
+          # which still proves Nginx routing works.
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+                 "http://${REMOTE_HOST}/dashboard/" || echo "000")
+          echo "GET /dashboard/ → ${code}"
+          [[ "${code}" == "200" || "${code}" == "401" ]] || exit 1

@@ -1,0 +1,32 @@
+{
+  "round": "sync_polish",
+  "track": "Z1",
+  "title": "sync-to-drive.sh 본체 LATEST.json 통합",
+  "ts": "2026-06-08T00:55:00Z",
+  "run_id": "1780880095-419084",
+  "files_changed": [
+    "scripts/sync-to-drive.sh",
+    "scripts/tests/test_sync_to_drive_latest.sh"
+  ],
+  "diff_summary": {
+    "sync-to-drive.sh": [
+      "source scripts/lib/latest-meta.sh",
+      "SIF_CHANGED_CSV 누적 변수 도입 (postgres* baseline 제외)",
+      "[4/4] LATEST.json 스테이지 추가 — build_latest_meta → logs/sync/LATEST.json → rclone copy → audit"
+    ],
+    "test_sync_to_drive_latest.sh": [
+      "T1~T5 (5 케이스, 13 assertion) — mock rclone 활용 실 모드 시뮬 포함"
+    ]
+  },
+  "evidence": {
+    "unit_test": "PASS=13 FAIL=0 (scripts/tests/test_sync_to_drive_latest.sh)",
+    "regression": "PASS=12 FAIL=0 (scripts/tests/test_sync_dryrun.sh)",
+    "dry_run": "[4/4] LATEST.json 단계 정상 — voc=138813 dump_sha=af95345c17c3..",
+    "real_push": "rclone cat ApptainerImages:SignalForge/LATEST.json → 26 lines 정상 JSON, voc_count=138813, alembic_head=0018, db_dump.filename=sf-db-20260608-005147Z.sql.gz",
+    "audit_path": "logs/audit/portal_deploy.jsonl (event=latest_ok, dump_sha=af95345c17c3...)"
+  },
+  "drift_remaining": [
+    "audit 트랙별 분리 (Y1/Y3/Y5 키) — sync_polish 라운드에서는 sync-to-drive 가 latest_ok 를 portal_deploy/S4 라인에 그대로 적재. Z2 또는 후속 트랙에서 round=sync_polish/track=Z1 전용 채널 분리 필요.",
+    "워커 재시작 — beat 의 run_auto_sync_to_drive 미등록 (worker PID 272892 기동 2026-06-06 01:03, tasks.py 추가 이전) — Z3 영역."
+  ]
+}

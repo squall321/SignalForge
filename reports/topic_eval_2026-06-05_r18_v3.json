@@ -1,0 +1,231 @@
+{
+  "date": "2026-06-05",
+  "round": "R13",
+  "model": "qwen2.5:14b",
+  "n_total": 100,
+  "per_topic": 11,
+  "extra_topic": "question",
+  "quota": {
+    "positive_general": 11,
+    "negative_general": 11,
+    "question": 12,
+    "comparison": 11,
+    "price_purchase": 11,
+    "service_repair": 11,
+    "experience": 11,
+    "expectation": 11,
+    "emotion_only": 11
+  },
+  "overall_accuracy": 0.59,
+  "r10_overall_accuracy": 0.678,
+  "delta_overall": -0.088,
+  "per_topic_metrics": {
+    "positive_general": {
+      "support": 11,
+      "llm_count": 7,
+      "correct": 5,
+      "precision": 0.455,
+      "recall": 0.714,
+      "f1": 0.556
+    },
+    "negative_general": {
+      "support": 11,
+      "llm_count": 10,
+      "correct": 6,
+      "precision": 0.545,
+      "recall": 0.6,
+      "f1": 0.571
+    },
+    "question": {
+      "support": 12,
+      "llm_count": 14,
+      "correct": 6,
+      "precision": 0.5,
+      "recall": 0.429,
+      "f1": 0.462
+    },
+    "comparison": {
+      "support": 11,
+      "llm_count": 20,
+      "correct": 8,
+      "precision": 0.727,
+      "recall": 0.4,
+      "f1": 0.516
+    },
+    "price_purchase": {
+      "support": 11,
+      "llm_count": 7,
+      "correct": 5,
+      "precision": 0.455,
+      "recall": 0.714,
+      "f1": 0.556
+    },
+    "service_repair": {
+      "support": 11,
+      "llm_count": 7,
+      "correct": 7,
+      "precision": 0.636,
+      "recall": 1.0,
+      "f1": 0.778
+    },
+    "experience": {
+      "support": 11,
+      "llm_count": 9,
+      "correct": 2,
+      "precision": 0.182,
+      "recall": 0.222,
+      "f1": 0.2
+    },
+    "expectation": {
+      "support": 11,
+      "llm_count": 11,
+      "correct": 10,
+      "precision": 0.909,
+      "recall": 0.909,
+      "f1": 0.909
+    },
+    "emotion_only": {
+      "support": 11,
+      "llm_count": 12,
+      "correct": 10,
+      "precision": 0.909,
+      "recall": 0.833,
+      "f1": 0.87
+    }
+  },
+  "r10_per_topic_f1": {
+    "positive_general": 0.533,
+    "negative_general": 0.632,
+    "question": 0.762,
+    "comparison": 0.48,
+    "price_purchase": 0.476,
+    "service_repair": 0.889,
+    "experience": 0.6,
+    "expectation": 0.842,
+    "emotion_only": 0.952
+  },
+  "confusion_matrix": {
+    "expectation": {
+      "expectation": 10,
+      "comparison": 1
+    },
+    "positive_general": {
+      "positive_general": 5,
+      "other": 1,
+      "comparison": 2,
+      "experience": 1,
+      "expectation": 1,
+      "question": 1
+    },
+    "comparison": {
+      "comparison": 8,
+      "question": 1,
+      "negative_general": 1,
+      "experience": 1
+    },
+    "price_purchase": {
+      "experience": 3,
+      "price_purchase": 5,
+      "positive_general": 1,
+      "question": 2
+    },
+    "emotion_only": {
+      "emotion_only": 10,
+      "other": 1
+    },
+    "experience": {
+      "other": 1,
+      "experience": 2,
+      "question": 1,
+      "negative_general": 2,
+      "comparison": 3,
+      "emotion_only": 1,
+      "price_purchase": 1
+    },
+    "negative_general": {
+      "price_purchase": 1,
+      "negative_general": 6,
+      "emotion_only": 1,
+      "question": 2,
+      "comparison": 1
+    },
+    "service_repair": {
+      "positive_general": 1,
+      "service_repair": 7,
+      "experience": 1,
+      "comparison": 1,
+      "question": 1
+    },
+    "question": {
+      "question": 6,
+      "comparison": 4,
+      "experience": 1,
+      "negative_general": 1
+    }
+  },
+  "mismatches": [
+    {
+      "id": 251082,
+      "auto": "price_purchase",
+      "llm": "experience",
+      "content": "[Brief review] This is a review of the Samsung Odyssey G7 32dg700.\nI needed a monitor, so I purchased the Samsung Odyssey G7 32dg700 at the right time.\nAs someone who has only used FHD monitors, I wou"
+    },
+    {
+      "id": 756771,
+      "auto": "experience",
+      "llm": "other",
+      "content": "In general, the condition of looking young is partly innate, but it seems to be a combination of sunscreen and facial fat. People who have been using sunscreen since they were young and people who hav"
+    },
+    {
+      "id": 1011417,
+      "auto": "comparison",
+      "llm": "question",
+      "content": "> I'd enable that setting and I imagine lots of others would I absolutely would - I run a few sites under Cloudflare. Instead of slowing down the traffic coming from the FCC (which is likely to be sma"
+    },
+    {
+      "id": 749735,
+      "auto": "negative_general",
+      "llm": "price_purchase",
+      "content": "Is it a waste of money to buy AirPods Pro 3 instead of Buds 4 Pro?\nI was thinking of buying Buds 3 Pro.\nThere was so much talk that I gave up.\nI'm planning to buy Buds 4 Pro this time.\nThey say there "
+    },
+    {
+      "id": 11123,
+      "auto": "service_repair",
+      "llm": "positive_general",
+      "content": "@Cologne\nMr.\nYes that's right\nI have been satisfied with everything I have gone to the service center so far."
+    },
+    {
+      "id": 513136,
+      "auto": "expectation",
+      "llm": "comparison",
+      "content": "freschluft wrote: whereas with the 24 you can travel safely and with new features for almost 4 years longer. Click to enlarge... The S23 receives 5 years of updates, the S24 7. That's almost exactly 3"
+    },
+    {
+      "id": 962436,
+      "auto": "positive_general",
+      "llm": "other",
+      "content": "It is written in the annals of the galaxy that the Great Prophet Zarquon on his return will bring with him the first publicly useable version of GNU/Hurd which will signify a change for the universe s"
+    },
+    {
+      "id": 853757,
+      "auto": "experience",
+      "llm": "question",
+      "content": "> Also, what could one do in advance to know if they're about to purchase such an SSD? You mentioned one affected model. Typically QLC is significantly worse at this than TLC, since the \"real\" write s"
+    },
+    {
+      "id": 283813,
+      "auto": "experience",
+      "llm": "negative_general",
+      "content": "These bastards are really fucking idiots... It's not like they'll be in business for a year and then quit.\nThe S25 series is also supported from the beginning! If I had said that, it would have been l"
+    },
+    {
+      "id": 974796,
+      "auto": "question",
+      "llm": "comparison",
+      "content": "standard product lifetime seems reasonable. If IE6 has a security bug, the answer is \"maybe use newer windows + edge\". If xbox360 has a security bug, the answer might be \"use xbox one\". This could exp"
+    }
+  ],
+  "advice": [
+    "- experience: precision=0.182 (support=11) — 키워드 사전 보강 권고"
+  ]
+}

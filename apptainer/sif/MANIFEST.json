@@ -1,0 +1,11 @@
+{
+  "_generated_at": "2026-06-07T23:34:18Z",
+  "_round": "portal_deploy",
+  "_track": "S1",
+  "postgres": {"path": "/home/koopark/claude/SignalForge/apptainer/sif/postgres.sif", "sha256": "d16f9d27e8bdc2b06b9a88190c20d0f5e9764710362a04bbeb7c03abad27a849", "size_mb": 102.20, "mtime": "2026-05-15T22:29:39Z"},
+  "postgres_new": {"path": "/home/koopark/claude/SignalForge/apptainer/sif/postgres.sif.new", "sha256": "79144f02e7b3e53213151497ad224a9a33ded2485fd46aa7af236b6cce7fe6b7", "size_mb": 102.20, "mtime": "2026-06-07T23:09:59Z"},
+  "postgres_base": {"path": "/home/koopark/claude/SignalForge/apptainer/sif/postgres-base.sif", "sha256": "ce28f5cb0924f00c79488a6b732a82e974b48312a235ae90c8ba35eb9dc3890b", "size_mb": 102.20, "mtime": "2026-05-15T22:29:37Z"},
+  "backend": {"path": "/home/koopark/claude/SignalForge/apptainer/sif/backend.sif", "sha256": "008bb98629a8eb8541a93170de51792108783622edc9e6e82d4c2a8853a645e2", "size_mb": 144.99, "mtime": "2026-06-07T23:10:26Z"},
+  "crawler": {"path": "/home/koopark/claude/SignalForge/apptainer/sif/crawler.sif", "sha256": "7ea59f2fc33510a6774a59533c20d4650d8c27a1cb4247c3aa8925d8aa4d3cbf", "size_mb": 432.89, "mtime": "2026-06-07T23:25:16Z"},
+  "mcp": {"path": "/home/koopark/claude/SignalForge/apptainer/sif/mcp.sif", "sha256": "a772deab4b2b3b59885809e757bc3c2ad8f12fd5a2a23e06a9e3527c8546d209", "size_mb": 136.87, "mtime": "2026-06-07T23:11:40Z"}
+}

@@ -1,0 +1,721 @@
+{
+  "generated_at": "2026-06-06T23:50:00+00:00",
+  "thresholds": {
+    "warning_ratio": 0.1,
+    "cooldown_sec": 3600
+  },
+  "active_sites": 69,
+  "stats": [
+    {
+      "code": "9to5google",
+      "n_24h": 1,
+      "baseline_24h_avg": 5.0,
+      "last_collected": "2026-06-06T10:53:18.266473+00:00",
+      "hours_since": 12.94
+    },
+    {
+      "code": "androidcentral",
+      "n_24h": 12,
+      "baseline_24h_avg": 36.286,
+      "last_collected": "2026-06-06T17:28:38.037500+00:00",
+      "hours_since": 6.36
+    },
+    {
+      "code": "androidpolice",
+      "n_24h": 5,
+      "baseline_24h_avg": 13.143,
+      "last_collected": "2026-06-06T22:34:16.345101+00:00",
+      "hours_since": 1.26
+    },
+    {
+      "code": "arageek",
+      "n_24h": 0,
+      "baseline_24h_avg": 16.857,
+      "last_collected": "2026-06-01T13:13:43.768154+00:00",
+      "hours_since": 130.6
+    },
+    {
+      "code": "ausdroid",
+      "n_24h": 0,
+      "baseline_24h_avg": 14.429,
+      "last_collected": "2026-05-31T02:55:39.652581+00:00",
+      "hours_since": 164.91
+    },
+    {
+      "code": "bobaedream",
+      "n_24h": 5,
+      "baseline_24h_avg": 6.429,
+      "last_collected": "2026-06-06T12:03:32.620466+00:00",
+      "hours_since": 11.77
+    },
+    {
+      "code": "clien",
+      "n_24h": 5,
+      "baseline_24h_avg": 86.857,
+      "last_collected": "2026-06-06T13:06:44.407336+00:00",
+      "hours_since": 10.72
+    },
+    {
+      "code": "computerbase",
+      "n_24h": 98,
+      "baseline_24h_avg": 223.0,
+      "last_collected": "2026-06-06T01:02:15.031397+00:00",
+      "hours_since": 22.8
+    },
+    {
+      "code": "danawa",
+      "n_24h": 2,
+      "baseline_24h_avg": 25.571,
+      "last_collected": "2026-06-06T11:21:33.492153+00:00",
+      "hours_since": 12.47
+    },
+    {
+      "code": "dcinside",
+      "n_24h": 2263,
+      "baseline_24h_avg": 1428.429,
+      "last_collected": "2026-06-06T23:06:45.711467+00:00",
+      "hours_since": 0.72
+    },
+    {
+      "code": "dogdrip",
+      "n_24h": 122,
+      "baseline_24h_avg": 768.143,
+      "last_collected": "2026-06-06T23:31:36.855259+00:00",
+      "hours_since": 0.31
+    },
+    {
+      "code": "donanimhaber",
+      "n_24h": 30,
+      "baseline_24h_avg": 43.429,
+      "last_collected": "2026-06-06T21:20:05.960001+00:00",
+      "hours_since": 2.5
+    },
+    {
+      "code": "dpreview",
+      "n_24h": 0,
+      "baseline_24h_avg": 5.429,
+      "last_collected": "2026-06-03T22:55:11.998684+00:00",
+      "hours_since": 72.91
+    },
+    {
+      "code": "engadget",
+      "n_24h": 0,
+      "baseline_24h_avg": 25.0,
+      "last_collected": "2026-06-05T21:51:48.642061+00:00",
+      "hours_since": 25.97
+    },
+    {
+      "code": "fmkorea",
+      "n_24h": 4,
+      "baseline_24h_avg": 28.571,
+      "last_collected": "2026-06-06T06:07:42.358717+00:00",
+      "hours_since": 17.7
+    },
+    {
+      "code": "frandroid",
+      "n_24h": 4,
+      "baseline_24h_avg": 24.0,
+      "last_collected": "2026-06-06T18:11:32.646706+00:00",
+      "hours_since": 5.64
+    },
+    {
+      "code": "gadgets360",
+      "n_24h": 1,
+      "baseline_24h_avg": 39.857,
+      "last_collected": "2026-06-06T03:00:14.912669+00:00",
+      "hours_since": 20.83
+    },
+    {
+      "code": "gigazine",
+      "n_24h": 2,
+      "baseline_24h_avg": 1.143,
+      "last_collected": "2026-06-06T01:01:08.566180+00:00",
+      "hours_since": 22.81
+    },
+    {
+      "code": "gizmodo_au",
+      "n_24h": 0,
+      "baseline_24h_avg": 8.429,
+      "last_collected": "2026-05-31T02:57:12.063610+00:00",
+      "hours_since": 164.88
+    },
+    {
+      "code": "gizmodo_jp",
+      "n_24h": 0,
+      "baseline_24h_avg": 16.143,
+      "last_collected": "2026-06-05T10:39:05.619903+00:00",
+      "hours_since": 37.18
+    },
+    {
+      "code": "gsmarena",
+      "n_24h": 0,
+      "baseline_24h_avg": 12.714,
+      "last_collected": "2026-06-05T10:55:52.243936+00:00",
+      "hours_since": 36.9
+    },
+    {
+      "code": "gsmarena_forum",
+      "n_24h": 236,
+      "baseline_24h_avg": 0.0,
+      "last_collected": "2026-06-06T12:51:09.503481+00:00",
+      "hours_since": 10.98
+    },
+    {
+      "code": "gsmchoice",
+      "n_24h": 121,
+      "baseline_24h_avg": 21.429,
+      "last_collected": "2026-06-06T21:12:11.257545+00:00",
+      "hours_since": 2.63
+    },
+    {
+      "code": "hackernews",
+      "n_24h": 513,
+      "baseline_24h_avg": 4909.0,
+      "last_collected": "2026-06-06T23:08:53.085369+00:00",
+      "hours_since": 0.69
+    },
+    {
+      "code": "hardware_fr",
+      "n_24h": 375,
+      "baseline_24h_avg": 0.0,
+      "last_collected": "2026-06-06T13:05:54.286546+00:00",
+      "hours_since": 10.73
+    },
+    {
+      "code": "hipertextual",
+      "n_24h": 84,
+      "baseline_24h_avg": 21.429,
+      "last_collected": "2026-06-06T17:15:40.215677+00:00",
+      "hours_since": 6.57
+    },
+    {
+      "code": "hwupgrade",
+      "n_24h": 1,
+      "baseline_24h_avg": 17.429,
+      "last_collected": "2026-06-06T13:14:13.896565+00:00",
+      "hours_since": 10.6
+    },
+    {
+      "code": "ifixit",
+      "n_24h": 83,
+      "baseline_24h_avg": 0.0,
+      "last_collected": "2026-06-06T08:09:32.236805+00:00",
+      "hours_since": 15.67
+    },
+    {
+      "code": "inside_handy",
+      "n_24h": 5,
+      "baseline_24h_avg": 4.571,
+      "last_collected": "2026-06-06T01:06:57.107992+00:00",
+      "hours_since": 22.72
+    },
+    {
+      "code": "instiz",
+      "n_24h": 2981,
+      "baseline_24h_avg": 2311.0,
+      "last_collected": "2026-06-06T23:19:39.243364+00:00",
+      "hours_since": 0.51
+    },
+    {
+      "code": "ithome",
+      "n_24h": 13,
+      "baseline_24h_avg": 0.714,
+      "last_collected": "2026-06-06T19:04:43.155033+00:00",
+      "hours_since": 4.75
+    },
+    {
+      "code": "kompas",
+      "n_24h": 2,
+      "baseline_24h_avg": 22.0,
+      "last_collected": "2026-06-06T13:00:30.866480+00:00",
+      "hours_since": 10.82
+    },
+    {
+      "code": "lemmy",
+      "n_24h": 6,
+      "baseline_24h_avg": 8.143,
+      "last_collected": "2026-06-06T21:53:42.182469+00:00",
+      "hours_since": 1.94
+    },
+    {
+      "code": "lowyat",
+      "n_24h": 3,
+      "baseline_24h_avg": 336.0,
+      "last_collected": "2026-06-06T17:08:03.984595+00:00",
+      "hours_since": 6.7
+    },
+    {
+      "code": "macrumors",
+      "n_24h": 1,
+      "baseline_24h_avg": 5.0,
+      "last_collected": "2026-06-06T15:03:45.077888+00:00",
+      "hours_since": 8.77
+    },
+    {
+      "code": "mlbpark",
+      "n_24h": 52,
+      "baseline_24h_avg": 119.286,
+      "last_collected": "2026-06-06T15:11:28.523991+00:00",
+      "hours_since": 8.64
+    },
+    {
+      "code": "mobil_se",
+      "n_24h": 1,
+      "baseline_24h_avg": 10.714,
+      "last_collected": "2026-06-06T13:53:20.105537+00:00",
+      "hours_since": 9.94
+    },
+    {
+      "code": "mobile_review",
+      "n_24h": 13,
+      "baseline_24h_avg": 21.429,
+      "last_collected": "2026-06-06T01:05:58.024646+00:00",
+      "hours_since": 22.73
+    },
+    {
+      "code": "mobilesyrup",
+      "n_24h": 0,
+      "baseline_24h_avg": 3.714,
+      "last_collected": "2026-06-05T21:14:36.587820+00:00",
+      "hours_since": 26.59
+    },
+    {
+      "code": "mybroadband",
+      "n_24h": 0,
+      "baseline_24h_avg": 21.429,
+      "last_collected": "2026-06-01T19:36:07.878220+00:00",
+      "hours_since": 124.23
+    },
+    {
+      "code": "mysmartprice",
+      "n_24h": 71,
+      "baseline_24h_avg": 18.571,
+      "last_collected": "2026-06-06T17:16:17.919411+00:00",
+      "hours_since": 6.56
+    },
+    {
+      "code": "notebookcheck",
+      "n_24h": 169,
+      "baseline_24h_avg": 0.0,
+      "last_collected": "2026-06-06T21:14:48.674752+00:00",
+      "hours_since": 2.59
+    },
+    {
+      "code": "phonearena",
+      "n_24h": 5,
+      "baseline_24h_avg": 10.571,
+      "last_collected": "2026-06-06T21:18:38.740552+00:00",
+      "hours_since": 2.52
+    },
+    {
+      "code": "ppomppu",
+      "n_24h": 772,
+      "baseline_24h_avg": 308.0,
+      "last_collected": "2026-06-06T23:01:33.246976+00:00",
+      "hours_since": 0.81
+    },
+    {
+      "code": "quasarzone",
+      "n_24h": 18,
+      "baseline_24h_avg": 133.857,
+      "last_collected": "2026-06-06T19:14:23.323037+00:00",
+      "hours_since": 4.59
+    },
+    {
+      "code": "reddit_rss",
+      "n_24h": 221,
+      "baseline_24h_avg": 35.857,
+      "last_collected": "2026-06-06T01:55:08.260239+00:00",
+      "hours_since": 21.91
+    },
+    {
+      "code": "resetera",
+      "n_24h": 10,
+      "baseline_24h_avg": 0.0,
+      "last_collected": "2026-06-06T08:05:51.186175+00:00",
+      "hours_since": 15.74
+    },
+    {
+      "code": "ruliweb",
+      "n_24h": 0,
+      "baseline_24h_avg": 0.857,
+      "last_collected": "2026-06-05T05:11:03.370156+00:00",
+      "hours_since": 42.65
+    },
+    {
+      "code": "sammobile",
+      "n_24h": 45,
+      "baseline_24h_avg": 17.143,
+      "last_collected": "2026-06-06T00:58:32.847898+00:00",
+      "hours_since": 22.86
+    },
+    {
+      "code": "sammyfans",
+      "n_24h": 91,
+      "baseline_24h_avg": 16.857,
+      "last_collected": "2026-06-06T21:14:21.145493+00:00",
+      "hours_since": 2.59
+    },
+    {
+      "code": "samsung_community",
+      "n_24h": 0,
+      "baseline_24h_avg": 10.714,
+      "last_collected": "2026-06-01T13:52:47.700277+00:00",
+      "hours_since": 129.95
+    },
+    {
+      "code": "sanook",
+      "n_24h": 2,
+      "baseline_24h_avg": 3.714,
+      "last_collected": "2026-06-06T13:51:49.927539+00:00",
+      "hours_since": 9.97
+    },
+    {
+      "code": "shiftdelete",
+      "n_24h": 7,
+      "baseline_24h_avg": 32.0,
+      "last_collected": "2026-06-06T22:14:29.396897+00:00",
+      "hours_since": 1.59
+    },
+    {
+      "code": "slrclub",
+      "n_24h": 86,
+      "baseline_24h_avg": 77.571,
+      "last_collected": "2026-06-06T23:18:41.978554+00:00",
+      "hours_since": 0.52
+    },
+    {
+      "code": "stackexchange",
+      "n_24h": 0,
+      "baseline_24h_avg": 13.143,
+      "last_collected": "2026-06-01T13:53:15.695230+00:00",
+      "hours_since": 129.95
+    },
+    {
+      "code": "sweclockers",
+      "n_24h": 4,
+      "baseline_24h_avg": 3.143,
+      "last_collected": "2026-06-06T19:49:13.359279+00:00",
+      "hours_since": 4.01
+    },
+    {
+      "code": "techcabal",
+      "n_24h": 0,
+      "baseline_24h_avg": 21.429,
+      "last_collected": "2026-06-01T19:49:55.201250+00:00",
+      "hours_since": 124.0
+    },
+    {
+      "code": "techinafrica",
+      "n_24h": 0,
+      "baseline_24h_avg": 12.0,
+      "last_collected": "2026-06-01T19:58:23.315765+00:00",
+      "hours_since": 123.86
+    },
+    {
+      "code": "tecnoblog",
+      "n_24h": 2,
+      "baseline_24h_avg": 29.429,
+      "last_collected": "2026-06-06T00:54:16.524419+00:00",
+      "hours_since": 22.93
+    },
+    {
+      "code": "telepolis",
+      "n_24h": 8,
+      "baseline_24h_avg": 25.857,
+      "last_collected": "2026-06-06T19:38:07.461926+00:00",
+      "hours_since": 4.2
+    },
+    {
+      "code": "theqoo",
+      "n_24h": 1,
+      "baseline_24h_avg": 23.0,
+      "last_collected": "2026-06-06T00:05:07.746241+00:00",
+      "hours_since": 23.75
+    },
+    {
+      "code": "theverge",
+      "n_24h": 3,
+      "baseline_24h_avg": 36.857,
+      "last_collected": "2026-06-06T15:04:25.493784+00:00",
+      "hours_since": 8.76
+    },
+    {
+      "code": "tinhte",
+      "n_24h": 1,
+      "baseline_24h_avg": 27.857,
+      "last_collected": "2026-06-06T00:55:14.125071+00:00",
+      "hours_since": 22.91
+    },
+    {
+      "code": "tomsguide",
+      "n_24h": 0,
+      "baseline_24h_avg": 22.429,
+      "last_collected": "2026-06-05T10:33:03.452095+00:00",
+      "hours_since": 37.28
+    },
+    {
+      "code": "tudocelular",
+      "n_24h": 7,
+      "baseline_24h_avg": 17.571,
+      "last_collected": "2026-06-06T12:53:52.365215+00:00",
+      "hours_since": 10.94
+    },
+    {
+      "code": "tweakers",
+      "n_24h": 0,
+      "baseline_24h_avg": 2.143,
+      "last_collected": "2026-06-05T13:34:34.071775+00:00",
+      "hours_since": 34.26
+    },
+    {
+      "code": "xataka",
+      "n_24h": 18,
+      "baseline_24h_avg": 47.429,
+      "last_collected": "2026-06-06T21:05:24.571756+00:00",
+      "hours_since": 2.74
+    },
+    {
+      "code": "xataka_mx",
+      "n_24h": 8,
+      "baseline_24h_avg": 16.714,
+      "last_collected": "2026-06-06T22:56:53.433057+00:00",
+      "hours_since": 0.89
+    },
+    {
+      "code": "zdnet_kr",
+      "n_24h": 4,
+      "baseline_24h_avg": 0.0,
+      "last_collected": "2026-06-06T01:04:41.971471+00:00",
+      "hours_since": 22.76
+    }
+  ],
+  "violations": [
+    {
+      "code": "arageek",
+      "metric": "collection.arageek",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 16.857,
+      "reason": "arageek: 24h 수집 0건 (직전 7일 일평균 16.9건) — 마지막 수집 130.6h 전"
+    },
+    {
+      "code": "ausdroid",
+      "metric": "collection.ausdroid",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 14.429,
+      "reason": "ausdroid: 24h 수집 0건 (직전 7일 일평균 14.4건) — 마지막 수집 164.91h 전"
+    },
+    {
+      "code": "clien",
+      "metric": "collection.clien",
+      "severity": "warning",
+      "value": 5.0,
+      "threshold": 8.686,
+      "reason": "clien: 24h 5건 (직전 7일 일평균 86.9건) — 평소의 5.8%"
+    },
+    {
+      "code": "danawa",
+      "metric": "collection.danawa",
+      "severity": "warning",
+      "value": 2.0,
+      "threshold": 2.557,
+      "reason": "danawa: 24h 2건 (직전 7일 일평균 25.6건) — 평소의 7.8%"
+    },
+    {
+      "code": "dpreview",
+      "metric": "collection.dpreview",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 5.429,
+      "reason": "dpreview: 24h 수집 0건 (직전 7일 일평균 5.4건) — 마지막 수집 72.91h 전"
+    },
+    {
+      "code": "engadget",
+      "metric": "collection.engadget",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 25.0,
+      "reason": "engadget: 24h 수집 0건 (직전 7일 일평균 25.0건) — 마지막 수집 25.97h 전"
+    },
+    {
+      "code": "gadgets360",
+      "metric": "collection.gadgets360",
+      "severity": "warning",
+      "value": 1.0,
+      "threshold": 3.986,
+      "reason": "gadgets360: 24h 1건 (직전 7일 일평균 39.9건) — 평소의 2.5%"
+    },
+    {
+      "code": "gizmodo_au",
+      "metric": "collection.gizmodo_au",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 8.429,
+      "reason": "gizmodo_au: 24h 수집 0건 (직전 7일 일평균 8.4건) — 마지막 수집 164.88h 전"
+    },
+    {
+      "code": "gizmodo_jp",
+      "metric": "collection.gizmodo_jp",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 16.143,
+      "reason": "gizmodo_jp: 24h 수집 0건 (직전 7일 일평균 16.1건) — 마지막 수집 37.18h 전"
+    },
+    {
+      "code": "gsmarena",
+      "metric": "collection.gsmarena",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 12.714,
+      "reason": "gsmarena: 24h 수집 0건 (직전 7일 일평균 12.7건) — 마지막 수집 36.9h 전"
+    },
+    {
+      "code": "hwupgrade",
+      "metric": "collection.hwupgrade",
+      "severity": "warning",
+      "value": 1.0,
+      "threshold": 1.743,
+      "reason": "hwupgrade: 24h 1건 (직전 7일 일평균 17.4건) — 평소의 5.7%"
+    },
+    {
+      "code": "kompas",
+      "metric": "collection.kompas",
+      "severity": "warning",
+      "value": 2.0,
+      "threshold": 2.2,
+      "reason": "kompas: 24h 2건 (직전 7일 일평균 22.0건) — 평소의 9.1%"
+    },
+    {
+      "code": "lowyat",
+      "metric": "collection.lowyat",
+      "severity": "warning",
+      "value": 3.0,
+      "threshold": 33.6,
+      "reason": "lowyat: 24h 3건 (직전 7일 일평균 336.0건) — 평소의 0.9%"
+    },
+    {
+      "code": "mobil_se",
+      "metric": "collection.mobil_se",
+      "severity": "warning",
+      "value": 1.0,
+      "threshold": 1.071,
+      "reason": "mobil_se: 24h 1건 (직전 7일 일평균 10.7건) — 평소의 9.3%"
+    },
+    {
+      "code": "mobilesyrup",
+      "metric": "collection.mobilesyrup",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 3.714,
+      "reason": "mobilesyrup: 24h 수집 0건 (직전 7일 일평균 3.7건) — 마지막 수집 26.59h 전"
+    },
+    {
+      "code": "mybroadband",
+      "metric": "collection.mybroadband",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 21.429,
+      "reason": "mybroadband: 24h 수집 0건 (직전 7일 일평균 21.4건) — 마지막 수집 124.23h 전"
+    },
+    {
+      "code": "ruliweb",
+      "metric": "collection.ruliweb",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 0.857,
+      "reason": "ruliweb: 24h 수집 0건 (직전 7일 일평균 0.9건) — 마지막 수집 42.65h 전"
+    },
+    {
+      "code": "samsung_community",
+      "metric": "collection.samsung_community",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 10.714,
+      "reason": "samsung_community: 24h 수집 0건 (직전 7일 일평균 10.7건) — 마지막 수집 129.95h 전"
+    },
+    {
+      "code": "stackexchange",
+      "metric": "collection.stackexchange",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 13.143,
+      "reason": "stackexchange: 24h 수집 0건 (직전 7일 일평균 13.1건) — 마지막 수집 129.95h 전"
+    },
+    {
+      "code": "techcabal",
+      "metric": "collection.techcabal",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 21.429,
+      "reason": "techcabal: 24h 수집 0건 (직전 7일 일평균 21.4건) — 마지막 수집 124.0h 전"
+    },
+    {
+      "code": "techinafrica",
+      "metric": "collection.techinafrica",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 12.0,
+      "reason": "techinafrica: 24h 수집 0건 (직전 7일 일평균 12.0건) — 마지막 수집 123.86h 전"
+    },
+    {
+      "code": "tecnoblog",
+      "metric": "collection.tecnoblog",
+      "severity": "warning",
+      "value": 2.0,
+      "threshold": 2.943,
+      "reason": "tecnoblog: 24h 2건 (직전 7일 일평균 29.4건) — 평소의 6.8%"
+    },
+    {
+      "code": "theqoo",
+      "metric": "collection.theqoo",
+      "severity": "warning",
+      "value": 1.0,
+      "threshold": 2.3,
+      "reason": "theqoo: 24h 1건 (직전 7일 일평균 23.0건) — 평소의 4.3%"
+    },
+    {
+      "code": "theverge",
+      "metric": "collection.theverge",
+      "severity": "warning",
+      "value": 3.0,
+      "threshold": 3.686,
+      "reason": "theverge: 24h 3건 (직전 7일 일평균 36.9건) — 평소의 8.1%"
+    },
+    {
+      "code": "tinhte",
+      "metric": "collection.tinhte",
+      "severity": "warning",
+      "value": 1.0,
+      "threshold": 2.786,
+      "reason": "tinhte: 24h 1건 (직전 7일 일평균 27.9건) — 평소의 3.6%"
+    },
+    {
+      "code": "tomsguide",
+      "metric": "collection.tomsguide",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 22.429,
+      "reason": "tomsguide: 24h 수집 0건 (직전 7일 일평균 22.4건) — 마지막 수집 37.28h 전"
+    },
+    {
+      "code": "tweakers",
+      "metric": "collection.tweakers",
+      "severity": "critical",
+      "value": 0.0,
+      "threshold": 2.143,
+      "reason": "tweakers: 24h 수집 0건 (직전 7일 일평균 2.1건) — 마지막 수집 34.26h 전"
+    }
+  ],
+  "status": "critical",
+  "violation_counts": {
+    "critical": 16,
+    "warning": 11
+  },
+  "alert_events": {
+    "inserted": 25,
+    "skipped_cooldown": 2,
+    "rule_missing": 0
+  }
+}

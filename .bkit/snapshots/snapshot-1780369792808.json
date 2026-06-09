@@ -1,0 +1,3727 @@
+{
+  "timestamp": "2026-06-02T03:09:52.808Z",
+  "reason": "compaction",
+  "status": {
+    "version": "2.0",
+    "lastUpdated": "2026-06-02T03:07:58.716Z",
+    "activeFeatures": [
+      "base",
+      "platforms",
+      "crawler",
+      "seeds",
+      "analytics_service.py",
+      "nlp",
+      "tmp",
+      "scripts",
+      "tests",
+      "schemas",
+      "reports",
+      "alerts",
+      "insight",
+      "exports",
+      "api",
+      "tools",
+      "mcp-server",
+      "monitoring",
+      "frontend",
+      "versions",
+      "api.ts",
+      "qa",
+      "stores",
+      "dashboard_service.py",
+      "backend",
+      "layout",
+      "keywords",
+      "kgApi.ts",
+      "temporal",
+      "kg",
+      "kg_service.py",
+      "temporal_service.py",
+      "geoApi.ts",
+      "geo",
+      "communityApi.ts",
+      "community",
+      "geo_service.py",
+      "community_service.py",
+      "core",
+      "insights_service.py",
+      "insightsApi.ts",
+      "insights"
+    ],
+    "primaryFeature": "base",
+    "features": {
+      "base": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-05-16T01:38:09.264Z",
+          "lastUpdated": "2026-05-29T04:02:45.539Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/crawler/base/product_match.py"
+      },
+      "platforms": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-05-16T03:16:03.287Z",
+          "lastUpdated": "2026-06-01T20:27:16.741Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/crawler/platforms/mysmartprice.py"
+      },
+      "crawler": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-05-16T04:03:29.490Z",
+          "lastUpdated": "2026-06-02T00:50:57.258Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/crawler/tasks.py"
+      },
+      "seeds": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-05-16T04:03:46.008Z",
+          "lastUpdated": "2026-05-31T10:18:46.850Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/seeds/seed_master.py"
+      },
+      "analytics_service.py": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-05-17T13:54:45.330Z",
+          "lastUpdated": "2026-06-02T03:02:32.516Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/services/analytics_service.py"
+      },
+      "nlp": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-05-17T15:24:13.161Z",
+          "lastUpdated": "2026-05-29T01:27:03.781Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/crawler/nlp/translator.py"
+      },
+      "tmp": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-05-28T13:50:43.851Z",
+          "lastUpdated": "2026-06-01T19:52:22.550Z"
+        },
+        "lastFile": "/tmp/test_techinafrica.py"
+      },
+      "scripts": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-05-29T08:55:05.259Z",
+          "lastUpdated": "2026-05-29T08:55:05.259Z"
+        },
+        "lastFile": "/home/koopark/.claude/projects/-home-koopark-claude-SignalForge/b8f38cb3-7db9-49e1-b159-23be57148e1f/workflows/scripts/signalforge-new-crawlers-wf_52608c58-9cd.js"
+      },
+      "tests": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T19:54:06.165Z",
+          "lastUpdated": "2026-06-02T03:05:31.722Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/tests/test_cache.py"
+      },
+      "schemas": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:32:29.597Z",
+          "lastUpdated": "2026-06-02T03:01:49.858Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/schemas/insights.py"
+      },
+      "reports": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:32:50.431Z",
+          "lastUpdated": "2026-06-01T20:34:33.042Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/crawler/reports/weekly.py"
+      },
+      "alerts": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:32:52.627Z",
+          "lastUpdated": "2026-06-01T20:36:43.917Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/crawler/alerts/rules.py"
+      },
+      "insight": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:32:52.654Z",
+          "lastUpdated": "2026-06-02T03:03:48.970Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/crawler/insight/daily_insight.py"
+      },
+      "exports": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:33:00.142Z",
+          "lastUpdated": "2026-06-01T20:34:04.254Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/crawler/exports/products_csv.py"
+      },
+      "api": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:33:18.564Z",
+          "lastUpdated": "2026-06-02T03:03:38.895Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/api/insights.py"
+      },
+      "tools": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:33:40.225Z",
+          "lastUpdated": "2026-06-01T20:33:40.225Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/mcp-server/tools/insights.py"
+      },
+      "mcp-server": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:33:47.955Z",
+          "lastUpdated": "2026-06-01T20:34:06.360Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/mcp-server/server.py"
+      },
+      "monitoring": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:33:49.719Z",
+          "lastUpdated": "2026-06-01T20:35:50.127Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/crawler/monitoring/health_check.py"
+      },
+      "frontend": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:51:08.159Z",
+          "lastUpdated": "2026-06-02T03:07:52.008Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/App.tsx"
+      },
+      "versions": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:51:37.635Z",
+          "lastUpdated": "2026-06-02T00:49:32.269Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/alembic/versions/0004_p3_objects.py"
+      },
+      "api.ts": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:51:53.508Z",
+          "lastUpdated": "2026-06-01T20:51:53.508Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/services/api.ts"
+      },
+      "qa": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:52:03.381Z",
+          "lastUpdated": "2026-06-02T03:07:26.072Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/tests/qa/perf_check.py"
+      },
+      "stores": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:52:07.525Z",
+          "lastUpdated": "2026-06-01T20:52:07.525Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/stores/useFilterStore.ts"
+      },
+      "dashboard_service.py": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:52:20.958Z",
+          "lastUpdated": "2026-06-01T20:52:20.958Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/services/dashboard_service.py"
+      },
+      "backend": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:52:34.555Z",
+          "lastUpdated": "2026-06-02T03:03:47.690Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/main.py"
+      },
+      "layout": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T20:52:36.709Z",
+          "lastUpdated": "2026-06-02T03:07:58.716Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/components/layout/AppLayout.tsx"
+      },
+      "keywords": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T21:47:22.467Z",
+          "lastUpdated": "2026-06-01T21:48:31.352Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/crawler/keywords/ingest.py"
+      },
+      "kgApi.ts": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T21:51:56.744Z",
+          "lastUpdated": "2026-06-01T21:51:56.744Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/services/kgApi.ts"
+      },
+      "temporal": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T21:52:01.935Z",
+          "lastUpdated": "2026-06-01T21:54:11.471Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/components/temporal/TemporalChart.test.ts"
+      },
+      "kg": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T21:52:19.864Z",
+          "lastUpdated": "2026-06-01T21:55:21.975Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/components/kg/cytoStyles.ts"
+      },
+      "kg_service.py": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T21:52:31.253Z",
+          "lastUpdated": "2026-06-01T21:53:22.016Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/services/kg_service.py"
+      },
+      "temporal_service.py": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-01T21:53:07.286Z",
+          "lastUpdated": "2026-06-02T03:03:18.648Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/services/temporal_service.py"
+      },
+      "geoApi.ts": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-02T00:49:55.881Z",
+          "lastUpdated": "2026-06-02T00:49:55.881Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/services/geoApi.ts"
+      },
+      "geo": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-02T00:50:21.585Z",
+          "lastUpdated": "2026-06-02T00:53:18.880Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/components/geo/colorScale.test.ts"
+      },
+      "communityApi.ts": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-02T00:57:29.676Z",
+          "lastUpdated": "2026-06-02T00:57:29.676Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/services/communityApi.ts"
+      },
+      "community": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-02T00:57:52.375Z",
+          "lastUpdated": "2026-06-02T01:00:29.933Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/components/community/community.test.ts"
+      },
+      "geo_service.py": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-02T00:58:15.239Z",
+          "lastUpdated": "2026-06-02T03:03:10.300Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/services/geo_service.py"
+      },
+      "community_service.py": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-02T00:59:10.393Z",
+          "lastUpdated": "2026-06-02T03:03:00.680Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/services/community_service.py"
+      },
+      "core": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-02T03:01:45.788Z",
+          "lastUpdated": "2026-06-02T03:01:45.788Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/core/cache.py"
+      },
+      "insights_service.py": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-02T03:03:17.289Z",
+          "lastUpdated": "2026-06-02T03:04:28.249Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/backend/app/services/insights_service.py"
+      },
+      "insightsApi.ts": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-02T03:05:40.160Z",
+          "lastUpdated": "2026-06-02T03:05:40.160Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/services/insightsApi.ts"
+      },
+      "insights": {
+        "phase": "do",
+        "phaseNumber": 3,
+        "matchRate": null,
+        "iterationCount": 0,
+        "requirements": [],
+        "documents": {},
+        "timestamps": {
+          "started": "2026-06-02T03:06:02.273Z",
+          "lastUpdated": "2026-06-02T03:07:18.925Z"
+        },
+        "lastFile": "/home/koopark/claude/SignalForge/frontend/src/components/insights/InfluenceCard.tsx"
+      }
+    },
+    "pipeline": {
+      "currentPhase": 1,
+      "level": "Dynamic",
+      "phaseHistory": []
+    },
+    "session": {
+      "startedAt": "2026-05-14T20:16:17.831Z",
+      "onboardingCompleted": false,
+      "lastActivity": "2026-06-02T03:07:58.716Z"
+    },
+    "history": [
+      {
+        "timestamp": "2026-05-16T01:38:09.264Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-16T01:38:29.437Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-16T01:38:37.470Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-16T01:43:44.622Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-16T01:43:51.736Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-16T03:16:03.287Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-16T03:16:08.549Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-16T04:03:20.213Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-16T04:03:29.490Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-16T04:03:46.008Z",
+        "feature": "seeds",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T03:13:38.230Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T03:13:43.630Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T03:14:09.334Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T03:14:14.275Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T03:14:29.909Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T03:15:23.379Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T03:15:49.085Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T03:40:37.081Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T03:40:41.401Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T03:40:47.411Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T03:40:55.443Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T06:23:46.985Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T06:23:51.675Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T06:23:56.823Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T06:24:01.574Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T06:24:08.012Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T06:24:12.541Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T06:24:44.921Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T07:07:38.512Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T13:54:45.330Z",
+        "feature": "analytics_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T15:24:13.161Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T15:24:46.637Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T21:08:26.978Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T21:08:38.321Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T21:08:53.253Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T21:08:58.948Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T21:09:35.966Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T21:09:55.142Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T21:10:14.391Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T21:50:48.201Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-17T21:50:54.272Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-22T05:59:40.602Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-22T06:03:42.614Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-22T06:03:54.237Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T14:17:50.979Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T14:29:39.575Z",
+        "feature": "seeds",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T14:29:46.456Z",
+        "feature": "seeds",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T14:30:26.309Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T14:30:33.172Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T14:30:40.353Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T14:31:53.744Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T15:04:23.473Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T22:12:51.248Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T22:13:00.570Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T22:28:19.926Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T22:28:34.472Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T23:43:18.360Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T23:43:23.141Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T23:52:08.624Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-27T23:52:18.056Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T04:34:11.246Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T05:55:10.332Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T05:55:22.155Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T08:09:52.114Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T08:10:29.072Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T09:54:39.051Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T11:02:37.674Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T11:02:52.156Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T13:49:34.299Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T13:49:46.569Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T13:50:43.852Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T13:50:54.582Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T13:51:18.495Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T13:51:35.549Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T13:52:09.618Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T13:52:19.544Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T13:52:35.198Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T13:52:52.050Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:00:16.153Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:06:40.575Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:06:53.403Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:07:12.387Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:07:23.639Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:07:32.678Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:07:37.921Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:10:51.925Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:11:08.451Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:11:17.346Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:11:23.166Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-28T14:14:38.164Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T01:27:03.781Z",
+        "feature": "nlp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T02:53:03.996Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T02:53:35.524Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T03:11:02.656Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T03:14:09.412Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T04:00:00.029Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T04:00:17.233Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T04:00:38.088Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T04:02:45.539Z",
+        "feature": "base",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:05.280Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:05.516Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:06.245Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:07.806Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:08.722Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:09.623Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:11.141Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:12.283Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:12.659Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:13.618Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:14.651Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:17.169Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:17.739Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:19.660Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:20.365Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:22.003Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:22.083Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:24.009Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:24.063Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:24.894Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:26.334Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:03:31.230Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:48:49.252Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:48:55.930Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:49:03.645Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:49:08.949Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:49:16.898Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T06:49:30.984Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T08:55:05.259Z",
+        "feature": "scripts",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T09:34:04.165Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T09:35:58.518Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T09:36:40.070Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T09:51:33.300Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T09:54:30.492Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T09:57:04.744Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T09:57:10.037Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T10:02:28.614Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T10:02:34.113Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T10:02:40.620Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T11:30:39.553Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T11:31:16.696Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T12:03:10.029Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T12:03:30.029Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T12:03:44.053Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T12:03:52.261Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T20:50:43.331Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T20:50:52.100Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T21:08:24.624Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T21:12:07.315Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T22:14:15.297Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T22:15:39.284Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T22:29:03.314Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T22:29:58.761Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T23:03:26.810Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T23:03:38.180Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-29T23:09:48.326Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-30T04:00:46.089Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-30T05:07:25.809Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-30T14:00:31.544Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-30T14:00:53.223Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-30T14:01:19.001Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-30T14:01:48.155Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-30T14:03:10.631Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-30T22:17:21.212Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-30T22:21:03.677Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-30T22:21:10.280Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T00:13:54.344Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T00:14:25.585Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T00:50:27.641Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T00:50:34.873Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T00:50:35.589Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T00:50:47.156Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T01:01:04.555Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T01:29:26.938Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T01:29:32.626Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T02:44:23.041Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T03:34:18.087Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T03:34:38.097Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T03:35:31.651Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T03:35:44.168Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T03:36:51.716Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T03:36:56.641Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T03:37:02.349Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T03:37:10.848Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T07:09:49.500Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T10:15:47.925Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T10:15:58.057Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T10:18:40.657Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T10:18:44.172Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T10:18:46.850Z",
+        "feature": "seeds",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T10:25:36.885Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T10:25:39.464Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-05-31T21:45:31.005Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:00:37.748Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:02:11.846Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:02:34.015Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:02:43.253Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:02:43.797Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:02:48.787Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:03:30.082Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:03:58.996Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:04:44.096Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:09:53.171Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:10:02.481Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:10:11.393Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:12:20.019Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:12:28.781Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:12:48.172Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T00:12:52.925Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T05:14:23.830Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T06:26:00.151Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T06:26:11.040Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T06:26:54.387Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T06:52:25.008Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T06:52:34.342Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:13:24.852Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:13:41.513Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:14:54.723Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:15:07.190Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:15:39.511Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:15:44.104Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:15:45.815Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:15:50.216Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:15:51.256Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:15:56.117Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:16:18.161Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:16:49.889Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:17:06.053Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:17:18.465Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:17:28.761Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:17:37.497Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:17:42.564Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:17:52.209Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:24:00.067Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:24:08.245Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:24:10.784Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:24:23.624Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:24:24.819Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:24:32.105Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:24:38.065Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:37:11.316Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:37:39.316Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:37:47.196Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:38:01.910Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:38:06.957Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:38:08.815Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:38:30.168Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:38:55.059Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:39:04.665Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:39:14.332Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:39:17.653Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:39:24.445Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:39:28.916Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:39:33.760Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:43:01.759Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:45:44.836Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:45:55.433Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:46:08.653Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:46:10.085Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:46:54.001Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:47:06.761Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:47:13.844Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:47:18.119Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:51:34.860Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:52:22.550Z",
+        "feature": "tmp",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:52:48.013Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:52:55.500Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:53:00.952Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:53:05.729Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:53:07.958Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:53:22.699Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:53:40.029Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:54:06.165Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:54:22.667Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:54:53.906Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:55:16.147Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:55:24.830Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:55:28.977Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:55:30.256Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:55:34.774Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:55:44.722Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T19:55:56.988Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:00:47.291Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:01:36.685Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:01:42.033Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:01:45.827Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:01:59.542Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:02:20.112Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:02:24.867Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:02:29.208Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:02:35.049Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:02:39.233Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:02:56.307Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:03:00.655Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:03:08.236Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:03:19.495Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:03:24.337Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:03:54.622Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:04:33.980Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:05:08.318Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:05:13.865Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:05:27.801Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:05:52.548Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:27:16.741Z",
+        "feature": "platforms",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:27:26.672Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:28:28.499Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:32:29.597Z",
+        "feature": "schemas",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:32:36.838Z",
+        "feature": "analytics_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:32:50.431Z",
+        "feature": "reports",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:32:52.627Z",
+        "feature": "alerts",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:32:52.654Z",
+        "feature": "insight",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:00.142Z",
+        "feature": "exports",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:11.141Z",
+        "feature": "analytics_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:15.483Z",
+        "feature": "alerts",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:18.564Z",
+        "feature": "api",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:29.860Z",
+        "feature": "insight",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:34.916Z",
+        "feature": "api",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:36.929Z",
+        "feature": "exports",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:40.225Z",
+        "feature": "tools",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:45.805Z",
+        "feature": "reports",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:47.955Z",
+        "feature": "mcp-server",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:49.719Z",
+        "feature": "monitoring",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:33:58.280Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:03.348Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:04.254Z",
+        "feature": "exports",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:06.360Z",
+        "feature": "mcp-server",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:08.022Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:12.499Z",
+        "feature": "alerts",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:29.347Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:33.042Z",
+        "feature": "reports",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:34.801Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:35.361Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:38.245Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:49.081Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:34:57.745Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:35:01.917Z",
+        "feature": "monitoring",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:35:02.562Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:35:07.478Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:35:08.669Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:35:15.370Z",
+        "feature": "insight",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:35:22.677Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:35:30.488Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:35:35.173Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:35:36.174Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:35:37.417Z",
+        "feature": "monitoring",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:35:50.127Z",
+        "feature": "monitoring",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:36:00.395Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:36:09.553Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:36:26.861Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:36:43.917Z",
+        "feature": "alerts",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:36:52.249Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:37:22.557Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:37:29.797Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:46:46.784Z",
+        "feature": "insight",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:47:26.421Z",
+        "feature": "insight",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:49:10.924Z",
+        "feature": "insight",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:51:08.159Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:51:36.676Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:51:37.635Z",
+        "feature": "versions",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:51:46.629Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:51:49.212Z",
+        "feature": "schemas",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:51:53.508Z",
+        "feature": "api.ts",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:00.013Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:03.381Z",
+        "feature": "qa",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:07.525Z",
+        "feature": "stores",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:20.958Z",
+        "feature": "dashboard_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:23.710Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:29.788Z",
+        "feature": "api",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:29.940Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:34.555Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:36.709Z",
+        "feature": "layout",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:38.561Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:39.320Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:51.418Z",
+        "feature": "layout",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:55.480Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:52:55.793Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:53:10.217Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:53:25.166Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:54:08.421Z",
+        "feature": "qa",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:54:15.013Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T20:54:41.611Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:16:07.412Z",
+        "feature": "insight",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:46:38.063Z",
+        "feature": "versions",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:46:59.956Z",
+        "feature": "versions",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:47:22.467Z",
+        "feature": "keywords",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:48:07.029Z",
+        "feature": "keywords",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:48:31.353Z",
+        "feature": "keywords",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:51:43.288Z",
+        "feature": "schemas",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:51:43.308Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:51:49.368Z",
+        "feature": "schemas",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:51:54.397Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:51:56.744Z",
+        "feature": "kgApi.ts",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:52:01.935Z",
+        "feature": "temporal",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:52:19.864Z",
+        "feature": "kg",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:52:22.492Z",
+        "feature": "temporal",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:52:31.253Z",
+        "feature": "kg_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:52:31.660Z",
+        "feature": "kg",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:52:41.940Z",
+        "feature": "api",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:52:43.358Z",
+        "feature": "kg",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:52:46.664Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:52:48.168Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:52:49.007Z",
+        "feature": "temporal",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:53:02.325Z",
+        "feature": "kg",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:53:07.286Z",
+        "feature": "temporal_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:53:12.042Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:53:17.326Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:53:22.016Z",
+        "feature": "kg_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:53:24.300Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:53:25.031Z",
+        "feature": "api",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:53:31.156Z",
+        "feature": "layout",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:53:38.502Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:53:39.803Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:53:47.049Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:54:05.697Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:54:05.836Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:54:11.471Z",
+        "feature": "temporal",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:54:14.405Z",
+        "feature": "layout",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:54:21.004Z",
+        "feature": "layout",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:54:34.897Z",
+        "feature": "temporal_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:54:44.600Z",
+        "feature": "kg",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:54:46.656Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:55:01.012Z",
+        "feature": "kg",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:55:08.194Z",
+        "feature": "kg",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:55:08.564Z",
+        "feature": "temporal_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:55:21.975Z",
+        "feature": "kg",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-01T21:55:27.249Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:48:56.912Z",
+        "feature": "versions",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:49:22.335Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:49:32.269Z",
+        "feature": "versions",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:49:55.881Z",
+        "feature": "geoApi.ts",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:50:12.064Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:50:19.238Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:50:21.585Z",
+        "feature": "geo",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:50:31.207Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:50:57.258Z",
+        "feature": "crawler",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:50:57.449Z",
+        "feature": "geo",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:51:16.627Z",
+        "feature": "geo",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:51:40.803Z",
+        "feature": "geo",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:52:05.493Z",
+        "feature": "geo",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:52:29.253Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:52:37.578Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:52:42.934Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:52:48.049Z",
+        "feature": "layout",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:52:55.441Z",
+        "feature": "layout",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:53:18.880Z",
+        "feature": "geo",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:56:52.993Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:57:08.768Z",
+        "feature": "schemas",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:57:16.312Z",
+        "feature": "schemas",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:57:29.676Z",
+        "feature": "communityApi.ts",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:57:52.375Z",
+        "feature": "community",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:58:14.344Z",
+        "feature": "community",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:58:15.239Z",
+        "feature": "geo_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:58:31.561Z",
+        "feature": "community",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:58:34.493Z",
+        "feature": "api",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:58:40.427Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:58:45.235Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:58:51.427Z",
+        "feature": "community",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:10.393Z",
+        "feature": "community_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:11.583Z",
+        "feature": "community",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:22.432Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:26.232Z",
+        "feature": "community",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:28.189Z",
+        "feature": "api",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:31.450Z",
+        "feature": "geo_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:36.704Z",
+        "feature": "geo_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:44.424Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:45.438Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:46.670Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:51.552Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T00:59:56.942Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T01:00:02.311Z",
+        "feature": "layout",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T01:00:07.780Z",
+        "feature": "layout",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T01:00:28.001Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T01:00:29.933Z",
+        "feature": "community",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:00:30.267Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:00:48.494Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:01:37.075Z",
+        "feature": "insight",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:01:45.788Z",
+        "feature": "core",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:01:49.858Z",
+        "feature": "schemas",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:01:58.872Z",
+        "feature": "analytics_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:02:10.821Z",
+        "feature": "analytics_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:02:13.763Z",
+        "feature": "insight",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:02:15.864Z",
+        "feature": "analytics_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:02:21.381Z",
+        "feature": "analytics_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:02:27.417Z",
+        "feature": "analytics_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:02:32.516Z",
+        "feature": "analytics_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:02:34.437Z",
+        "feature": "insight",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:02:37.734Z",
+        "feature": "community_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:02:43.081Z",
+        "feature": "community_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:02:48.142Z",
+        "feature": "community_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:02:55.447Z",
+        "feature": "community_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:03:00.680Z",
+        "feature": "community_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:03:05.713Z",
+        "feature": "geo_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:03:10.300Z",
+        "feature": "geo_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:03:17.289Z",
+        "feature": "insights_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:03:18.648Z",
+        "feature": "temporal_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:03:38.895Z",
+        "feature": "api",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:03:43.483Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:03:47.690Z",
+        "feature": "backend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:03:48.970Z",
+        "feature": "insight",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:04:12.245Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:04:28.249Z",
+        "feature": "insights_service.py",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:04:33.592Z",
+        "feature": "qa",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:04:41.704Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:05:10.809Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:05:28.277Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:05:31.722Z",
+        "feature": "tests",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:05:40.160Z",
+        "feature": "insightsApi.ts",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:05:52.409Z",
+        "feature": "qa",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:06:02.273Z",
+        "feature": "insights",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:06:14.132Z",
+        "feature": "insights",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:06:26.548Z",
+        "feature": "insights",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:06:36.978Z",
+        "feature": "insights",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:06:49.557Z",
+        "feature": "insights",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:07:05.708Z",
+        "feature": "insights",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:07:18.925Z",
+        "feature": "insights",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:07:26.072Z",
+        "feature": "qa",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:07:31.300Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:07:46.368Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:07:52.008Z",
+        "feature": "frontend",
+        "phase": "do",
+        "action": "updated"
+      },
+      {
+        "timestamp": "2026-06-02T03:07:58.716Z",
+        "feature": "layout",
+        "phase": "do",
+        "action": "updated"
+      }
+    ]
+  }
+}

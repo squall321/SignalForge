@@ -1,0 +1,28 @@
+{
+  "hours": 24,
+  "window_start": "2026-06-04T09:56:04+00:00",
+  "window_end": "2026-06-05T09:56:04+00:00",
+  "new_voc_count": 6790,
+  "length_dist": {
+    "n": 6790,
+    "avg": 192.2,
+    "p10": 9.0,
+    "p90": 375.2
+  },
+  "duplicate_rate": 0.0274,
+  "duplicate_count": 186,
+  "product_match_rate": 0.0729,
+  "sentiment_null_rate": 0.0,
+  "topic_classified_rate": 0.7817,
+  "active_platforms": 42,
+  "thresholds": {
+    "content_length_avg_min": 20.0,
+    "duplicate_rate_max": 0.05,
+    "product_match_rate_min": 0.05,
+    "sentiment_null_rate_max": 0.3,
+    "topic_classified_rate_min": 0.1,
+    "active_platforms_min": 10
+  },
+  "alerts": [],
+  "generated_at": "2026-06-05T09:56:04+00:00"
+}

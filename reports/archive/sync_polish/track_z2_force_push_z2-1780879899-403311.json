@@ -1,0 +1,45 @@
+{
+  "round": "sync_polish",
+  "track": "Z2",
+  "run_id": "z2-1780879899-403311",
+  "ts_start": "2026-06-08T00:51:39Z",
+  "ts_end": "2026-06-08T00:53:00Z",
+  "goal": "현 시점 즉시 정합 — Drive db-dumps + LATEST.json 을 현 DB(138,813)와 일치",
+  "actions": [
+    "bash scripts/sync-to-drive.sh --no-sif --no-env  → 새 dump 생성+업로드",
+    "SF_VOC_COUNT=138813 bash scripts/lib/latest-meta.sh build /tmp/LATEST.json",
+    "rclone copy /tmp/LATEST.json ApptainerImages:SignalForge/"
+  ],
+  "evidence": {
+    "voc_baseline": 138813,
+    "voc_after": 138813,
+    "new_dump_filename": "sf-db-20260608-005147Z.sql.gz",
+    "new_dump_size_mb": 50,
+    "dump_sha256": "af95345c17c39059636898a021893c07e31a2242bd71e9c93e87cde5d62b9d57",
+    "dump_sha_match_local_vs_drive": true,
+    "latest_json_voc_count": 138813,
+    "latest_json_alembic_head": "0018",
+    "latest_json_filename_field": "sf-db-20260608-005147Z.sql.gz",
+    "drive_dumps_after": [
+      "sf-db-20260607-231307Z.sql.gz",
+      "sf-db-20260607-231310Z.sql.gz",
+      "sf-db-20260607-231546Z.sql.gz",
+      "sf-db-20260607-235040Z.sql.gz",
+      "sf-db-20260608-005147Z.sql.gz"
+    ],
+    "retention_purge": "sf-db-20260607-043001Z.sql.gz (5개 정책)",
+    "sif_changed": [],
+    "sif_unchanged_reason": "이번 라운드 SIF 변동 없음 — Drive sif/latest/ 그대로 유효"
+  },
+  "drift_resolved": [
+    "DB 20분 격차 해소 (현 시점 ±5분 = 00:51Z)",
+    "LATEST.json 부재 해소 (138,813 정합)"
+  ],
+  "drift_remaining": [
+    "Stage 4.5 drift #1: sync-to-drive.sh 본체에 latest-meta.sh 호출 통합 미완 — 30분 beat 자동주기에서 LATEST.json 자동 갱신 안 됨",
+    "Stage 4.5 drift #2: audit 트랙별 Y1/Y3/Y5 키 분리 미완",
+    "워커(PID 272892) 코드 갱신 미반영 — run_auto_sync_to_drive 미등록 (워커 재시작 필요)"
+  ],
+  "next": "Z1 trait 통합 또는 워커 재시작으로 30분 주기 자동화 회복",
+  "result": "PASS — 사용자 요청 (지금 즉시 정합) 달성"
+}

@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-06-07T00:30:00+00:00",
+  "target_date": "2026-06-07",
+  "status": "warning",
+  "voc_last": 8597,
+  "voc_prev": 9304,
+  "sentiment_null_rate": 0.0,
+  "topic_rate": 0.0,
+  "grounding_last": 0.3596,
+  "regression_ok_ratio": 1.0,
+  "regression_failed": 0,
+  "violations_count": 1,
+  "violations": [
+    {
+      "metric": "topic_classified_rate_drop",
+      "severity": "warning",
+      "value": 100.0,
+      "threshold": 20.0,
+      "reason": "topic_rate 2026-06-05=0.550 → 2026-06-06=0.000 (100.0% 감소)"
+    }
+  ]
+}
