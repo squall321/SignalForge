@@ -255,6 +255,23 @@ def run_health_check():
     return result
 
 
+@app.task(name="tasks.run_translation_reprocess", max_retries=0)
+def run_translation_reprocess(limit: int = 500) -> dict:
+    """r6 (2026-06-10): 미번역 잔재 점진 치유 — 6h 주기.
+
+    Google 무료 번역은 대량 burst 시 IP rate-limit 으로 일부 실패 (fallback 원문 보존).
+    nlp.reprocess 를 LIMIT 단위로 반복 호출해 잔여분을 자동 복구한다 (멱등).
+    """
+    import asyncio as _asyncio
+    os.environ["REPROCESS_LIMIT"] = str(limit)
+    from nlp import reprocess as _rp
+    # 모듈 상수가 import 시 고정되므로 갱신
+    _rp.LIMIT = limit
+    _asyncio.run(_rp.main())
+    logger.info(f"[translation_reprocess] limit={limit} 완료")
+    return {"status": "done", "limit": limit}
+
+
 # ---------------------------------------------------------------------------
 # Track E — CSV Export
 # 매주 월요일 01:00 UTC. 재시도 없음 (다음 주 자동 재실행).

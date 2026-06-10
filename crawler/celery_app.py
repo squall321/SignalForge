@@ -280,6 +280,13 @@ app.conf.beat_schedule = {
         "task": "tasks.run_health_check",
         "schedule": crontab(minute=30),
     },
+    # r6 (2026-06-10): 미번역 잔재 점진 치유 — 6h 주기 500건씩 (Google rate-limit 안전).
+    # 백필 burst 후 번역 실패 fallback (원문 보존) 행을 자동 복구. 멱등.
+    "translation-reprocess-6h": {
+        "task": "tasks.run_translation_reprocess",
+        "schedule": 21600.0,
+        "kwargs": {"limit": 500},
+    },
     # 2026-06-01 Track E: CSV/Excel Export — 매주 월요일 01:00 UTC
     "csv-export-weekly": {
         "task": "tasks.run_csv_export",
