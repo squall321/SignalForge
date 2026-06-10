@@ -1,14 +1,9 @@
 {
-  "generated_at": "2026-06-09T00:30:00+00:00",
-  "target_date": "2026-06-09",
+  "generated_at": "2026-06-10T00:30:00+00:00",
+  "target_date": "2026-06-10",
   "window_days": 7,
   "iso_year_week": "2026-24",
   "voc_daily": [
-    {
-      "day": "2026-06-03",
-      "voc_count": 37135,
-      "sentiment_avg": 0.2269
-    },
     {
       "day": "2026-06-04",
       "voc_count": 4806,
@@ -36,8 +31,8 @@
     },
     {
       "day": "2026-06-09",
-      "voc_count": 3,
-      "sentiment_avg": 0.0
+      "voc_count": 4211,
+      "sentiment_avg": 0.1624
     }
   ],
   "collection_status": {
@@ -49,14 +44,6 @@
   "grounding": {
     "window_days": 7,
     "entries": [
-      {
-        "date": "2026-06-03",
-        "grounding_score": 0.3013,
-        "provider": "openai",
-        "used_tier": "high",
-        "tier_label": "high-shared:qwen2.5:14b",
-        "prompt_version": "v3-fewshot-grounded"
-      },
       {
         "date": "2026-06-04",
         "grounding_score": 0.3563,
@@ -88,28 +75,85 @@
         "used_tier": "high",
         "tier_label": "high-shared:qwen2.5:7b",
         "prompt_version": "v4-must-cite-5"
+      },
+      {
+        "date": "2026-06-08",
+        "grounding_score": 0.2787,
+        "provider": "openai",
+        "used_tier": "high",
+        "tier_label": "high-shared:qwen2.5:14b",
+        "prompt_version": "v4-must-cite-5"
       }
     ],
-    "avg": 0.3338,
-    "min": 0.2879,
+    "avg": 0.3292,
+    "min": 0.2787,
     "max": 0.3637,
-    "last": 0.3637
+    "last": 0.2787
   },
   "regression": {
     "error": "<urlopen error [Errno 111] Connection refused>"
   },
   "new_sites": [
     {
+      "code": "kaskus",
+      "first_seen": "2026-06-09",
+      "voc_total": 744,
+      "voc_24h": 0,
+      "active_24h": false
+    },
+    {
+      "code": "pikabu",
+      "first_seen": "2026-06-09",
+      "voc_total": 29,
+      "voc_24h": 0,
+      "active_24h": false
+    },
+    {
+      "code": "misskey",
+      "first_seen": "2026-06-09",
+      "voc_total": 233,
+      "voc_24h": 0,
+      "active_24h": false
+    },
+    {
+      "code": "fourchan_g",
+      "first_seen": "2026-06-09",
+      "voc_total": 121,
+      "voc_24h": 0,
+      "active_24h": false
+    },
+    {
+      "code": "hackerone",
+      "first_seen": "2026-06-09",
+      "voc_total": 9,
+      "voc_24h": 0,
+      "active_24h": false
+    },
+    {
+      "code": "arxiv",
+      "first_seen": "2026-06-09",
+      "voc_total": 66,
+      "voc_24h": 0,
+      "active_24h": false
+    },
+    {
+      "code": "mastodon",
+      "first_seen": "2026-06-09",
+      "voc_total": 223,
+      "voc_24h": 0,
+      "active_24h": false
+    },
+    {
       "code": "jagatreview",
       "first_seen": "2026-06-08",
-      "voc_total": 20,
+      "voc_total": 21,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "droidsans",
       "first_seen": "2026-06-08",
-      "voc_total": 6,
+      "voc_total": 10,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -123,28 +167,28 @@
     {
       "code": "4pda",
       "first_seen": "2026-06-08",
-      "voc_total": 6,
+      "voc_total": 17,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "phandroid",
       "first_seen": "2026-06-07",
-      "voc_total": 39,
+      "voc_total": 40,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "gsmarena_forum",
       "first_seen": "2026-06-06",
-      "voc_total": 251,
+      "voc_total": 255,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "hardware_fr",
       "first_seen": "2026-06-06",
-      "voc_total": 396,
+      "voc_total": 400,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -158,84 +202,84 @@
     {
       "code": "resetera",
       "first_seen": "2026-06-06",
-      "voc_total": 17,
+      "voc_total": 38,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "notebookcheck",
       "first_seen": "2026-06-06",
-      "voc_total": 225,
+      "voc_total": 237,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "zdnet_kr",
       "first_seen": "2026-06-06",
-      "voc_total": 5,
+      "voc_total": 7,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "reddit_rss",
       "first_seen": "2026-06-04",
-      "voc_total": 1200,
+      "voc_total": 1544,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "hipertextual",
       "first_seen": "2026-06-01",
-      "voc_total": 270,
+      "voc_total": 281,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "sammyfans",
       "first_seen": "2026-06-01",
-      "voc_total": 225,
+      "voc_total": 239,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "gsmchoice",
       "first_seen": "2026-06-01",
-      "voc_total": 317,
+      "voc_total": 356,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "inside_handy",
       "first_seen": "2026-06-01",
-      "voc_total": 40,
+      "voc_total": 45,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "mysmartprice",
       "first_seen": "2026-06-01",
-      "voc_total": 217,
+      "voc_total": 233,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "kompas",
       "first_seen": "2026-06-01",
-      "voc_total": 158,
+      "voc_total": 159,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "gigazine",
       "first_seen": "2026-06-01",
-      "voc_total": 16,
+      "voc_total": 22,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "ithome",
       "first_seen": "2026-06-01",
-      "voc_total": 44,
+      "voc_total": 64,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -256,7 +300,7 @@
     {
       "code": "sanook",
       "first_seen": "2026-06-01",
-      "voc_total": 30,
+      "voc_total": 31,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -270,21 +314,21 @@
     {
       "code": "sweclockers",
       "first_seen": "2026-06-01",
-      "voc_total": 31,
+      "voc_total": 34,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "telepolis",
       "first_seen": "2026-06-01",
-      "voc_total": 201,
+      "voc_total": 207,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "sammobile",
       "first_seen": "2026-06-01",
-      "voc_total": 183,
+      "voc_total": 195,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -298,35 +342,35 @@
     {
       "code": "tinhte",
       "first_seen": "2026-06-01",
-      "voc_total": 323,
+      "voc_total": 324,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "tweakers",
       "first_seen": "2026-06-01",
-      "voc_total": 19,
+      "voc_total": 23,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "mobilesyrup",
       "first_seen": "2026-06-01",
-      "voc_total": 26,
+      "voc_total": 27,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "donanimhaber",
       "first_seen": "2026-06-01",
-      "voc_total": 419,
+      "voc_total": 438,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "mobile_review",
       "first_seen": "2026-06-01",
-      "voc_total": 167,
+      "voc_total": 171,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -340,70 +384,70 @@
     {
       "code": "hwupgrade",
       "first_seen": "2026-06-01",
-      "voc_total": 136,
+      "voc_total": 137,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "computerbase",
       "first_seen": "2026-06-01",
-      "voc_total": 1664,
+      "voc_total": 1708,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "shiftdelete",
       "first_seen": "2026-05-31",
-      "voc_total": 245,
+      "voc_total": 250,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "xataka_mx",
       "first_seen": "2026-05-31",
-      "voc_total": 151,
+      "voc_total": 161,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "frandroid",
       "first_seen": "2026-05-31",
-      "voc_total": 180,
+      "voc_total": 183,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "lowyat",
       "first_seen": "2026-05-31",
-      "voc_total": 2364,
+      "voc_total": 2377,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "tecnoblog",
       "first_seen": "2026-05-31",
-      "voc_total": 219,
+      "voc_total": 227,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "tudocelular",
       "first_seen": "2026-05-31",
-      "voc_total": 164,
+      "voc_total": 182,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "xataka",
       "first_seen": "2026-05-31",
-      "voc_total": 430,
+      "voc_total": 651,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "gadgets360",
       "first_seen": "2026-05-31",
-      "voc_total": 288,
+      "voc_total": 294,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -431,7 +475,7 @@
     {
       "code": "androidpolice",
       "first_seen": "2026-05-30",
-      "voc_total": 111,
+      "voc_total": 117,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -452,28 +496,28 @@
     {
       "code": "dogdrip",
       "first_seen": "2026-05-30",
-      "voc_total": 5867,
+      "voc_total": 5916,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "quasarzone",
       "first_seen": "2026-05-30",
-      "voc_total": 1119,
+      "voc_total": 1386,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "theverge",
       "first_seen": "2026-05-30",
-      "voc_total": 283,
+      "voc_total": 289,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "macrumors",
       "first_seen": "2026-05-30",
-      "voc_total": 46,
+      "voc_total": 58,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -487,21 +531,21 @@
     {
       "code": "androidcentral",
       "first_seen": "2026-05-29",
-      "voc_total": 1680,
+      "voc_total": 1690,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "instiz",
       "first_seen": "2026-05-29",
-      "voc_total": 26377,
+      "voc_total": 26382,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "slrclub",
       "first_seen": "2026-05-29",
-      "voc_total": 1074,
+      "voc_total": 1108,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -515,21 +559,21 @@
     {
       "code": "phonearena",
       "first_seen": "2026-05-29",
-      "voc_total": 240,
+      "voc_total": 251,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "ruliweb",
       "first_seen": "2026-05-28",
-      "voc_total": 306,
+      "voc_total": 310,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "lemmy",
       "first_seen": "2026-05-28",
-      "voc_total": 494,
+      "voc_total": 515,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -557,44 +601,35 @@
     {
       "code": "hackernews",
       "first_seen": "2026-05-28",
-      "voc_total": 36381,
+      "voc_total": 37120,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "fmkorea",
       "first_seen": "2026-05-28",
-      "voc_total": 668,
+      "voc_total": 679,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "mlbpark",
       "first_seen": "2026-05-28",
-      "voc_total": 1719,
-      "voc_24h": 3,
-      "active_24h": true
-    },
-    {
-      "code": "theqoo",
-      "first_seen": "2026-05-27",
-      "voc_total": 239,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "gsmarena",
-      "first_seen": "2026-05-27",
-      "voc_total": 387,
+      "voc_total": 1773,
       "voc_24h": 0,
       "active_24h": false
     }
   ],
   "alerts": [
     {
+      "rule": "voc_daily_drop_50pct",
+      "severity": "warning",
+      "message": "voc 2026-06-08=13644 → 2026-06-09=4211 (69.1% 감소)"
+    },
+    {
       "rule": "llm_grounding_below_0p4",
       "severity": "warning",
-      "message": "grounding last=0.364 < 0.4"
+      "message": "grounding last=0.279 < 0.4"
     }
   ]
 }

@@ -1,0 +1,18 @@
+{
+  "round": "r6",
+  "title": "Deep Historical Harvest",
+  "timestamp": "2026-06-10T10:52:37Z",
+  "host": "smarttwincluster",
+  "status": "ok",
+  "live_endpoint_at": "2026-06-10T10:52:37Z",
+  "note": "mx_match_pct is cached at sentinel creation; refer to /data-quality endpoint for live",
+  "results": {
+    "voc_active": 99185, "voc_total": 211268, "mx_match_pct": 83.9,
+    "old_pre2022_active": 45007,
+    "hn_year_slicing": {"2b_inserted": 17564, "2c_inserted": 33686, "unmatched_archived": 18443},
+    "kr_deep": {"clien": 863, "ppomppu": 107, "dcinside": 71, "dogdrip": 885, "fmkorea": "blocked"},
+    "wayback": "cdx_revived_zero_marginal", "hardware_fr": "saturated",
+    "p0": "worker redis-env 사망 복구 + cpptools 58GB runaway 5회 정리",
+    "r6_completed": ["collection-stats live", "lemmy 7-instance", "clien mx filter gap"]
+  }
+}

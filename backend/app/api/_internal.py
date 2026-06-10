@@ -4131,14 +4131,15 @@ async def data_quality(db: AsyncSession = Depends(get_db)) -> dict:
         """
     ), {"pat": _MX_REGEX})).mappings().first()
 
+    # R6 M6: platform name/region 보강. 프론트에서 region 표시 + 한국/글로벌 그룹핑.
     by_site = (await db.execute(text(
         """
-        SELECT pl.code, count(*) AS active,
+        SELECT pl.code, pl.name, pl.region, count(*) AS active,
                count(*) FILTER (WHERE v.content_original ~* :pat) AS mx_match,
                round(100.0 * count(*) FILTER (WHERE v.content_original ~* :pat) / count(*), 1) AS match_pct
         FROM voc_active v JOIN platforms pl ON v.platform_id=pl.id
         WHERE v.archived_at IS NULL
-        GROUP BY pl.code HAVING count(*) > 30
+        GROUP BY pl.code, pl.name, pl.region HAVING count(*) > 30
         ORDER BY match_pct ASC LIMIT 20
         """
     ), {"pat": _MX_REGEX})).mappings().all()
@@ -4160,4 +4161,68 @@ async def data_quality(db: AsyncSession = Depends(get_db)) -> dict:
         "mx_rich_active": mx_rich,
         "mx_rich_pct": round(100.0 * mx_rich / active, 1) if active else 0,
         "by_site_worst": [dict(r) for r in by_site],
+    }
+
+
+# 2026-06-10 R6 M7: 24h 신규 INSERT 사이트별 통계 — beat cycle 검증·MX drift 추적용
+@router.get("/collection-stats")
+async def collection_stats(db: AsyncSession = Depends(get_db)) -> dict:
+    """24h / 7d 신규 INSERT 사이트별 카운트 + 24h MX 매칭율.
+
+    voc_records WHERE archived_at IS NULL AND collected_at >= now() - interval N.
+    by_site 는 collected_at 기준으로 R6 자동 cycle (fourchan_g·misskey 등) 검증용.
+    """
+    h24_row = (await db.execute(text(
+        """
+        SELECT
+          count(*) AS h24_total,
+          count(*) FILTER (WHERE content_original ~* :pat) AS h24_mx_match
+        FROM voc_records
+        WHERE archived_at IS NULL
+          AND collected_at >= now() - interval '24 hours'
+        """
+    ), {"pat": _MX_REGEX})).mappings().first()
+
+    h7d_row = (await db.execute(text(
+        """
+        SELECT count(*) AS h7d_total
+        FROM voc_records
+        WHERE archived_at IS NULL
+          AND collected_at >= now() - interval '7 days'
+        """
+    ))).mappings().first()
+
+    h24_by_site = (await db.execute(text(
+        """
+        SELECT pl.code, pl.region, count(*) AS h24_new
+        FROM voc_records v JOIN platforms pl ON v.platform_id = pl.id
+        WHERE v.archived_at IS NULL
+          AND v.collected_at >= now() - interval '24 hours'
+        GROUP BY pl.code, pl.region
+        ORDER BY h24_new DESC
+        """
+    ))).mappings().all()
+
+    h7d_by_site = (await db.execute(text(
+        """
+        SELECT pl.code, pl.region, count(*) AS h7d_new
+        FROM voc_records v JOIN platforms pl ON v.platform_id = pl.id
+        WHERE v.archived_at IS NULL
+          AND v.collected_at >= now() - interval '7 days'
+        GROUP BY pl.code, pl.region
+        ORDER BY h7d_new DESC
+        """
+    ))).mappings().all()
+
+    h24_total = int(h24_row["h24_total"])
+    h24_mx_match = int(h24_row["h24_mx_match"])
+
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "h24_total": h24_total,
+        "h7d_total": int(h7d_row["h7d_total"]),
+        "mx_match_h24": h24_mx_match,
+        "mx_match_h24_pct": round(100.0 * h24_mx_match / h24_total, 1) if h24_total else 0,
+        "h24_by_site": [dict(r) for r in h24_by_site],
+        "h7d_by_site": [dict(r) for r in h7d_by_site],
     }

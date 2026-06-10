@@ -57,6 +57,12 @@ MAX_PAGES = int(os.getenv("BACKFILL_MAX_PAGES", "3"))
 HITS_PER_PAGE = int(os.getenv("BACKFILL_HITS_PER_PAGE", "1000"))
 BETWEEN_REQUEST_SLEEP = float(os.getenv("BACKFILL_SLEEP", "1.0"))
 
+# r6 Stage 2c (2026-06-10): 연도 슬라이싱 — Algolia 쿼리당 1,000-hit 캡을
+# created_at_i 연도 윈도우 × 검색어로 쪼개 우회. 두 env 모두 설정 시에만 활성.
+# 예: BACKFILL_YEAR_FROM=2010 BACKFILL_YEAR_TO=2021 → 연도별 12회 검색.
+YEAR_FROM = int(os.getenv("BACKFILL_YEAR_FROM", "0"))
+YEAR_TO = int(os.getenv("BACKFILL_YEAR_TO", "0"))
+
 # R12 (2026-06-04): hackernews.QUERY_TERMS (200+) 와 동기화 — 한 곳에서 풀 관리.
 # 추가로 backfill 만 쓰는 옛 키워드도 합치고 dedup.
 _LEGACY_BACKFILL_TERMS: List[str] = [
@@ -251,16 +257,31 @@ def _comment_hit_to_voc(hit: dict) -> Optional[RawVOC]:
     )
 
 
+def _year_windows() -> List[Optional[str]]:
+    """r6 2c: 연도 슬라이싱 활성 시 numericFilters 목록, 아니면 [None] (전기간 1회)."""
+    if not (YEAR_FROM and YEAR_TO and YEAR_FROM <= YEAR_TO):
+        return [None]
+    windows: List[Optional[str]] = []
+    for y in range(YEAR_FROM, YEAR_TO + 1):
+        start = int(datetime(y, 1, 1, tzinfo=timezone.utc).timestamp())
+        end = int(datetime(y + 1, 1, 1, tzinfo=timezone.utc).timestamp())
+        windows.append(f"created_at_i>={start},created_at_i<{end}")
+    return windows
+
+
 async def _search_paged(
     client: httpx.AsyncClient,
     query: str,
     tags: str,
     hits_per_page: int,
     max_pages: int,
+    numeric_filters: Optional[str] = None,
 ) -> List[dict]:
-    """numericFilters 없이 전기간 검색 + page 0..max_pages-1 pagination.
+    """전기간 (또는 numericFilters 연도 윈도우) 검색 + page 0..max_pages-1 pagination.
 
     Algolia 응답에 nbPages 가 있으면 그것과 max_pages 의 min 만큼만 순회.
+    numeric_filters (r6 2c): "created_at_i>=X,created_at_i<Y" — 쿼리당
+    1,000-hit 캡을 연도 윈도우로 쪼개 옛 글을 추가로 푼다.
     """
     all_hits: List[dict] = []
     for page in range(max_pages):
@@ -270,6 +291,8 @@ async def _search_paged(
             "hitsPerPage": hits_per_page,
             "page": page,
         }
+        if numeric_filters:
+            params["numericFilters"] = numeric_filters
         resp = await client.get(ALGOLIA_SEARCH, params=params)
         resp.raise_for_status()
         payload = resp.json()
@@ -302,55 +325,61 @@ async def collect_all_hits(
     if client_factory is None:
         client_factory = lambda: httpx.AsyncClient(timeout=30.0, follow_redirects=True)
 
+    windows = _year_windows()  # r6 2c: [None] (전기간) 또는 연도별 numericFilters
+    if windows != [None]:
+        log.info("연도 슬라이싱 활성: %d~%d (%d windows)", YEAR_FROM, YEAR_TO, len(windows))
+
     async with client_factory() as client:
         for i, q in enumerate(terms, 1):
-            try:
-                story_hits = await _search_paged(
-                    client, q, "story", hits_per_page, max_pages
-                )
-                stats["story_hits"] += len(story_hits)
-                new = 0
-                for h in story_hits:
-                    sid = h.get("objectID")
-                    if not sid or sid in seen_story_ids:
-                        continue
-                    seen_story_ids.add(sid)
-                    voc = _story_hit_to_voc(h)
-                    if voc:
-                        raw_vocs.append(voc)
-                        stats["story_voc"] += 1
-                        new += 1
-                log.info(
-                    "  [%d/%d] story '%s' fetched=%d new=%d",
-                    i, len(terms), q, len(story_hits), new,
-                )
-            except Exception as e:
-                log.warning("  story '%s' 실패: %s", q, e)
-            await asyncio.sleep(BETWEEN_REQUEST_SLEEP)
+            for nf in windows:
+                win_label = f" [{nf}]" if nf else ""
+                try:
+                    story_hits = await _search_paged(
+                        client, q, "story", hits_per_page, max_pages, numeric_filters=nf
+                    )
+                    stats["story_hits"] += len(story_hits)
+                    new = 0
+                    for h in story_hits:
+                        sid = h.get("objectID")
+                        if not sid or sid in seen_story_ids:
+                            continue
+                        seen_story_ids.add(sid)
+                        voc = _story_hit_to_voc(h)
+                        if voc:
+                            raw_vocs.append(voc)
+                            stats["story_voc"] += 1
+                            new += 1
+                    log.info(
+                        "  [%d/%d] story '%s'%s fetched=%d new=%d",
+                        i, len(terms), q, win_label, len(story_hits), new,
+                    )
+                except Exception as e:
+                    log.warning("  story '%s'%s 실패: %s", q, win_label, e)
+                await asyncio.sleep(BETWEEN_REQUEST_SLEEP)
 
-            try:
-                comment_hits = await _search_paged(
-                    client, q, "comment", hits_per_page, max_pages
-                )
-                stats["comment_hits"] += len(comment_hits)
-                new = 0
-                for h in comment_hits:
-                    cid = h.get("objectID")
-                    if not cid or cid in seen_comment_ids:
-                        continue
-                    seen_comment_ids.add(cid)
-                    voc = _comment_hit_to_voc(h)
-                    if voc:
-                        raw_vocs.append(voc)
-                        stats["comment_voc"] += 1
-                        new += 1
-                log.info(
-                    "  [%d/%d] comment '%s' fetched=%d new=%d",
-                    i, len(terms), q, len(comment_hits), new,
-                )
-            except Exception as e:
-                log.warning("  comment '%s' 실패: %s", q, e)
-            await asyncio.sleep(BETWEEN_REQUEST_SLEEP)
+                try:
+                    comment_hits = await _search_paged(
+                        client, q, "comment", hits_per_page, max_pages, numeric_filters=nf
+                    )
+                    stats["comment_hits"] += len(comment_hits)
+                    new = 0
+                    for h in comment_hits:
+                        cid = h.get("objectID")
+                        if not cid or cid in seen_comment_ids:
+                            continue
+                        seen_comment_ids.add(cid)
+                        voc = _comment_hit_to_voc(h)
+                        if voc:
+                            raw_vocs.append(voc)
+                            stats["comment_voc"] += 1
+                            new += 1
+                    log.info(
+                        "  [%d/%d] comment '%s'%s fetched=%d new=%d",
+                        i, len(terms), q, win_label, len(comment_hits), new,
+                    )
+                except Exception as e:
+                    log.warning("  comment '%s'%s 실패: %s", q, win_label, e)
+                await asyncio.sleep(BETWEEN_REQUEST_SLEEP)
 
     return raw_vocs, stats
 

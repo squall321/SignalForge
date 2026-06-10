@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-06-09T22:29:02.419Z",
+  "lastUpdated": "2026-06-10T03:57:38.255Z",
   "activeFeatures": [
     "base",
     "platforms",
@@ -87,9 +87,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-05-16T03:16:03.287Z",
-        "lastUpdated": "2026-06-09T22:26:53.983Z"
+        "lastUpdated": "2026-06-10T03:55:15.394Z"
       },
-      "lastFile": "/home/koopark/claude/SignalForge/crawler/platforms/lemmy.py"
+      "lastFile": "/home/koopark/claude/SignalForge/crawler/platforms/clien.py"
     },
     "crawler": {
       "phase": "do",
@@ -152,9 +152,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-05-28T13:50:43.851Z",
-        "lastUpdated": "2026-06-06T09:41:07.549Z"
+        "lastUpdated": "2026-06-10T01:13:59.262Z"
       },
-      "lastFile": "/tmp/manual_ua_check.py"
+      "lastFile": "/tmp/m2_query.py"
     },
     "scripts": {
       "phase": "do",
@@ -165,9 +165,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-05-29T08:55:05.259Z",
-        "lastUpdated": "2026-06-09T14:26:57.336Z"
+        "lastUpdated": "2026-06-10T03:57:38.254Z"
       },
-      "lastFile": "/home/koopark/claude/SignalForge/crawler/scripts/global_it_backfill.py"
+      "lastFile": "/home/koopark/claude/SignalForge/crawler/scripts/hn_backfill_alltime.py"
     },
     "tests": {
       "phase": "do",
@@ -178,9 +178,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-06-01T19:54:06.165Z",
-        "lastUpdated": "2026-06-09T22:28:20.518Z"
+        "lastUpdated": "2026-06-10T01:13:50.612Z"
       },
-      "lastFile": "/home/koopark/claude/SignalForge/backend/tests/test_regression_14.py"
+      "lastFile": "/home/koopark/claude/SignalForge/backend/tests/test_collection_stats.py"
     },
     "schemas": {
       "phase": "do",
@@ -256,7 +256,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-06-01T20:33:18.564Z",
-        "lastUpdated": "2026-06-09T22:27:24.600Z"
+        "lastUpdated": "2026-06-10T01:13:55.350Z"
       },
       "lastFile": "/home/koopark/claude/SignalForge/backend/app/api/_internal.py"
     },
@@ -854,7 +854,7 @@
   "session": {
     "startedAt": "2026-05-14T20:16:17.831Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-06-09T22:29:02.419Z"
+    "lastActivity": "2026-06-10T03:57:38.255Z"
   },
   "history": [
     {
@@ -12374,6 +12374,60 @@
     {
       "timestamp": "2026-06-09T22:29:02.419Z",
       "feature": "__tests__",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-10T01:13:30.021Z",
+      "feature": "api",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-10T01:13:39.346Z",
+      "feature": "tmp",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-10T01:13:50.612Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-10T01:13:55.350Z",
+      "feature": "api",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-10T01:13:59.262Z",
+      "feature": "tmp",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-10T03:55:15.394Z",
+      "feature": "platforms",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-10T03:56:36.346Z",
+      "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-10T03:57:07.601Z",
+      "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-10T03:57:38.254Z",
+      "feature": "scripts",
       "phase": "do",
       "action": "updated"
     }

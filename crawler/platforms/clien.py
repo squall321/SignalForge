@@ -110,8 +110,12 @@ class ClienCrawler(BaseCrawler):
                 except Exception as e:
                     logger.warning(f"  Clien 상세 수집 실패 ({post.source_url}): {e}")
 
+        # 2026-06-10 r6 Stage 3a: MX 통합 키워드 필터 강제 (Data Clean 1-5 정책 통일 — clien 만 누락이었음)
+        from nlp.mx_keywords import is_mx_relevant
+        before = len(raw_vocs)
+        raw_vocs = [v for v in raw_vocs if is_mx_relevant(v.content)]
         logger.info(
-            f"Clien 수집 완료: {len(raw_vocs)}건 (게시물 {len(target_posts)}건)"
+            f"Clien 수집 완료: {len(raw_vocs)}/{before}건 (MX 필터 적용, 게시물 {len(target_posts)}건)"
         )
         return raw_vocs
 
