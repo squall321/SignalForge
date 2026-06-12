@@ -1078,7 +1078,7 @@ async def alert_monitor(
 # scripts/drive-sync/verify-backup.sh 가 매일 last_verified.json 을 남긴다.
 # 본 endpoint 는 그 JSON 을 그대로 노출 — frontend 가 "백업 안전" 카드로 표시,
 # Celery beat 의 verify_backup task 가 ok=false 면 alert_events INSERT.
-_BACKUP_STATE_DEFAULT = Path("/home/koopark/claude/SignalForge/backups/last_verified.json")
+_BACKUP_STATE_DEFAULT = Path(__file__).resolve().parents[3] / "backups" / "last_verified.json"
 
 
 def _backup_state_path() -> Path:
