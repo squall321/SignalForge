@@ -17,10 +17,10 @@ PROJ_NAME=SignalForge
 PROJ_PG_INSTANCE=sf_postgres
 
 # 4) .env 위치 — POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB / POSTGRES_PORT 가 들어있는 파일
-PROJ_ENV_FILE=/home/koopark/claude/SignalForge/.env
+PROJ_ENV_FILE="$DS_DIR/../../.env"
 
 # 5) 로컬 dump 저장 디렉터리 (없으면 자동 생성)
-PROJ_DUMP_DIR=/home/koopark/claude/SignalForge/backups
+PROJ_DUMP_DIR="$DS_DIR/../../backups"
 
 # 6) rclone remote 이름 기본값 (이미 설정된 remote 가 있으면 그걸 재사용)
 PROJ_DRIVE_REMOTE_DEFAULT=ApptainerImages
