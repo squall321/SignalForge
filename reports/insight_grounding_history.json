@@ -1,21 +1,5 @@
 [
   {
-    "date": "2026-06-03",
-    "grounding_score": 0.3013,
-    "provider": "openai",
-    "used_tier": "high",
-    "tier_label": "high-shared:qwen2.5:14b",
-    "prompt_version": "v3-fewshot-grounded"
-  },
-  {
-    "date": "2026-06-04",
-    "grounding_score": 0.3563,
-    "provider": "openai",
-    "used_tier": "high",
-    "tier_label": "high-shared:qwen2.5:14b",
-    "prompt_version": "v4-must-cite-5"
-  },
-  {
     "date": "2026-06-05",
     "grounding_score": 0.3596,
     "provider": "openai",
@@ -50,6 +34,22 @@
   {
     "date": "2026-06-09",
     "grounding_score": 0.2956,
+    "provider": "openai",
+    "used_tier": "high",
+    "tier_label": "high-shared:qwen2.5:14b",
+    "prompt_version": "v4-must-cite-5"
+  },
+  {
+    "date": "2026-06-10",
+    "grounding_score": 0.3885,
+    "provider": "openai",
+    "used_tier": "high",
+    "tier_label": "high-shared:qwen2.5:14b",
+    "prompt_version": "v4-must-cite-5"
+  },
+  {
+    "date": "2026-06-11",
+    "grounding_score": 0.3937,
     "provider": "openai",
     "used_tier": "high",
     "tier_label": "high-shared:qwen2.5:14b",

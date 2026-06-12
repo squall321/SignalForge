@@ -1,0 +1,2432 @@
+{
+  "generated_at": "2026-06-12T00:30:00+00:00",
+  "days": 7,
+  "dates": [
+    "2026-06-06",
+    "2026-06-07",
+    "2026-06-08",
+    "2026-06-09",
+    "2026-06-10",
+    "2026-06-11",
+    "2026-06-12"
+  ],
+  "active_sites": 87,
+  "daily_totals": [
+    {
+      "date": "2026-06-06",
+      "total": 8597
+    },
+    {
+      "date": "2026-06-07",
+      "total": 8978
+    },
+    {
+      "date": "2026-06-08",
+      "total": 13644
+    },
+    {
+      "date": "2026-06-09",
+      "total": 4211
+    },
+    {
+      "date": "2026-06-10",
+      "total": 56053
+    },
+    {
+      "date": "2026-06-11",
+      "total": 2604
+    },
+    {
+      "date": "2026-06-12",
+      "total": 51
+    }
+  ],
+  "site_stats": [
+    {
+      "code": "hackernews",
+      "total": 55060,
+      "mean_per_day": 7865.714,
+      "stddev": 17985.22,
+      "cv": 2.287,
+      "max": 51917,
+      "min": 37,
+      "half_ratio_delta": 22.385,
+      "series": [
+        513,
+        477,
+        721,
+        739,
+        51917,
+        656,
+        37
+      ]
+    },
+    {
+      "code": "dcinside",
+      "total": 11069,
+      "mean_per_day": 1581.286,
+      "stddev": 1510.146,
+      "cv": 0.955,
+      "max": 3829,
+      "min": 6,
+      "half_ratio_delta": -0.895,
+      "series": [
+        2263,
+        3615,
+        3829,
+        428,
+        500,
+        428,
+        6
+      ]
+    },
+    {
+      "code": "instiz",
+      "total": 9097,
+      "mean_per_day": 1299.571,
+      "stddev": 1494.479,
+      "cv": 1.15,
+      "max": 3201,
+      "min": 0,
+      "half_ratio_delta": -0.998,
+      "series": [
+        2981,
+        2885,
+        3201,
+        5,
+        21,
+        4,
+        0
+      ]
+    },
+    {
+      "code": "ppomppu",
+      "total": 5826,
+      "mean_per_day": 832.286,
+      "stddev": 1094.959,
+      "cv": 1.316,
+      "max": 3353,
+      "min": 7,
+      "half_ratio_delta": -0.92,
+      "series": [
+        772,
+        1138,
+        3353,
+        187,
+        233,
+        136,
+        7
+      ]
+    },
+    {
+      "code": "reddit_rss",
+      "total": 2034,
+      "mean_per_day": 290.571,
+      "stddev": 236.399,
+      "cv": 0.814,
+      "max": 728,
+      "min": 0,
+      "half_ratio_delta": -0.143,
+      "series": [
+        221,
+        0,
+        728,
+        344,
+        298,
+        443,
+        0
+      ]
+    },
+    {
+      "code": "dogdrip",
+      "total": 1464,
+      "mean_per_day": 209.143,
+      "stddev": 293.656,
+      "cv": 1.404,
+      "max": 908,
+      "min": 0,
+      "half_ratio_delta": 0.491,
+      "series": [
+        122,
+        190,
+        178,
+        49,
+        908,
+        17,
+        0
+      ]
+    },
+    {
+      "code": "kaskus",
+      "total": 1174,
+      "mean_per_day": 167.714,
+      "stddev": 263.812,
+      "cv": 1.573,
+      "max": 744,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        744,
+        353,
+        77,
+        0
+      ]
+    },
+    {
+      "code": "clien",
+      "total": 1110,
+      "mean_per_day": 158.571,
+      "stddev": 351.076,
+      "cv": 2.214,
+      "max": 1018,
+      "min": 0,
+      "half_ratio_delta": 12.603,
+      "series": [
+        5,
+        15,
+        38,
+        27,
+        1018,
+        7,
+        0
+      ]
+    },
+    {
+      "code": "mlbpark",
+      "total": 593,
+      "mean_per_day": 84.714,
+      "stddev": 55.682,
+      "cv": 0.657,
+      "max": 175,
+      "min": 0,
+      "half_ratio_delta": -0.41,
+      "series": [
+        52,
+        105,
+        175,
+        57,
+        60,
+        144,
+        0
+      ]
+    },
+    {
+      "code": "quasarzone",
+      "total": 544,
+      "mean_per_day": 77.714,
+      "stddev": 90.991,
+      "cv": 1.171,
+      "max": 267,
+      "min": 0,
+      "half_ratio_delta": 0.492,
+      "series": [
+        18,
+        9,
+        155,
+        267,
+        48,
+        47,
+        0
+      ]
+    },
+    {
+      "code": "anandtech",
+      "total": 497,
+      "mean_per_day": 71.0,
+      "stddev": 173.914,
+      "cv": 2.449,
+      "max": 497,
+      "min": 0,
+      "half_ratio_delta": -1.0,
+      "series": [
+        0,
+        0,
+        497,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "misskey",
+      "total": 472,
+      "mean_per_day": 67.429,
+      "stddev": 87.125,
+      "cv": 1.292,
+      "max": 233,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        233,
+        87,
+        152,
+        0
+      ]
+    },
+    {
+      "code": "hardware_fr",
+      "total": 411,
+      "mean_per_day": 58.714,
+      "stddev": 129.29,
+      "cv": 2.202,
+      "max": 375,
+      "min": 0,
+      "half_ratio_delta": -0.972,
+      "series": [
+        375,
+        0,
+        21,
+        4,
+        6,
+        5,
+        0
+      ]
+    },
+    {
+      "code": "xataka",
+      "total": 377,
+      "mean_per_day": 53.857,
+      "stddev": 70.296,
+      "cv": 1.305,
+      "max": 221,
+      "min": 0,
+      "half_ratio_delta": 1.135,
+      "series": [
+        18,
+        50,
+        30,
+        221,
+        11,
+        47,
+        0
+      ]
+    },
+    {
+      "code": "mastodon",
+      "total": 328,
+      "mean_per_day": 46.857,
+      "stddev": 75.495,
+      "cv": 1.611,
+      "max": 223,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        223,
+        56,
+        49,
+        0
+      ]
+    },
+    {
+      "code": "gsmchoice",
+      "total": 260,
+      "mean_per_day": 37.143,
+      "stddev": 37.227,
+      "cv": 1.002,
+      "max": 121,
+      "min": 0,
+      "half_ratio_delta": -0.582,
+      "series": [
+        121,
+        11,
+        35,
+        39,
+        41,
+        13,
+        0
+      ]
+    },
+    {
+      "code": "gsmarena_forum",
+      "total": 259,
+      "mean_per_day": 37.0,
+      "stddev": 81.384,
+      "cv": 2.2,
+      "max": 236,
+      "min": 0,
+      "half_ratio_delta": -0.976,
+      "series": [
+        236,
+        0,
+        15,
+        4,
+        3,
+        1,
+        0
+      ]
+    },
+    {
+      "code": "notebookcheck",
+      "total": 257,
+      "mean_per_day": 36.714,
+      "stddev": 55.091,
+      "cv": 1.501,
+      "max": 169,
+      "min": 0,
+      "half_ratio_delta": -0.893,
+      "series": [
+        169,
+        38,
+        18,
+        12,
+        12,
+        8,
+        0
+      ]
+    },
+    {
+      "code": "slrclub",
+      "total": 223,
+      "mean_per_day": 31.857,
+      "stddev": 26.265,
+      "cv": 0.824,
+      "max": 86,
+      "min": 1,
+      "half_ratio_delta": -0.73,
+      "series": [
+        86,
+        39,
+        39,
+        34,
+        17,
+        7,
+        1
+      ]
+    },
+    {
+      "code": "fourchan_g",
+      "total": 202,
+      "mean_per_day": 28.857,
+      "stddev": 41.94,
+      "cv": 1.453,
+      "max": 121,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        121,
+        30,
+        51,
+        0
+      ]
+    },
+    {
+      "code": "computerbase",
+      "total": 199,
+      "mean_per_day": 28.429,
+      "stddev": 33.932,
+      "cv": 1.194,
+      "max": 98,
+      "min": 0,
+      "half_ratio_delta": -0.301,
+      "series": [
+        98,
+        5,
+        0,
+        44,
+        46,
+        6,
+        0
+      ]
+    },
+    {
+      "code": "fmkorea",
+      "total": 171,
+      "mean_per_day": 24.429,
+      "stddev": 31.618,
+      "cv": 1.294,
+      "max": 97,
+      "min": 0,
+      "half_ratio_delta": -0.573,
+      "series": [
+        4,
+        8,
+        97,
+        11,
+        37,
+        14,
+        0
+      ]
+    },
+    {
+      "code": "tinhte",
+      "total": 168,
+      "mean_per_day": 24.0,
+      "stddev": 32.408,
+      "cv": 1.35,
+      "max": 97,
+      "min": 0,
+      "half_ratio_delta": -0.766,
+      "series": [
+        1,
+        30,
+        97,
+        1,
+        7,
+        32,
+        0
+      ]
+    },
+    {
+      "code": "sammyfans",
+      "total": 152,
+      "mean_per_day": 21.714,
+      "stddev": 28.937,
+      "cv": 1.333,
+      "max": 91,
+      "min": 0,
+      "half_ratio_delta": -0.685,
+      "series": [
+        91,
+        2,
+        14,
+        14,
+        17,
+        14,
+        0
+      ]
+    },
+    {
+      "code": "donanimhaber",
+      "total": 146,
+      "mean_per_day": 20.857,
+      "stddev": 16.496,
+      "cv": 0.791,
+      "max": 44,
+      "min": 0,
+      "half_ratio_delta": -0.798,
+      "series": [
+        30,
+        44,
+        41,
+        19,
+        6,
+        6,
+        0
+      ]
+    },
+    {
+      "code": "mysmartprice",
+      "total": 146,
+      "mean_per_day": 20.857,
+      "stddev": 22.197,
+      "cv": 1.064,
+      "max": 71,
+      "min": 0,
+      "half_ratio_delta": -0.491,
+      "series": [
+        71,
+        8,
+        8,
+        16,
+        30,
+        13,
+        0
+      ]
+    },
+    {
+      "code": "hipertextual",
+      "total": 144,
+      "mean_per_day": 20.571,
+      "stddev": 26.618,
+      "cv": 1.294,
+      "max": 84,
+      "min": 0,
+      "half_ratio_delta": -0.85,
+      "series": [
+        84,
+        20,
+        16,
+        11,
+        8,
+        5,
+        0
+      ]
+    },
+    {
+      "code": "lemmy",
+      "total": 131,
+      "mean_per_day": 18.714,
+      "stddev": 21.605,
+      "cv": 1.154,
+      "max": 68,
+      "min": 0,
+      "half_ratio_delta": -0.737,
+      "series": [
+        6,
+        68,
+        23,
+        21,
+        5,
+        8,
+        0
+      ]
+    },
+    {
+      "code": "tudocelular",
+      "total": 113,
+      "mean_per_day": 16.143,
+      "stddev": 11.179,
+      "cv": 0.693,
+      "max": 36,
+      "min": 0,
+      "half_ratio_delta": 0.317,
+      "series": [
+        7,
+        9,
+        25,
+        18,
+        36,
+        18,
+        0
+      ]
+    },
+    {
+      "code": "sammobile",
+      "total": 101,
+      "mean_per_day": 14.429,
+      "stddev": 14.261,
+      "cv": 0.988,
+      "max": 45,
+      "min": 0,
+      "half_ratio_delta": -0.548,
+      "series": [
+        45,
+        0,
+        18,
+        12,
+        18,
+        8,
+        0
+      ]
+    },
+    {
+      "code": "ithome",
+      "total": 92,
+      "mean_per_day": 13.143,
+      "stddev": 6.728,
+      "cv": 0.512,
+      "max": 20,
+      "min": 0,
+      "half_ratio_delta": 0.019,
+      "series": [
+        13,
+        8,
+        18,
+        20,
+        20,
+        13,
+        0
+      ]
+    },
+    {
+      "code": "ifixit",
+      "total": 83,
+      "mean_per_day": 11.857,
+      "stddev": 29.044,
+      "cv": 2.449,
+      "max": 83,
+      "min": 0,
+      "half_ratio_delta": -1.0,
+      "series": [
+        83,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "xataka_mx",
+      "total": 79,
+      "mean_per_day": 11.286,
+      "stddev": 5.945,
+      "cv": 0.527,
+      "max": 21,
+      "min": 0,
+      "half_ratio_delta": -0.007,
+      "series": [
+        8,
+        13,
+        13,
+        10,
+        21,
+        14,
+        0
+      ]
+    },
+    {
+      "code": "xda",
+      "total": 72,
+      "mean_per_day": 10.286,
+      "stddev": 25.195,
+      "cv": 2.449,
+      "max": 72,
+      "min": 0,
+      "half_ratio_delta": -1.0,
+      "series": [
+        0,
+        72,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "arxiv",
+      "total": 71,
+      "mean_per_day": 10.143,
+      "stddev": 22.831,
+      "cv": 2.251,
+      "max": 66,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        66,
+        3,
+        2,
+        0
+      ]
+    },
+    {
+      "code": "pikabu",
+      "total": 71,
+      "mean_per_day": 10.143,
+      "stddev": 11.981,
+      "cv": 1.181,
+      "max": 29,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        29,
+        22,
+        20,
+        0
+      ]
+    },
+    {
+      "code": "tecnoblog",
+      "total": 59,
+      "mean_per_day": 8.429,
+      "stddev": 7.706,
+      "cv": 0.914,
+      "max": 20,
+      "min": 0,
+      "half_ratio_delta": 1.654,
+      "series": [
+        2,
+        0,
+        11,
+        8,
+        20,
+        18,
+        0
+      ]
+    },
+    {
+      "code": "4pda",
+      "total": 52,
+      "mean_per_day": 7.429,
+      "stddev": 7.404,
+      "cv": 0.997,
+      "max": 18,
+      "min": 0,
+      "half_ratio_delta": 4.75,
+      "series": [
+        0,
+        0,
+        6,
+        11,
+        18,
+        17,
+        0
+      ]
+    },
+    {
+      "code": "theverge",
+      "total": 52,
+      "mean_per_day": 7.429,
+      "stddev": 4.468,
+      "cv": 0.601,
+      "max": 14,
+      "min": 0,
+      "half_ratio_delta": -0.19,
+      "series": [
+        3,
+        8,
+        14,
+        6,
+        11,
+        10,
+        0
+      ]
+    },
+    {
+      "code": "shiftdelete",
+      "total": 49,
+      "mean_per_day": 7.0,
+      "stddev": 4.036,
+      "cv": 0.577,
+      "max": 14,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        7,
+        5,
+        9,
+        5,
+        14,
+        9,
+        0
+      ]
+    },
+    {
+      "code": "danawa",
+      "total": 48,
+      "mean_per_day": 6.857,
+      "stddev": 14.798,
+      "cv": 2.158,
+      "max": 43,
+      "min": 0,
+      "half_ratio_delta": -1.0,
+      "series": [
+        2,
+        3,
+        43,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "phonearena",
+      "total": 48,
+      "mean_per_day": 6.857,
+      "stddev": 4.051,
+      "cv": 0.591,
+      "max": 13,
+      "min": 0,
+      "half_ratio_delta": 0.5,
+      "series": [
+        5,
+        4,
+        7,
+        11,
+        13,
+        8,
+        0
+      ]
+    },
+    {
+      "code": "androidcentral",
+      "total": 45,
+      "mean_per_day": 6.429,
+      "stddev": 3.812,
+      "cv": 0.593,
+      "max": 12,
+      "min": 0,
+      "half_ratio_delta": -0.4,
+      "series": [
+        12,
+        9,
+        4,
+        10,
+        5,
+        5,
+        0
+      ]
+    },
+    {
+      "code": "telepolis",
+      "total": 45,
+      "mean_per_day": 6.429,
+      "stddev": 3.698,
+      "cv": 0.575,
+      "max": 10,
+      "min": 0,
+      "half_ratio_delta": -0.063,
+      "series": [
+        8,
+        2,
+        10,
+        6,
+        9,
+        10,
+        0
+      ]
+    },
+    {
+      "code": "phandroid",
+      "total": 44,
+      "mean_per_day": 6.286,
+      "stddev": 11.805,
+      "cv": 1.878,
+      "max": 35,
+      "min": 0,
+      "half_ratio_delta": -0.904,
+      "series": [
+        0,
+        35,
+        4,
+        1,
+        3,
+        1,
+        0
+      ]
+    },
+    {
+      "code": "androidpolice",
+      "total": 39,
+      "mean_per_day": 5.571,
+      "stddev": 3.201,
+      "cv": 0.574,
+      "max": 11,
+      "min": 0,
+      "half_ratio_delta": -0.211,
+      "series": [
+        5,
+        3,
+        11,
+        6,
+        7,
+        7,
+        0
+      ]
+    },
+    {
+      "code": "resetera",
+      "total": 39,
+      "mean_per_day": 5.571,
+      "stddev": 7.307,
+      "cv": 1.311,
+      "max": 21,
+      "min": 0,
+      "half_ratio_delta": -0.029,
+      "series": [
+        10,
+        0,
+        7,
+        21,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "macrumors",
+      "total": 35,
+      "mean_per_day": 5.0,
+      "stddev": 4.0,
+      "cv": 0.8,
+      "max": 12,
+      "min": 0,
+      "half_ratio_delta": 0.636,
+      "series": [
+        1,
+        2,
+        8,
+        12,
+        7,
+        5,
+        0
+      ]
+    },
+    {
+      "code": "bobaedream",
+      "total": 32,
+      "mean_per_day": 4.571,
+      "stddev": 8.516,
+      "cv": 1.863,
+      "max": 25,
+      "min": 0,
+      "half_ratio_delta": -1.0,
+      "series": [
+        5,
+        2,
+        25,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "mobile_review",
+      "total": 31,
+      "mean_per_day": 4.429,
+      "stddev": 4.17,
+      "cv": 0.942,
+      "max": 13,
+      "min": 0,
+      "half_ratio_delta": -0.382,
+      "series": [
+        13,
+        0,
+        4,
+        4,
+        7,
+        3,
+        0
+      ]
+    },
+    {
+      "code": "gadgets360",
+      "total": 30,
+      "mean_per_day": 4.286,
+      "stddev": 3.574,
+      "cv": 0.834,
+      "max": 9,
+      "min": 0,
+      "half_ratio_delta": 0.75,
+      "series": [
+        1,
+        0,
+        8,
+        6,
+        9,
+        6,
+        0
+      ]
+    },
+    {
+      "code": "lowyat",
+      "total": 27,
+      "mean_per_day": 3.857,
+      "stddev": 4.086,
+      "cv": 1.059,
+      "max": 13,
+      "min": 0,
+      "half_ratio_delta": -0.062,
+      "series": [
+        3,
+        4,
+        5,
+        13,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "code": "frandroid",
+      "total": 23,
+      "mean_per_day": 3.286,
+      "stddev": 2.119,
+      "cv": 0.645,
+      "max": 7,
+      "min": 0,
+      "half_ratio_delta": -0.312,
+      "series": [
+        4,
+        1,
+        7,
+        3,
+        4,
+        4,
+        0
+      ]
+    },
+    {
+      "code": "9to5google",
+      "total": 22,
+      "mean_per_day": 3.143,
+      "stddev": 2.03,
+      "cv": 0.646,
+      "max": 6,
+      "min": 0,
+      "half_ratio_delta": 0.083,
+      "series": [
+        1,
+        2,
+        6,
+        5,
+        4,
+        4,
+        0
+      ]
+    },
+    {
+      "code": "jagatreview",
+      "total": 22,
+      "mean_per_day": 3.143,
+      "stddev": 6.896,
+      "cv": 2.194,
+      "max": 20,
+      "min": 0,
+      "half_ratio_delta": -0.925,
+      "series": [
+        0,
+        0,
+        20,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "hwupgrade",
+      "total": 21,
+      "mean_per_day": 3.0,
+      "stddev": 3.586,
+      "cv": 1.195,
+      "max": 11,
+      "min": 0,
+      "half_ratio_delta": -0.625,
+      "series": [
+        1,
+        11,
+        2,
+        1,
+        1,
+        5,
+        0
+      ]
+    },
+    {
+      "code": "sweclockers",
+      "total": 21,
+      "mean_per_day": 3.0,
+      "stddev": 1.69,
+      "cv": 0.563,
+      "max": 5,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        4,
+        4,
+        1,
+        3,
+        5,
+        4,
+        0
+      ]
+    },
+    {
+      "code": "theqoo",
+      "total": 21,
+      "mean_per_day": 3.0,
+      "stddev": 3.295,
+      "cv": 1.098,
+      "max": 9,
+      "min": 0,
+      "half_ratio_delta": -0.175,
+      "series": [
+        1,
+        2,
+        7,
+        9,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "gsmarena",
+      "total": 17,
+      "mean_per_day": 2.429,
+      "stddev": 2.871,
+      "cv": 1.182,
+      "max": 9,
+      "min": 0,
+      "half_ratio_delta": 1.438,
+      "series": [
+        0,
+        1,
+        3,
+        2,
+        2,
+        9,
+        0
+      ]
+    },
+    {
+      "code": "inside_handy",
+      "total": 16,
+      "mean_per_day": 2.286,
+      "stddev": 1.829,
+      "cv": 0.8,
+      "max": 5,
+      "min": 0,
+      "half_ratio_delta": -0.25,
+      "series": [
+        5,
+        2,
+        1,
+        5,
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "code": "gigazine",
+      "total": 15,
+      "mean_per_day": 2.143,
+      "stddev": 1.959,
+      "cv": 0.914,
+      "max": 6,
+      "min": 0,
+      "half_ratio_delta": -0.344,
+      "series": [
+        2,
+        3,
+        3,
+        6,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "code": "droidsans",
+      "total": 13,
+      "mean_per_day": 1.857,
+      "stddev": 2.167,
+      "cv": 1.167,
+      "max": 6,
+      "min": 0,
+      "half_ratio_delta": -0.125,
+      "series": [
+        0,
+        0,
+        6,
+        4,
+        2,
+        1,
+        0
+      ]
+    },
+    {
+      "code": "tweakers",
+      "total": 13,
+      "mean_per_day": 1.857,
+      "stddev": 1.726,
+      "cv": 0.929,
+      "max": 4,
+      "min": 0,
+      "half_ratio_delta": 0.688,
+      "series": [
+        0,
+        0,
+        4,
+        4,
+        2,
+        3,
+        0
+      ]
+    },
+    {
+      "code": "stackexchange",
+      "total": 10,
+      "mean_per_day": 1.429,
+      "stddev": 3.499,
+      "cv": 2.449,
+      "max": 10,
+      "min": 0,
+      "half_ratio_delta": -1.0,
+      "series": [
+        0,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "hackerone",
+      "total": 9,
+      "mean_per_day": 1.286,
+      "stddev": 3.149,
+      "cv": 2.449,
+      "max": 9,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        9,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "zdnet_kr",
+      "total": 9,
+      "mean_per_day": 1.286,
+      "stddev": 1.278,
+      "cv": 0.994,
+      "max": 4,
+      "min": 0,
+      "half_ratio_delta": -0.4,
+      "series": [
+        4,
+        1,
+        0,
+        2,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "code": "kompas",
+      "total": 6,
+      "mean_per_day": 0.857,
+      "stddev": 0.833,
+      "cv": 0.972,
+      "max": 2,
+      "min": 0,
+      "half_ratio_delta": -0.625,
+      "series": [
+        2,
+        2,
+        0,
+        1,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "mobil_se",
+      "total": 6,
+      "mean_per_day": 0.857,
+      "stddev": 0.639,
+      "cv": 0.745,
+      "max": 2,
+      "min": 0,
+      "half_ratio_delta": -0.625,
+      "series": [
+        1,
+        1,
+        2,
+        0,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "code": "dpreview",
+      "total": 5,
+      "mean_per_day": 0.714,
+      "stddev": 1.03,
+      "cv": 1.442,
+      "max": 3,
+      "min": 0,
+      "half_ratio_delta": 2.0,
+      "series": [
+        0,
+        0,
+        1,
+        0,
+        3,
+        1,
+        0
+      ]
+    },
+    {
+      "code": "sanook",
+      "total": 5,
+      "mean_per_day": 0.714,
+      "stddev": 0.7,
+      "cv": 0.98,
+      "max": 2,
+      "min": 0,
+      "half_ratio_delta": -0.812,
+      "series": [
+        2,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "gizmodo_jp",
+      "total": 4,
+      "mean_per_day": 0.571,
+      "stddev": 0.728,
+      "cv": 1.275,
+      "max": 2,
+      "min": 0,
+      "half_ratio_delta": -0.25,
+      "series": [
+        0,
+        1,
+        1,
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "code": "ruliweb",
+      "total": 4,
+      "mean_per_day": 0.571,
+      "stddev": 1.4,
+      "cv": 2.449,
+      "max": 4,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "engadget",
+      "total": 2,
+      "mean_per_day": 0.286,
+      "stddev": 0.7,
+      "cv": 2.449,
+      "max": 2,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "mobilesyrup",
+      "total": 1,
+      "mean_per_day": 0.143,
+      "stddev": 0.35,
+      "cv": 2.449,
+      "max": 1,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "techcabal",
+      "total": 1,
+      "mean_per_day": 0.143,
+      "stddev": 0.35,
+      "cv": 2.449,
+      "max": 1,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "tomsguide",
+      "total": 1,
+      "mean_per_day": 0.143,
+      "stddev": 0.35,
+      "cv": 2.449,
+      "max": 1,
+      "min": 0,
+      "half_ratio_delta": null,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "code": "arageek",
+      "total": 0,
+      "mean_per_day": 0.0,
+      "stddev": 0.0,
+      "cv": 0.0,
+      "max": 0,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "ausdroid",
+      "total": 0,
+      "mean_per_day": 0.0,
+      "stddev": 0.0,
+      "cv": 0.0,
+      "max": 0,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "bluesky",
+      "total": 0,
+      "mean_per_day": 0.0,
+      "stddev": 0.0,
+      "cv": 0.0,
+      "max": 0,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "gizmodo_au",
+      "total": 0,
+      "mean_per_day": 0.0,
+      "stddev": 0.0,
+      "cv": 0.0,
+      "max": 0,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "iphoneincanada",
+      "total": 0,
+      "mean_per_day": 0.0,
+      "stddev": 0.0,
+      "cv": 0.0,
+      "max": 0,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "mybroadband",
+      "total": 0,
+      "mean_per_day": 0.0,
+      "stddev": 0.0,
+      "cv": 0.0,
+      "max": 0,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "nu_nl",
+      "total": 0,
+      "mean_per_day": 0.0,
+      "stddev": 0.0,
+      "cv": 0.0,
+      "max": 0,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "quora",
+      "total": 0,
+      "mean_per_day": 0.0,
+      "stddev": 0.0,
+      "cv": 0.0,
+      "max": 0,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "samsung_community",
+      "total": 0,
+      "mean_per_day": 0.0,
+      "stddev": 0.0,
+      "cv": 0.0,
+      "max": 0,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "sspai",
+      "total": 0,
+      "mean_per_day": 0.0,
+      "stddev": 0.0,
+      "cv": 0.0,
+      "max": 0,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "code": "techinafrica",
+      "total": 0,
+      "mean_per_day": 0.0,
+      "stddev": 0.0,
+      "cv": 0.0,
+      "max": 0,
+      "min": 0,
+      "half_ratio_delta": 0.0,
+      "series": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "volatile_sites": [
+    {
+      "code": "anandtech",
+      "kind": "trend_down",
+      "mean_per_day": 71.0,
+      "cv": 2.449,
+      "half_ratio_delta": -1.0,
+      "reasons": [
+        "CV=2.45 (변동계수 ≥ 1.0)",
+        "후반 -100% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "ifixit",
+      "kind": "trend_down",
+      "mean_per_day": 11.857,
+      "cv": 2.449,
+      "half_ratio_delta": -1.0,
+      "reasons": [
+        "CV=2.45 (변동계수 ≥ 1.0)",
+        "후반 -100% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "xda",
+      "kind": "trend_down",
+      "mean_per_day": 10.286,
+      "cv": 2.449,
+      "half_ratio_delta": -1.0,
+      "reasons": [
+        "CV=2.45 (변동계수 ≥ 1.0)",
+        "후반 -100% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "stackexchange",
+      "kind": "trend_down",
+      "mean_per_day": 1.429,
+      "cv": 2.449,
+      "half_ratio_delta": -1.0,
+      "reasons": [
+        "CV=2.45 (변동계수 ≥ 1.0)",
+        "후반 -100% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "hardware_fr",
+      "kind": "trend_down",
+      "mean_per_day": 58.714,
+      "cv": 2.202,
+      "half_ratio_delta": -0.972,
+      "reasons": [
+        "CV=2.20 (변동계수 ≥ 1.0)",
+        "후반 -97% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "gsmarena_forum",
+      "kind": "trend_down",
+      "mean_per_day": 37.0,
+      "cv": 2.2,
+      "half_ratio_delta": -0.976,
+      "reasons": [
+        "CV=2.20 (변동계수 ≥ 1.0)",
+        "후반 -98% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "jagatreview",
+      "kind": "trend_down",
+      "mean_per_day": 3.143,
+      "cv": 2.194,
+      "half_ratio_delta": -0.925,
+      "reasons": [
+        "CV=2.19 (변동계수 ≥ 1.0)",
+        "후반 -92% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "danawa",
+      "kind": "trend_down",
+      "mean_per_day": 6.857,
+      "cv": 2.158,
+      "half_ratio_delta": -1.0,
+      "reasons": [
+        "CV=2.16 (변동계수 ≥ 1.0)",
+        "후반 -100% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "phandroid",
+      "kind": "trend_down",
+      "mean_per_day": 6.286,
+      "cv": 1.878,
+      "half_ratio_delta": -0.904,
+      "reasons": [
+        "CV=1.88 (변동계수 ≥ 1.0)",
+        "후반 -90% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "bobaedream",
+      "kind": "trend_down",
+      "mean_per_day": 4.571,
+      "cv": 1.863,
+      "half_ratio_delta": -1.0,
+      "reasons": [
+        "CV=1.86 (변동계수 ≥ 1.0)",
+        "후반 -100% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "notebookcheck",
+      "kind": "trend_down",
+      "mean_per_day": 36.714,
+      "cv": 1.501,
+      "half_ratio_delta": -0.893,
+      "reasons": [
+        "CV=1.50 (변동계수 ≥ 1.0)",
+        "후반 -89% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "tinhte",
+      "kind": "trend_down",
+      "mean_per_day": 24.0,
+      "cv": 1.35,
+      "half_ratio_delta": -0.766,
+      "reasons": [
+        "CV=1.35 (변동계수 ≥ 1.0)",
+        "후반 -77% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "sammyfans",
+      "kind": "trend_down",
+      "mean_per_day": 21.714,
+      "cv": 1.333,
+      "half_ratio_delta": -0.685,
+      "reasons": [
+        "CV=1.33 (변동계수 ≥ 1.0)",
+        "후반 -68% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "ppomppu",
+      "kind": "trend_down",
+      "mean_per_day": 832.286,
+      "cv": 1.316,
+      "half_ratio_delta": -0.92,
+      "reasons": [
+        "CV=1.32 (변동계수 ≥ 1.0)",
+        "후반 -92% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "fmkorea",
+      "kind": "trend_down",
+      "mean_per_day": 24.429,
+      "cv": 1.294,
+      "half_ratio_delta": -0.573,
+      "reasons": [
+        "CV=1.29 (변동계수 ≥ 1.0)",
+        "후반 -57% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "hipertextual",
+      "kind": "trend_down",
+      "mean_per_day": 20.571,
+      "cv": 1.294,
+      "half_ratio_delta": -0.85,
+      "reasons": [
+        "CV=1.29 (변동계수 ≥ 1.0)",
+        "후반 -85% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "hwupgrade",
+      "kind": "trend_down",
+      "mean_per_day": 3.0,
+      "cv": 1.195,
+      "half_ratio_delta": -0.625,
+      "reasons": [
+        "CV=1.20 (변동계수 ≥ 1.0)",
+        "후반 -62% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "lemmy",
+      "kind": "trend_down",
+      "mean_per_day": 18.714,
+      "cv": 1.154,
+      "half_ratio_delta": -0.737,
+      "reasons": [
+        "CV=1.15 (변동계수 ≥ 1.0)",
+        "후반 -74% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "instiz",
+      "kind": "trend_down",
+      "mean_per_day": 1299.571,
+      "cv": 1.15,
+      "half_ratio_delta": -0.998,
+      "reasons": [
+        "CV=1.15 (변동계수 ≥ 1.0)",
+        "후반 -100% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "gsmchoice",
+      "kind": "trend_down",
+      "mean_per_day": 37.143,
+      "cv": 1.002,
+      "half_ratio_delta": -0.582,
+      "reasons": [
+        "CV=1.00 (변동계수 ≥ 1.0)",
+        "후반 -58% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "sammobile",
+      "kind": "trend_down",
+      "mean_per_day": 14.429,
+      "cv": 0.988,
+      "half_ratio_delta": -0.548,
+      "reasons": [
+        "후반 -55% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "dcinside",
+      "kind": "trend_down",
+      "mean_per_day": 1581.286,
+      "cv": 0.955,
+      "half_ratio_delta": -0.895,
+      "reasons": [
+        "후반 -90% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "slrclub",
+      "kind": "trend_down",
+      "mean_per_day": 31.857,
+      "cv": 0.824,
+      "half_ratio_delta": -0.73,
+      "reasons": [
+        "후반 -73% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "donanimhaber",
+      "kind": "trend_down",
+      "mean_per_day": 20.857,
+      "cv": 0.791,
+      "half_ratio_delta": -0.798,
+      "reasons": [
+        "후반 -80% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "hackernews",
+      "kind": "trend_up",
+      "mean_per_day": 7865.714,
+      "cv": 2.287,
+      "half_ratio_delta": 22.385,
+      "reasons": [
+        "CV=2.29 (변동계수 ≥ 1.0)",
+        "후반 +2238% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "clien",
+      "kind": "trend_up",
+      "mean_per_day": 158.571,
+      "cv": 2.214,
+      "half_ratio_delta": 12.603,
+      "reasons": [
+        "CV=2.21 (변동계수 ≥ 1.0)",
+        "후반 +1260% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "xataka",
+      "kind": "trend_up",
+      "mean_per_day": 53.857,
+      "cv": 1.305,
+      "half_ratio_delta": 1.135,
+      "reasons": [
+        "CV=1.30 (변동계수 ≥ 1.0)",
+        "후반 +114% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "gsmarena",
+      "kind": "trend_up",
+      "mean_per_day": 2.429,
+      "cv": 1.182,
+      "half_ratio_delta": 1.438,
+      "reasons": [
+        "CV=1.18 (변동계수 ≥ 1.0)",
+        "후반 +144% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "4pda",
+      "kind": "trend_up",
+      "mean_per_day": 7.429,
+      "cv": 0.997,
+      "half_ratio_delta": 4.75,
+      "reasons": [
+        "후반 +475% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "tweakers",
+      "kind": "trend_up",
+      "mean_per_day": 1.857,
+      "cv": 0.929,
+      "half_ratio_delta": 0.688,
+      "reasons": [
+        "후반 +69% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "tecnoblog",
+      "kind": "trend_up",
+      "mean_per_day": 8.429,
+      "cv": 0.914,
+      "half_ratio_delta": 1.654,
+      "reasons": [
+        "후반 +165% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "gadgets360",
+      "kind": "trend_up",
+      "mean_per_day": 4.286,
+      "cv": 0.834,
+      "half_ratio_delta": 0.75,
+      "reasons": [
+        "후반 +75% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "macrumors",
+      "kind": "trend_up",
+      "mean_per_day": 5.0,
+      "cv": 0.8,
+      "half_ratio_delta": 0.636,
+      "reasons": [
+        "후반 +64% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "phonearena",
+      "kind": "trend_up",
+      "mean_per_day": 6.857,
+      "cv": 0.591,
+      "half_ratio_delta": 0.5,
+      "reasons": [
+        "후반 +50% (반토막 비교)"
+      ]
+    },
+    {
+      "code": "hackerone",
+      "kind": "volatile_swing",
+      "mean_per_day": 1.286,
+      "cv": 2.449,
+      "half_ratio_delta": null,
+      "reasons": [
+        "CV=2.45 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "arxiv",
+      "kind": "volatile_swing",
+      "mean_per_day": 10.143,
+      "cv": 2.251,
+      "half_ratio_delta": null,
+      "reasons": [
+        "CV=2.25 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "mastodon",
+      "kind": "volatile_swing",
+      "mean_per_day": 46.857,
+      "cv": 1.611,
+      "half_ratio_delta": null,
+      "reasons": [
+        "CV=1.61 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "kaskus",
+      "kind": "volatile_swing",
+      "mean_per_day": 167.714,
+      "cv": 1.573,
+      "half_ratio_delta": null,
+      "reasons": [
+        "CV=1.57 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "fourchan_g",
+      "kind": "volatile_swing",
+      "mean_per_day": 28.857,
+      "cv": 1.453,
+      "half_ratio_delta": null,
+      "reasons": [
+        "CV=1.45 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "dogdrip",
+      "kind": "volatile_swing",
+      "mean_per_day": 209.143,
+      "cv": 1.404,
+      "half_ratio_delta": 0.491,
+      "reasons": [
+        "CV=1.40 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "resetera",
+      "kind": "volatile_swing",
+      "mean_per_day": 5.571,
+      "cv": 1.311,
+      "half_ratio_delta": -0.029,
+      "reasons": [
+        "CV=1.31 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "misskey",
+      "kind": "volatile_swing",
+      "mean_per_day": 67.429,
+      "cv": 1.292,
+      "half_ratio_delta": null,
+      "reasons": [
+        "CV=1.29 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "computerbase",
+      "kind": "volatile_swing",
+      "mean_per_day": 28.429,
+      "cv": 1.194,
+      "half_ratio_delta": -0.301,
+      "reasons": [
+        "CV=1.19 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "pikabu",
+      "kind": "volatile_swing",
+      "mean_per_day": 10.143,
+      "cv": 1.181,
+      "half_ratio_delta": null,
+      "reasons": [
+        "CV=1.18 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "quasarzone",
+      "kind": "volatile_swing",
+      "mean_per_day": 77.714,
+      "cv": 1.171,
+      "half_ratio_delta": 0.492,
+      "reasons": [
+        "CV=1.17 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "droidsans",
+      "kind": "volatile_swing",
+      "mean_per_day": 1.857,
+      "cv": 1.167,
+      "half_ratio_delta": -0.125,
+      "reasons": [
+        "CV=1.17 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "theqoo",
+      "kind": "volatile_swing",
+      "mean_per_day": 3.0,
+      "cv": 1.098,
+      "half_ratio_delta": -0.175,
+      "reasons": [
+        "CV=1.10 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "mysmartprice",
+      "kind": "volatile_swing",
+      "mean_per_day": 20.857,
+      "cv": 1.064,
+      "half_ratio_delta": -0.491,
+      "reasons": [
+        "CV=1.06 (변동계수 ≥ 1.0)"
+      ]
+    },
+    {
+      "code": "lowyat",
+      "kind": "volatile_swing",
+      "mean_per_day": 3.857,
+      "cv": 1.059,
+      "half_ratio_delta": -0.062,
+      "reasons": [
+        "CV=1.06 (변동계수 ≥ 1.0)"
+      ]
+    }
+  ],
+  "classification": {
+    "healthy": [
+      "hackernews",
+      "dcinside",
+      "instiz",
+      "ppomppu",
+      "reddit_rss",
+      "dogdrip",
+      "kaskus",
+      "clien",
+      "mlbpark",
+      "quasarzone",
+      "anandtech",
+      "misskey",
+      "hardware_fr",
+      "xataka"
+    ],
+    "moderate": [
+      "mastodon",
+      "gsmchoice",
+      "gsmarena_forum",
+      "notebookcheck",
+      "slrclub",
+      "fourchan_g",
+      "computerbase",
+      "fmkorea",
+      "tinhte",
+      "sammyfans",
+      "donanimhaber",
+      "mysmartprice",
+      "hipertextual",
+      "lemmy",
+      "tudocelular",
+      "sammobile",
+      "ithome",
+      "ifixit",
+      "xataka_mx",
+      "xda",
+      "arxiv",
+      "pikabu"
+    ],
+    "low": [
+      "tecnoblog",
+      "4pda",
+      "theverge",
+      "shiftdelete",
+      "danawa",
+      "phonearena",
+      "androidcentral",
+      "telepolis",
+      "phandroid",
+      "androidpolice",
+      "resetera",
+      "macrumors",
+      "bobaedream",
+      "mobile_review",
+      "gadgets360",
+      "lowyat",
+      "frandroid",
+      "9to5google",
+      "jagatreview",
+      "hwupgrade",
+      "sweclockers",
+      "theqoo",
+      "gsmarena",
+      "inside_handy",
+      "gigazine",
+      "droidsans",
+      "tweakers",
+      "stackexchange",
+      "hackerone",
+      "zdnet_kr",
+      "kompas",
+      "mobil_se",
+      "dpreview",
+      "sanook",
+      "gizmodo_jp",
+      "ruliweb",
+      "engadget",
+      "mobilesyrup",
+      "techcabal",
+      "tomsguide"
+    ],
+    "dying": [],
+    "dead": [
+      "arageek",
+      "ausdroid",
+      "bluesky",
+      "gizmodo_au",
+      "iphoneincanada",
+      "mybroadband",
+      "nu_nl",
+      "quora",
+      "samsung_community",
+      "sspai",
+      "techinafrica"
+    ],
+    "counts": {
+      "healthy": 14,
+      "moderate": 22,
+      "low": 40,
+      "dying": 0,
+      "dead": 11
+    },
+    "by_code": {
+      "hackernews": "healthy",
+      "dcinside": "healthy",
+      "instiz": "healthy",
+      "ppomppu": "healthy",
+      "reddit_rss": "healthy",
+      "dogdrip": "healthy",
+      "kaskus": "healthy",
+      "clien": "healthy",
+      "mlbpark": "healthy",
+      "quasarzone": "healthy",
+      "anandtech": "healthy",
+      "misskey": "healthy",
+      "hardware_fr": "healthy",
+      "xataka": "healthy",
+      "mastodon": "moderate",
+      "gsmchoice": "moderate",
+      "gsmarena_forum": "moderate",
+      "notebookcheck": "moderate",
+      "slrclub": "moderate",
+      "fourchan_g": "moderate",
+      "computerbase": "moderate",
+      "fmkorea": "moderate",
+      "tinhte": "moderate",
+      "sammyfans": "moderate",
+      "donanimhaber": "moderate",
+      "mysmartprice": "moderate",
+      "hipertextual": "moderate",
+      "lemmy": "moderate",
+      "tudocelular": "moderate",
+      "sammobile": "moderate",
+      "ithome": "moderate",
+      "ifixit": "moderate",
+      "xataka_mx": "moderate",
+      "xda": "moderate",
+      "arxiv": "moderate",
+      "pikabu": "moderate",
+      "tecnoblog": "low",
+      "4pda": "low",
+      "theverge": "low",
+      "shiftdelete": "low",
+      "danawa": "low",
+      "phonearena": "low",
+      "androidcentral": "low",
+      "telepolis": "low",
+      "phandroid": "low",
+      "androidpolice": "low",
+      "resetera": "low",
+      "macrumors": "low",
+      "bobaedream": "low",
+      "mobile_review": "low",
+      "gadgets360": "low",
+      "lowyat": "low",
+      "frandroid": "low",
+      "9to5google": "low",
+      "jagatreview": "low",
+      "hwupgrade": "low",
+      "sweclockers": "low",
+      "theqoo": "low",
+      "gsmarena": "low",
+      "inside_handy": "low",
+      "gigazine": "low",
+      "droidsans": "low",
+      "tweakers": "low",
+      "stackexchange": "low",
+      "hackerone": "low",
+      "zdnet_kr": "low",
+      "kompas": "low",
+      "mobil_se": "low",
+      "dpreview": "low",
+      "sanook": "low",
+      "gizmodo_jp": "low",
+      "ruliweb": "low",
+      "engadget": "low",
+      "mobilesyrup": "low",
+      "techcabal": "low",
+      "tomsguide": "low",
+      "arageek": "dead",
+      "ausdroid": "dead",
+      "bluesky": "dead",
+      "gizmodo_au": "dead",
+      "iphoneincanada": "dead",
+      "mybroadband": "dead",
+      "nu_nl": "dead",
+      "quora": "dead",
+      "samsung_community": "dead",
+      "sspai": "dead",
+      "techinafrica": "dead"
+    }
+  },
+  "thresholds": {
+    "cv_volatile": 1.0,
+    "half_ratio_delta": 0.5,
+    "min_mean_for_volatility": 1.0,
+    "class_healthy_min": 50.0,
+    "class_moderate_min": 10.0,
+    "class_low_min": 1.0
+  },
+  "summary": {
+    "total_voc": 94138,
+    "mean_per_day": 13448.3,
+    "volatile_count": 49,
+    "trend_down_count": 24,
+    "trend_up_count": 10,
+    "volatile_swing_count": 15,
+    "class_counts": {
+      "healthy": 14,
+      "moderate": 22,
+      "low": 40,
+      "dying": 0,
+      "dead": 11
+    }
+  }
+}

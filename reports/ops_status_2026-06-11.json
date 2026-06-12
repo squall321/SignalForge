@@ -1,0 +1,29 @@
+{
+  "captured_at": "2026-06-11T00:30:00+00:00",
+  "target_date": "2026-06-11",
+  "status": "warning",
+  "voc_last": 56053,
+  "voc_prev": 4211,
+  "sentiment_null_rate": 0.9143,
+  "topic_rate": 0.0,
+  "grounding_last": 0.2956,
+  "regression_ok_ratio": null,
+  "regression_failed": null,
+  "violations_count": 2,
+  "violations": [
+    {
+      "metric": "sentiment_null_rate",
+      "severity": "warning",
+      "value": 0.9143,
+      "threshold": 0.1,
+      "reason": "sentiment_label NULL=0.914 > 0.1"
+    },
+    {
+      "metric": "llm_grounding_last",
+      "severity": "warning",
+      "value": 0.2956,
+      "threshold": 0.3,
+      "reason": "grounding last=0.296 < 0.3"
+    }
+  ]
+}
