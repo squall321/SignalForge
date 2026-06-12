@@ -15,7 +15,7 @@ async def analyze_sentiment_trend_tool(
             SUM(CASE WHEN v.sentiment_label = 'negative' THEN 1 ELSE 0 END) AS negative,
             SUM(CASE WHEN v.sentiment_label = 'neutral'  THEN 1 ELSE 0 END) AS neutral,
             ROUND(AVG(v.sentiment_score)::numeric, 3)                        AS avg_score
-        FROM voc_records v
+        FROM voc_active v
         JOIN products p ON p.id = v.product_id
         WHERE p.code = :product_code
           AND v.published_at >= NOW() - make_interval(days => :period_days)
@@ -45,7 +45,7 @@ async def compare_products_tool(
             SELECT
                 unnest(v.categories) AS cat,
                 ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
-            FROM voc_records v
+            FROM voc_active v
             JOIN products p ON p.id = v.product_id
             WHERE p.code = :product_code
               AND v.collected_at >= NOW() - INTERVAL '30 days'
@@ -76,7 +76,7 @@ async def get_country_breakdown_tool(
                 SUM(CASE WHEN v.sentiment_label = 'positive' THEN 1 ELSE 0 END)::numeric
                 / NULLIF(COUNT(*), 0) * 100, 1
             ) AS positive_rate
-        FROM voc_records v
+        FROM voc_active v
         JOIN products p ON p.id = v.product_id
         WHERE p.code = :product_code
           AND v.collected_at >= NOW() - make_interval(days => :period_days)
@@ -102,7 +102,7 @@ async def get_voc_summary_tool(product_code: str, period_days: int = 7) -> str:
             ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score,
             SUM(CASE WHEN v.sentiment_label = 'positive' THEN 1 ELSE 0 END) AS positive,
             SUM(CASE WHEN v.sentiment_label = 'negative' THEN 1 ELSE 0 END) AS negative
-        FROM voc_records v
+        FROM voc_active v
         JOIN products p ON p.id = v.product_id
         WHERE p.code = :product_code
           AND v.collected_at >= NOW() - make_interval(days => :period_days)
@@ -111,7 +111,7 @@ async def get_voc_summary_tool(product_code: str, period_days: int = 7) -> str:
     # 상위 카테고리
     cat_stmt = text("""
         SELECT unnest(v.categories) AS cat, COUNT(*) AS cnt
-        FROM voc_records v
+        FROM voc_active v
         JOIN products p ON p.id = v.product_id
         WHERE p.code = :product_code
           AND v.collected_at >= NOW() - make_interval(days => :period_days)

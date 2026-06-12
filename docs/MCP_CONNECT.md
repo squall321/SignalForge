@@ -149,3 +149,38 @@ asyncio.run(main())
 ```
 
 11개 도구 (기존 7 + 신규 4) 가 모두 출력되어야 합니다.
+
+---
+
+## 8. 그래프 규격 도구 (2026-06-12 신규)
+
+기존 11개 도구 + **차트 4종** = 15개. 모든 차트 도구는 `voc_active` 기반
+(archived 제외 → backend `/data-quality` 와 수치 정합) 으로, 표준 스키마를 반환:
+
+```json
+{ "chart_type": "line|bar", "raw": {...}, "echarts_option": {...}, "summary": "..." }
+```
+
+- `raw` — 원본 집계 (다른 라이브러리 매핑용)
+- `echarts_option` — chartTheme.ts 규격 ECharts option (Okabe-Ito 8색). 그대로 렌더 가능
+  - ⚠️ 한국어 tooltip formatter 는 JS 함수라 직렬화 불가 → `tooltip.trigger` 만 포함.
+    frontend 렌더 시 `chartTheme.ts` 의 formatter 를 주입하면 됨
+
+### 도구
+
+| 도구 | 인자 | 차트 | 용도 |
+|---|---|---|---|
+| `chart_sentiment_timeseries` | `product_codes:[]`, `days`, `granularity` | 다제품 라인 | 제품별 VOC 추세 비교 |
+| `chart_country_distribution` | `product_code?`, `top_n` | 가로 막대 | 국가별 분포 |
+| `chart_category_distribution` | `product_code?`, `top_n` | 가로 막대 | 카테고리별 분포 |
+| `chart_crisis_timeline` | `case_code?` | line+area | 위기 사례 timeline (peak marker). code: GN7/GZF1/GS22U/GZFL3/GS20 |
+
+### LLM 사용 흐름
+
+1. 도구 호출 → `echarts_option` 수령
+2. 그대로 `<ReactECharts option={echarts_option}/>` 또는 ECharts setOption 에 전달
+3. 또는 `raw` 를 받아 다른 차트 라이브러리 (Vega/matplotlib) 로 매핑
+
+### Tier 2 (예정)
+
+- `chart_keyword_network` — 키워드 동시출현 force-graph (deep_service.keyword_network 차용, 성능 검증 분리)

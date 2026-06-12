@@ -13,6 +13,12 @@ from tools.analytics import (
     get_country_breakdown_tool,
     get_voc_summary_tool,
 )
+from tools.charts import (
+    chart_sentiment_timeseries_tool,
+    chart_country_distribution_tool,
+    chart_category_distribution_tool,
+    chart_crisis_timeline_tool,
+)
 from tools.insights import (
     daily_briefing_tool,
     alert_check_tool,
@@ -205,6 +211,50 @@ async def top_emerging_keywords(
         top_n: 언어별 반환 키워드 수 (기본 20, 최대 50)
     """
     return await top_emerging_keywords_tool(period_days, product_code, min(top_n, 50))
+
+
+# ── 그래프 규격 도구 (r6+ 2026-06-12) — voc_active 기반, echarts_option 반환 ──
+# 모든 도구가 {chart_type, raw, echarts_option, summary} 반환.
+# LLM 은 echarts_option 을 그대로 렌더하거나 raw 로 다른 라이브러리에 매핑.
+@mcp.tool()
+async def chart_sentiment_timeseries(
+    product_codes: list, days: int = 90, granularity: str = "week"
+) -> dict:
+    """제품별 VOC sentiment 시계열을 라인 차트 규격(ECharts option)으로 반환.
+
+    Args:
+        product_codes: 제품 코드 목록 (예: ["GS25","GZF8"]). 다제품 동시 비교.
+        days: 조회 기간 (일, 기본 90)
+        granularity: day / week / month (기본 week)
+    Returns: {chart_type:"line", raw:{per_product,periods}, echarts_option, summary}
+    """
+    return await chart_sentiment_timeseries_tool(product_codes, days, granularity)
+
+
+@mcp.tool()
+async def chart_country_distribution(
+    product_code: Optional[str] = None, top_n: int = 15
+) -> dict:
+    """국가별 VOC 분포를 가로 막대 차트 규격으로 반환. product_code 생략 시 전체."""
+    return await chart_country_distribution_tool(product_code, top_n)
+
+
+@mcp.tool()
+async def chart_category_distribution(
+    product_code: Optional[str] = None, top_n: int = 15
+) -> dict:
+    """카테고리별 VOC 분포를 가로 막대 차트 규격으로 반환. product_code 생략 시 전체."""
+    return await chart_category_distribution_tool(product_code, top_n)
+
+
+@mcp.tool()
+async def chart_crisis_timeline(case_code: Optional[str] = None) -> dict:
+    """위기 사례 일별 timeline 을 line+area 차트 규격으로 반환 (peak marker 포함).
+
+    case_code 생략 시 5개 위기 사례 전체 raw + 첫 사례 차트.
+    유효 code: GN7 / GZF1 / GS22U / GZFL3 / GS20.
+    """
+    return await chart_crisis_timeline_tool(case_code)
 
 
 if __name__ == "__main__":

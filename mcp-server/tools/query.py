@@ -33,7 +33,7 @@ async def query_voc_tool(
             v.sentiment_score, v.sentiment_label, v.categories,
             v.likes_count, v.comments_count, v.engagement_score,
             v.published_at, pl.name AS platform_name
-        FROM voc_records v
+        FROM voc_active v
         JOIN products p ON p.id = v.product_id
         JOIN platforms pl ON pl.id = v.platform_id
         WHERE {where}
@@ -57,7 +57,7 @@ async def get_top_issues_tool(
                 SUM(CASE WHEN v.sentiment_label = 'negative' THEN 1 ELSE 0 END)::numeric
                 / NULLIF(COUNT(*), 0) * 100, 1
             ) AS negative_rate
-        FROM voc_records v
+        FROM voc_active v
         JOIN products p ON p.id = v.product_id,
              unnest(v.categories) AS cat
         WHERE p.code = :product_code
@@ -95,7 +95,7 @@ async def search_voc_tool(
             v.categories, v.published_at,
             pl.name AS platform_name,
             p.name_en AS product_name
-        FROM voc_records v
+        FROM voc_active v
         JOIN products p ON p.id = v.product_id
         JOIN platforms pl ON pl.id = v.platform_id
         WHERE {where}

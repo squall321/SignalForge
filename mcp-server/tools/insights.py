@@ -86,14 +86,14 @@ async def daily_briefing_tool(date: Optional[str] = None) -> str:
             SUM(CASE WHEN v.sentiment_label = 'neutral'  THEN 1 ELSE 0 END) AS neutral,
             COUNT(DISTINCT v.platform_id) AS platforms_active,
             COUNT(DISTINCT v.product_id) AS products_mentioned
-        FROM voc_records v
+        FROM voc_active v
         WHERE v.collected_at >= :start AND v.collected_at < :end
     """)
 
     top_products_stmt = text("""
         SELECT p.code, p.name_ko, COUNT(*) AS cnt,
                ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
-        FROM voc_records v JOIN products p ON p.id = v.product_id
+        FROM voc_active v JOIN products p ON p.id = v.product_id
         WHERE v.collected_at >= :start AND v.collected_at < :end
         GROUP BY p.code, p.name_ko
         ORDER BY cnt DESC LIMIT 5
@@ -101,7 +101,7 @@ async def daily_briefing_tool(date: Optional[str] = None) -> str:
 
     top_categories_stmt = text("""
         SELECT unnest(v.categories) AS cat, COUNT(*) AS cnt
-        FROM voc_records v
+        FROM voc_active v
         WHERE v.collected_at >= :start AND v.collected_at < :end
           AND v.categories IS NOT NULL
         GROUP BY cat ORDER BY cnt DESC LIMIT 5
@@ -109,7 +109,7 @@ async def daily_briefing_tool(date: Optional[str] = None) -> str:
 
     neg_spike_stmt = text("""
         SELECT p.code, p.name_ko, COUNT(*) AS neg_cnt
-        FROM voc_records v JOIN products p ON p.id = v.product_id
+        FROM voc_active v JOIN products p ON p.id = v.product_id
         WHERE v.collected_at >= :start AND v.collected_at < :end
           AND v.sentiment_label = 'negative'
         GROUP BY p.code, p.name_ko
@@ -170,7 +170,7 @@ async def alert_check_tool() -> dict:
             SELECT p.code, p.name_ko,
                    COUNT(*) AS total,
                    SUM(CASE WHEN v.sentiment_label = 'negative' THEN 1 ELSE 0 END) AS neg
-            FROM voc_records v JOIN products p ON p.id = v.product_id
+            FROM voc_active v JOIN products p ON p.id = v.product_id
             WHERE v.collected_at > NOW() - INTERVAL '24 hours'
             GROUP BY p.code, p.name_ko
             HAVING COUNT(*) >= :min_vol
@@ -186,14 +186,14 @@ async def alert_check_tool() -> dict:
     surge_stmt = text("""
         WITH cur AS (
             SELECT p.code, p.name_ko, COUNT(*) AS neg
-            FROM voc_records v JOIN products p ON p.id = v.product_id
+            FROM voc_active v JOIN products p ON p.id = v.product_id
             WHERE v.collected_at > NOW() - INTERVAL '24 hours'
               AND v.sentiment_label = 'negative'
             GROUP BY p.code, p.name_ko
         ),
         prev AS (
             SELECT p.code, COUNT(*) AS neg_prev
-            FROM voc_records v JOIN products p ON p.id = v.product_id
+            FROM voc_active v JOIN products p ON p.id = v.product_id
             WHERE v.collected_at > NOW() - INTERVAL '48 hours'
               AND v.collected_at <= NOW() - INTERVAL '24 hours'
               AND v.sentiment_label = 'negative'
@@ -216,7 +216,7 @@ async def alert_check_tool() -> dict:
         SELECT pl.code, pl.name,
                MAX(v.collected_at) AS last_seen,
                EXTRACT(EPOCH FROM (NOW() - MAX(v.collected_at))) / 3600 AS hours_since
-        FROM platforms pl LEFT JOIN voc_records v ON v.platform_id = pl.id
+        FROM platforms pl LEFT JOIN voc_active v ON v.platform_id = pl.id
         GROUP BY pl.code, pl.name
         HAVING MAX(v.collected_at) IS NULL
             OR MAX(v.collected_at) < NOW() - INTERVAL '12 hours'
@@ -279,7 +279,7 @@ async def site_health_tool() -> List[dict]:
             MAX(v.collected_at) AS last_collected,
             EXTRACT(EPOCH FROM (NOW() - MAX(v.collected_at))) / 3600 AS hours_since_last
         FROM platforms pl
-        LEFT JOIN voc_records v
+        LEFT JOIN voc_active v
                ON v.platform_id = pl.id
               AND v.collected_at > NOW() - INTERVAL '24 hours'
         GROUP BY pl.code, pl.name, pl.region
@@ -333,7 +333,7 @@ async def top_emerging_keywords_tool(
     where = " AND ".join(conds)
     stmt = text(f"""
         SELECT v.content_original, v.content_translated, v.language_detected
-        FROM voc_records v
+        FROM voc_active v
         JOIN products p ON p.id = v.product_id
         WHERE {where}
           AND COALESCE(v.content_original, v.content_translated, '') <> ''
