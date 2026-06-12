@@ -59,31 +59,36 @@ cp .env.example .env
 
 포트는 기본값 그대로 (postgres 5434 / backend 18000 / frontend 17370 / redis 6379).
 
-## 5. 가동 + DB 복원
+## 5-6. 가동 + 복원 + 검증 — 원샷 자동
+
+```bash
+bash scripts/bootstrap-new-server.sh
+```
+
+3~6 단계를 전부 자동 수행:
+수신(이미 받았으면 skip) → `up.sh` 기동 → 연결 정지 → 최신 dump 복원 → MV refresh
+→ backend/worker/beat 재가동 → **검증 게이트 5종 자동** (worker redis banner `:**@` /
+health / regression 14 checks / data-quality mx_match / collection-stats) → 결과 표.
+게이트 미통과 시 exit 1 + 실패 항목 표시.
+
+옵션: `--no-sync` (Drive 수신 생략) / `--no-restore` (빈 DB, alembic 스키마만)
+
+frontend 는 별도 (dev 모드):
+
+```bash
+cd frontend && npm install && npm run dev &    # :17370
+```
+
+<details><summary>수동으로 단계별 실행하려면 (참고)</summary>
 
 ```bash
 bash scripts/up.sh
-# 전자동: postgres(sif instance) → backend venv 생성+pip → alembic upgrade head
-#         → seed → uvicorn :18000 → crawler venv → celery worker(-c 6) + beat
-
+pkill -f "celery -A celery_app"; pkill -f "uvicorn app.main:app"   # DROP 위해 연결 정지
 bash scripts/drive-sync/restore-db.sh ./backups/sf-db-*.sql.gz --yes
-# 안전백업 먼저 뜨고 DROP+CREATE+restore (voc 21만+ 행, 수 분)
+# 재가동 + 게이트는 bootstrap-new-server.sh 의 4-5 단계 참조
 ```
 
-## 6. 검증 게이트 (r6 정착 기준)
-
-```bash
-# worker 가 비밀번호 포함 Redis URL 로 떴는지 (r6 P0 재발 방지 — 의무)
-grep "transport:" logs/celery-worker.log | tail -1     # ":**@" 포함이어야 함
-
-curl -s localhost:18000/health                                        # 200
-curl -s localhost:18000/api/v1/_internal/regression-baseline | head   # 14 checks
-curl -s localhost:18000/api/v1/_internal/data-quality | head          # mx_match ~84%
-curl -s localhost:18000/api/v1/_internal/collection-stats | head      # h24_by_site
-
-# frontend (dev 모드)
-cd frontend && npm install && npm run dev &                            # :17370
-```
+</details>
 
 ## 7. 원본 서버 추종 모드 (전환일까지, 선택)
 
