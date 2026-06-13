@@ -12,7 +12,7 @@ from typing import Optional, List
 from sqlalchemy import text
 from db import get_db_session
 from tools.chart_spec import (
-    build_line, build_bar, build_timeline, chart_response,
+    build_line, build_bar, build_timeline, build_graph, chart_response,
 )
 
 # deep_service.CRISIS_CATALOG 의 code/title/기간 복제 (backend app 패키지는 MCP sys.path 에
@@ -181,3 +181,95 @@ async def chart_crisis_timeline_tool(case_code: Optional[str] = None) -> dict:
     raw = results if not case_code else (results[0] if results else {})
     return chart_response("line", raw, opt,
                           f"{len(results)}개 위기 사례 / 표시: {primary['title']}")
+
+
+# ── ④ 키워드 네트워크 (Tier 2) ────────────────────────────────
+async def chart_keyword_network_tool(
+    product_code: Optional[str] = None, days: int = 30,
+    min_cooccur: int = 3, max_nodes: int = 40,
+) -> dict:
+    """키워드 동시출현 네트워크 → force-graph (union-find community).
+
+    출처: backend deep_service.keyword_network:1480 의 pair/ed/kw_freq CTE +
+    union-find 파이썬 로직. voc_active 교정 + product 필터 추가.
+    성능: voc_keywords self-join 이라 days/min_cooccur/max_nodes 로 행 축소 (Tier 2).
+    """
+    min_cooccur = max(2, min_cooccur)
+    max_nodes = max(5, min(max_nodes, 80))
+    pfilt = "AND vr.product_id = (SELECT id FROM products WHERE code = :code)" if product_code else ""
+    sql = text(f"""
+        WITH pair AS (
+            SELECT a.keyword AS k1, b.keyword AS k2
+            FROM voc_keywords a
+            JOIN voc_keywords b ON a.voc_id = b.voc_id AND a.keyword < b.keyword
+            JOIN voc_active vr ON vr.id = a.voc_id
+            WHERE vr.published_at >= NOW() - make_interval(days => :days)
+              AND vr.published_at IS NOT NULL {pfilt}
+        ),
+        ed AS (
+            SELECT k1, k2, COUNT(*) AS w FROM pair
+            GROUP BY k1, k2 HAVING COUNT(*) >= :min_cooccur
+        ),
+        kw_freq AS (
+            SELECT vk.keyword, COUNT(*) AS f,
+                   MODE() WITHIN GROUP (ORDER BY vr.language_detected) AS lang
+            FROM voc_keywords vk JOIN voc_active vr ON vr.id = vk.voc_id
+            WHERE vr.published_at >= NOW() - make_interval(days => :days)
+              AND vr.published_at IS NOT NULL {pfilt}
+            GROUP BY vk.keyword
+        )
+        SELECT e.k1, e.k2, e.w, f1.f AS f1, f1.lang AS l1, f2.f AS f2, f2.lang AS l2
+        FROM ed e
+        JOIN kw_freq f1 ON f1.keyword = e.k1
+        JOIN kw_freq f2 ON f2.keyword = e.k2
+        ORDER BY e.w DESC
+    """)
+    params = {"days": days, "min_cooccur": min_cooccur}
+    if product_code:
+        params["code"] = product_code.upper()
+    async with get_db_session() as db:
+        rows = (await db.execute(sql, params)).all()
+
+    # degree 누적 + meta (backend 로직 동일)
+    deg: dict = {}
+    meta_map: dict = {}
+    edge_list = []
+    for r in rows:
+        deg[r.k1] = deg.get(r.k1, 0) + int(r.w)
+        deg[r.k2] = deg.get(r.k2, 0) + int(r.w)
+        meta_map[r.k1] = (int(r.f1 or 0), r.l1)
+        meta_map[r.k2] = (int(r.f2 or 0), r.l2)
+        edge_list.append((r.k1, r.k2, int(r.w)))
+
+    top_ids = {k for k, _ in sorted(deg.items(), key=lambda x: -x[1])[:max_nodes]}
+    parent = {k: k for k in top_ids}
+
+    def _find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    edges_out = []
+    for k1, k2, w in edge_list:
+        if k1 in top_ids and k2 in top_ids:
+            ra, rb = _find(k1), _find(k2)
+            if ra != rb:
+                parent[ra] = rb
+            edges_out.append({"source": k1, "target": k2, "value": w})
+
+    root_to_cid = {}
+    nodes_out = []
+    for k in sorted(top_ids, key=lambda k: -deg[k]):
+        cid = root_to_cid.setdefault(_find(k), len(root_to_cid))
+        freq, lang = meta_map.get(k, (0, None))
+        nodes_out.append({"id": k, "name": k, "value": freq,
+                          "category": cid, "lang": lang})
+
+    raw = {"nodes": nodes_out, "edges": edges_out,
+           "meta": {"node_count": len(nodes_out), "edge_count": len(edges_out),
+                    "community_count": len(root_to_cid), "days": days}}
+    title = f"키워드 네트워크{' — '+product_code.upper() if product_code else ''} ({days}일)"
+    opt = build_graph(nodes_out, edges_out, title)
+    return chart_response("graph", raw, opt,
+                          f"노드 {len(nodes_out)}개 / 엣지 {len(edges_out)}개 / 군집 {len(root_to_cid)}개")

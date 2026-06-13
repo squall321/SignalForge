@@ -181,6 +181,8 @@ asyncio.run(main())
 2. 그대로 `<ReactECharts option={echarts_option}/>` 또는 ECharts setOption 에 전달
 3. 또는 `raw` 를 받아 다른 차트 라이브러리 (Vega/matplotlib) 로 매핑
 
-### Tier 2 (예정)
+### 키워드 네트워크 (force-graph)
 
-- `chart_keyword_network` — 키워드 동시출현 force-graph (deep_service.keyword_network 차용, 성능 검증 분리)
+- `chart_keyword_network(product_code?, days=30, min_cooccur=3, max_nodes=40)` —
+  키워드 동시출현 → union-find 군집 force-graph. deep_service.keyword_network 차용.
+  성능: 전체 30일 ~2.6s, 제품 한정 즉시. raw `{nodes,edges,meta}`, echarts graph option.

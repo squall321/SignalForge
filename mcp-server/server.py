@@ -18,6 +18,7 @@ from tools.charts import (
     chart_country_distribution_tool,
     chart_category_distribution_tool,
     chart_crisis_timeline_tool,
+    chart_keyword_network_tool,
 )
 from tools.insights import (
     daily_briefing_tool,
@@ -255,6 +256,23 @@ async def chart_crisis_timeline(case_code: Optional[str] = None) -> dict:
     유효 code: GN7 / GZF1 / GS22U / GZFL3 / GS20.
     """
     return await chart_crisis_timeline_tool(case_code)
+
+
+@mcp.tool()
+async def chart_keyword_network(
+    product_code: Optional[str] = None, days: int = 30,
+    min_cooccur: int = 3, max_nodes: int = 40,
+) -> dict:
+    """키워드 동시출현 네트워크를 force-graph 차트 규격으로 반환 (union-find 군집).
+
+    Args:
+        product_code: 제품 한정 — 선택 (없으면 전체)
+        days: 조회 기간 (일, 기본 30)
+        min_cooccur: 엣지 최소 동시출현 횟수 (기본 3, 노이즈 컷)
+        max_nodes: 최대 노드 수 (기본 40, degree 상위)
+    Returns: {chart_type:"graph", raw:{nodes,edges,meta}, echarts_option, summary}
+    """
+    return await chart_keyword_network_tool(product_code, days, min_cooccur, max_nodes)
 
 
 if __name__ == "__main__":

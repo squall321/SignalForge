@@ -24,6 +24,7 @@ from tools.chart_spec import (  # noqa: E402
 from tools.charts import (  # noqa: E402
     chart_sentiment_timeseries_tool, chart_country_distribution_tool,
     chart_category_distribution_tool, chart_crisis_timeline_tool,
+    chart_keyword_network_tool,
 )
 
 STD_KEYS = {"chart_type", "raw", "echarts_option", "summary"}
@@ -80,6 +81,13 @@ async def _run_async_checks():
     # ③ 전체 위기 (CRISIS_CATALOG 5건)
     r = await chart_crisis_timeline_tool()
     assert isinstance(r["raw"], list) and len(r["raw"]) == 5
+
+    # ④ 키워드 네트워크 (Tier 2 — force-graph)
+    r = await chart_keyword_network_tool(days=30, min_cooccur=3, max_nodes=40)
+    assert set(r.keys()) == STD_KEYS and r["chart_type"] == "graph"
+    json.dumps(r["echarts_option"])
+    assert r["echarts_option"]["series"][0]["type"] == "graph"
+    assert r["raw"]["meta"]["node_count"] <= 40
 
 
 def test_async_chart_tools():
