@@ -16,6 +16,7 @@ import {
   DatabaseOutlined,
   HistoryOutlined,
   SafetyCertificateOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import GlobalFilterBar from './GlobalFilterBar';
 import LiveAlertBadge from '../dashboard/LiveAlertBadge';
@@ -43,6 +44,7 @@ const MENU = [
   { key: '/collection', icon: <DatabaseOutlined />, label: '수집 상태' },
   { key: '/history', icon: <HistoryOutlined />, label: '17년 라이프사이클' },
   { key: '/data-quality', icon: <SafetyCertificateOutlined />, label: '데이터 품질' },
+  { key: '/charts', icon: <BarChartOutlined />, label: '차트 갤러리' },
 ];
 
 // 모바일(xs/sm)에서는 Sider를 숨기고 햄버거 → Drawer 로 전환.

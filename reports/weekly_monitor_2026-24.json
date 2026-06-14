@@ -1,19 +1,9 @@
 {
-  "generated_at": "2026-06-12T00:30:00+00:00",
-  "target_date": "2026-06-12",
+  "generated_at": "2026-06-14T00:30:00+00:00",
+  "target_date": "2026-06-14",
   "window_days": 7,
   "iso_year_week": "2026-24",
   "voc_daily": [
-    {
-      "day": "2026-06-06",
-      "voc_count": 8597,
-      "sentiment_avg": 0.0637
-    },
-    {
-      "day": "2026-06-07",
-      "voc_count": 8978,
-      "sentiment_avg": 0.0261
-    },
     {
       "day": "2026-06-08",
       "voc_count": 13644,
@@ -36,8 +26,18 @@
     },
     {
       "day": "2026-06-12",
-      "voc_count": 51,
-      "sentiment_avg": 0.1758
+      "voc_count": 2272,
+      "sentiment_avg": 0.187
+    },
+    {
+      "day": "2026-06-13",
+      "voc_count": 1823,
+      "sentiment_avg": 0.1545
+    },
+    {
+      "day": "2026-06-14",
+      "voc_count": 67,
+      "sentiment_avg": 0.213
     }
   ],
   "collection_status": {
@@ -49,22 +49,6 @@
   "grounding": {
     "window_days": 7,
     "entries": [
-      {
-        "date": "2026-06-06",
-        "grounding_score": 0.2879,
-        "provider": "openai",
-        "used_tier": "high",
-        "tier_label": "high-shared:qwen2.5:7b",
-        "prompt_version": "v4-must-cite-5"
-      },
-      {
-        "date": "2026-06-07",
-        "grounding_score": 0.3637,
-        "provider": "openai",
-        "used_tier": "high",
-        "tier_label": "high-shared:qwen2.5:7b",
-        "prompt_version": "v4-must-cite-5"
-      },
       {
         "date": "2026-06-08",
         "grounding_score": 0.2787,
@@ -88,12 +72,28 @@
         "used_tier": "high",
         "tier_label": "high-shared:qwen2.5:14b",
         "prompt_version": "v4-must-cite-5"
+      },
+      {
+        "date": "2026-06-11",
+        "grounding_score": 0.3937,
+        "provider": "openai",
+        "used_tier": "high",
+        "tier_label": "high-shared:qwen2.5:14b",
+        "prompt_version": "v4-must-cite-5"
+      },
+      {
+        "date": "2026-06-12",
+        "grounding_score": 0.39,
+        "provider": "openai",
+        "used_tier": "high",
+        "tier_label": "high-shared:qwen2.5:14b",
+        "prompt_version": "v4-must-cite-5"
       }
     ],
-    "avg": 0.3229,
+    "avg": 0.3493,
     "min": 0.2787,
-    "max": 0.3885,
-    "last": 0.3885
+    "max": 0.3937,
+    "last": 0.39
   },
   "regression": {
     "error": "<urlopen error [Errno 111] Connection refused>"
@@ -102,28 +102,28 @@
     {
       "code": "kaskus",
       "first_seen": "2026-06-09",
-      "voc_total": 1174,
+      "voc_total": 1506,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "pikabu",
       "first_seen": "2026-06-09",
-      "voc_total": 71,
+      "voc_total": 98,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "misskey",
       "first_seen": "2026-06-09",
-      "voc_total": 472,
+      "voc_total": 497,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "fourchan_g",
       "first_seen": "2026-06-09",
-      "voc_total": 202,
+      "voc_total": 272,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -137,28 +137,28 @@
     {
       "code": "arxiv",
       "first_seen": "2026-06-09",
-      "voc_total": 71,
+      "voc_total": 72,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "mastodon",
       "first_seen": "2026-06-09",
-      "voc_total": 328,
+      "voc_total": 394,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "jagatreview",
       "first_seen": "2026-06-08",
-      "voc_total": 22,
+      "voc_total": 24,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "droidsans",
       "first_seen": "2026-06-08",
-      "voc_total": 13,
+      "voc_total": 17,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -172,28 +172,28 @@
     {
       "code": "4pda",
       "first_seen": "2026-06-08",
-      "voc_total": 52,
+      "voc_total": 69,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "phandroid",
       "first_seen": "2026-06-07",
-      "voc_total": 44,
+      "voc_total": 46,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "gsmarena_forum",
       "first_seen": "2026-06-06",
-      "voc_total": 259,
+      "voc_total": 287,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "hardware_fr",
       "first_seen": "2026-06-06",
-      "voc_total": 411,
+      "voc_total": 424,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -207,84 +207,84 @@
     {
       "code": "resetera",
       "first_seen": "2026-06-06",
-      "voc_total": 39,
+      "voc_total": 40,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "notebookcheck",
       "first_seen": "2026-06-06",
-      "voc_total": 257,
+      "voc_total": 260,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "zdnet_kr",
       "first_seen": "2026-06-06",
-      "voc_total": 9,
+      "voc_total": 10,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "reddit_rss",
       "first_seen": "2026-06-04",
-      "voc_total": 2285,
+      "voc_total": 2658,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "hipertextual",
       "first_seen": "2026-06-01",
-      "voc_total": 294,
+      "voc_total": 309,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "sammyfans",
       "first_seen": "2026-06-01",
-      "voc_total": 270,
+      "voc_total": 292,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "gsmchoice",
       "first_seen": "2026-06-01",
-      "voc_total": 410,
+      "voc_total": 425,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "inside_handy",
       "first_seen": "2026-06-01",
-      "voc_total": 48,
+      "voc_total": 49,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "mysmartprice",
       "first_seen": "2026-06-01",
-      "voc_total": 276,
+      "voc_total": 294,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "kompas",
       "first_seen": "2026-06-01",
-      "voc_total": 160,
+      "voc_total": 162,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "gigazine",
       "first_seen": "2026-06-01",
-      "voc_total": 23,
+      "voc_total": 28,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "ithome",
       "first_seen": "2026-06-01",
-      "voc_total": 97,
+      "voc_total": 118,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -298,42 +298,42 @@
     {
       "code": "mobil_se",
       "first_seen": "2026-06-01",
-      "voc_total": 81,
+      "voc_total": 82,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "sanook",
       "first_seen": "2026-06-01",
-      "voc_total": 31,
+      "voc_total": 33,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "techcabal",
       "first_seen": "2026-06-01",
-      "voc_total": 151,
+      "voc_total": 153,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "sweclockers",
       "first_seen": "2026-06-01",
-      "voc_total": 43,
+      "voc_total": 49,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "telepolis",
       "first_seen": "2026-06-01",
-      "voc_total": 226,
+      "voc_total": 242,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "sammobile",
       "first_seen": "2026-06-01",
-      "voc_total": 221,
+      "voc_total": 232,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -347,35 +347,35 @@
     {
       "code": "tinhte",
       "first_seen": "2026-06-01",
-      "voc_total": 363,
+      "voc_total": 393,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "tweakers",
       "first_seen": "2026-06-01",
-      "voc_total": 28,
+      "voc_total": 33,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "mobilesyrup",
       "first_seen": "2026-06-01",
-      "voc_total": 27,
+      "voc_total": 30,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "donanimhaber",
       "first_seen": "2026-06-01",
-      "voc_total": 450,
+      "voc_total": 519,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "mobile_review",
       "first_seen": "2026-06-01",
-      "voc_total": 181,
+      "voc_total": 184,
       "voc_24h": 0,
       "active_24h": false
     },
@@ -389,161 +389,23 @@
     {
       "code": "hwupgrade",
       "first_seen": "2026-06-01",
-      "voc_total": 143,
+      "voc_total": 154,
       "voc_24h": 0,
       "active_24h": false
     },
     {
       "code": "computerbase",
       "first_seen": "2026-06-01",
-      "voc_total": 1760,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "shiftdelete",
-      "first_seen": "2026-05-31",
-      "voc_total": 273,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "xataka_mx",
-      "first_seen": "2026-05-31",
-      "voc_total": 196,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "frandroid",
-      "first_seen": "2026-05-31",
-      "voc_total": 191,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "lowyat",
-      "first_seen": "2026-05-31",
-      "voc_total": 2379,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "tecnoblog",
-      "first_seen": "2026-05-31",
-      "voc_total": 265,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "tudocelular",
-      "first_seen": "2026-05-31",
-      "voc_total": 236,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "xataka",
-      "first_seen": "2026-05-31",
-      "voc_total": 709,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "gadgets360",
-      "first_seen": "2026-05-31",
-      "voc_total": 309,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "gizmodo_au",
-      "first_seen": "2026-05-31",
-      "voc_total": 59,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "ausdroid",
-      "first_seen": "2026-05-31",
-      "voc_total": 101,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "gizmodo_jp",
-      "first_seen": "2026-05-30",
-      "voc_total": 117,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "androidpolice",
-      "first_seen": "2026-05-30",
-      "voc_total": 131,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "tomsguide",
-      "first_seen": "2026-05-30",
-      "voc_total": 158,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "dpreview",
-      "first_seen": "2026-05-30",
-      "voc_total": 43,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "dogdrip",
-      "first_seen": "2026-05-30",
-      "voc_total": 6841,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "quasarzone",
-      "first_seen": "2026-05-30",
-      "voc_total": 1481,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "theverge",
-      "first_seen": "2026-05-30",
-      "voc_total": 310,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "macrumors",
-      "first_seen": "2026-05-30",
-      "voc_total": 70,
-      "voc_24h": 0,
-      "active_24h": false
-    },
-    {
-      "code": "engadget",
-      "first_seen": "2026-05-30",
-      "voc_total": 177,
+      "voc_total": 1827,
       "voc_24h": 0,
       "active_24h": false
     }
   ],
   "alerts": [
     {
-      "rule": "voc_daily_drop_50pct",
-      "severity": "warning",
-      "message": "voc 2026-06-10=56053 → 2026-06-11=2604 (95.4% 감소)"
-    },
-    {
       "rule": "llm_grounding_below_0p4",
       "severity": "warning",
-      "message": "grounding last=0.389 < 0.4"
+      "message": "grounding last=0.390 < 0.4"
     }
   ]
 }

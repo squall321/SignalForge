@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from app.config import settings
 from app.database import engine
 from app.models import Product, Platform, VocRecord, VocCategory, CrawlJob  # noqa: F401 — import 순서 보장
-from app.api import products, analytics, crawl_jobs, websocket, dashboard, kg, temporal, geo, community, insights, _internal, deep, alerts, shared
+from app.api import products, analytics, crawl_jobs, websocket, dashboard, kg, temporal, geo, community, insights, _internal, deep, alerts, shared, charts
 
 
 @asynccontextmanager
@@ -51,6 +51,7 @@ app.include_router(deep.router, prefix="/api/v1")
 app.include_router(alerts.router, prefix="/api/v1")
 app.include_router(_internal.router, prefix="/api/v1")
 app.include_router(shared.router, prefix="/api/v1")
+app.include_router(charts.router, prefix="/api/v1")
 app.include_router(websocket.router)
 
 

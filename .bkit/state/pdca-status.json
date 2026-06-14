@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-06-12T13:34:09.690Z",
+  "lastUpdated": "2026-06-14T09:02:49.661Z",
   "activeFeatures": [
     "base",
     "platforms",
@@ -61,7 +61,8 @@
     "historyApi.ts",
     "history",
     "export_service.py",
-    "dataQualityApi.ts"
+    "dataQualityApi.ts",
+    "chartsApi.ts"
   ],
   "primaryFeature": "base",
   "features": {
@@ -165,9 +166,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-05-29T08:55:05.259Z",
-        "lastUpdated": "2026-06-10T03:57:38.254Z"
+        "lastUpdated": "2026-06-12T14:27:51.918Z"
       },
-      "lastFile": "/home/koopark/claude/SignalForge/crawler/scripts/hn_backfill_alltime.py"
+      "lastFile": "/home/koopark/claude/SignalForge/scripts/bootstrap-new-server.sh"
     },
     "tests": {
       "phase": "do",
@@ -178,9 +179,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-06-01T19:54:06.165Z",
-        "lastUpdated": "2026-06-10T01:13:50.612Z"
+        "lastUpdated": "2026-06-13T10:58:01.659Z"
       },
-      "lastFile": "/home/koopark/claude/SignalForge/backend/tests/test_collection_stats.py"
+      "lastFile": "/home/koopark/claude/SignalForge/mcp-server/tests/test_charts.py"
     },
     "schemas": {
       "phase": "do",
@@ -256,9 +257,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-06-01T20:33:18.564Z",
-        "lastUpdated": "2026-06-12T13:34:09.689Z"
+        "lastUpdated": "2026-06-14T08:58:51.073Z"
       },
-      "lastFile": "/home/koopark/claude/SignalForge/backend/app/api/_internal.py"
+      "lastFile": "/home/koopark/claude/SignalForge/backend/app/api/charts.py"
     },
     "tools": {
       "phase": "do",
@@ -269,9 +270,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-06-01T20:33:40.225Z",
-        "lastUpdated": "2026-06-01T20:33:40.225Z"
+        "lastUpdated": "2026-06-13T10:56:47.654Z"
       },
-      "lastFile": "/home/koopark/claude/SignalForge/mcp-server/tools/insights.py"
+      "lastFile": "/home/koopark/claude/SignalForge/mcp-server/tools/charts.py"
     },
     "mcp-server": {
       "phase": "do",
@@ -282,7 +283,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-06-01T20:33:47.955Z",
-        "lastUpdated": "2026-06-01T20:34:06.360Z"
+        "lastUpdated": "2026-06-13T10:57:30.381Z"
       },
       "lastFile": "/home/koopark/claude/SignalForge/mcp-server/server.py"
     },
@@ -308,9 +309,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-06-01T20:51:08.159Z",
-        "lastUpdated": "2026-06-09T22:27:43.869Z"
+        "lastUpdated": "2026-06-14T09:02:49.661Z"
       },
-      "lastFile": "/home/koopark/claude/SignalForge/frontend/src/pages/DataQuality.tsx"
+      "lastFile": "/home/koopark/claude/SignalForge/frontend/src/App.tsx"
     },
     "versions": {
       "phase": "do",
@@ -844,6 +845,19 @@
         "lastUpdated": "2026-06-09T22:27:09.389Z"
       },
       "lastFile": "/home/koopark/claude/SignalForge/frontend/src/services/dataQualityApi.ts"
+    },
+    "chartsApi.ts": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-06-14T09:01:53.317Z",
+        "lastUpdated": "2026-06-14T09:01:53.317Z"
+      },
+      "lastFile": "/home/koopark/claude/SignalForge/frontend/src/services/chartsApi.ts"
     }
   },
   "pipeline": {
@@ -854,7 +868,7 @@
   "session": {
     "startedAt": "2026-05-14T20:16:17.831Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-06-12T13:34:09.690Z"
+    "lastActivity": "2026-06-14T09:02:49.661Z"
   },
   "history": [
     {
@@ -12446,6 +12460,138 @@
     {
       "timestamp": "2026-06-12T13:34:09.689Z",
       "feature": "api",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T14:27:51.918Z",
+      "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T22:25:23.617Z",
+      "feature": "tools",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T22:25:32.503Z",
+      "feature": "tools",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T22:26:39.095Z",
+      "feature": "tools",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T22:27:02.526Z",
+      "feature": "mcp-server",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T22:27:09.375Z",
+      "feature": "mcp-server",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T22:27:51.637Z",
+      "feature": "tools",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T22:28:01.872Z",
+      "feature": "tools",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T22:28:29.490Z",
+      "feature": "tools",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T22:28:43.347Z",
+      "feature": "tools",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T22:29:25.816Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-12T22:30:01.834Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-13T10:56:47.654Z",
+      "feature": "tools",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-13T10:57:18.293Z",
+      "feature": "mcp-server",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-13T10:57:30.381Z",
+      "feature": "mcp-server",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-13T10:57:52.106Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-13T10:58:01.659Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-14T08:58:51.073Z",
+      "feature": "api",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-14T09:01:53.317Z",
+      "feature": "chartsApi.ts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-14T09:02:17.893Z",
+      "feature": "frontend",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-14T09:02:43.548Z",
+      "feature": "frontend",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-14T09:02:49.661Z",
+      "feature": "frontend",
       "phase": "do",
       "action": "updated"
     }

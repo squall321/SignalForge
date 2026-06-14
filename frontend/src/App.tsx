@@ -18,6 +18,7 @@ const Compare = lazy(() => import('./pages/Compare'));
 const CollectionStatus = lazy(() => import('./pages/CollectionStatus'));
 const History = lazy(() => import('./pages/History'));
 const DataQuality = lazy(() => import('./pages/DataQuality'));
+const ChartGallery = lazy(() => import('./pages/ChartGallery'));
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
@@ -115,6 +116,14 @@ export default function App() {
           element={
             <Suspense fallback={<PageLoader />}>
               <DataQuality />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/charts"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <ChartGallery />
             </Suspense>
           }
         />
