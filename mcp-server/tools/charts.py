@@ -34,12 +34,13 @@ async def chart_sentiment_timeseries_tool(
     """다제품 sentiment 시계열 → 제품별 라인 차트."""
     trunc = granularity if granularity in ("day", "week", "month") else "week"
     codes = [c.upper() for c in product_codes]
+    day_filter = "" if days <= 0 else "AND v.published_at >= NOW() - make_interval(days => :days)"
     stmt = text(f"""
         SELECT p.code AS product, date_trunc(:trunc, v.published_at)::date AS period,
                COUNT(*) AS cnt, ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
         FROM voc_active v JOIN products p ON p.id = v.product_id
         WHERE p.code = ANY(:codes)
-          AND v.published_at >= NOW() - make_interval(days => :days)
+          {day_filter}
           AND v.published_at IS NOT NULL
         GROUP BY p.code, period ORDER BY period
     """)

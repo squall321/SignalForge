@@ -19,6 +19,16 @@ const CRISIS_CASES = [
   { value: 'GS20', label: 'Galaxy S20 가격' },
 ];
 
+// 기간 옵션 — 0 = 전기간 (2007~, r6 backfill 옛 글 포함)
+const PERIOD_OPTIONS = [
+  { value: 0, label: '전체 기간 (2007~)' },
+  { value: 3650, label: '최근 10년' },
+  { value: 1825, label: '최근 5년' },
+  { value: 365, label: '최근 1년' },
+  { value: 90, label: '최근 90일' },
+  { value: 30, label: '최근 30일' },
+];
+
 function ChartPanel({
   loader, deps, height = 460,
 }: {
@@ -60,9 +70,22 @@ export default function ChartGallery() {
   // 제품 코드 (대표 몇 개 — 실제론 products endpoint 에서 가져와도 됨)
   const [products, setProducts] = useState<string[]>(['GS25', 'GZF8']);
   const [crisisCase, setCrisisCase] = useState('GN7');
+  // 차트별 기간 (기본: 시계열/분포 전체, 네트워크는 30일 — self-join 무거움)
+  const [tsDays, setTsDays] = useState(0);
+  const [tsGran, setTsGran] = useState('month');
+  const [countryDays, setCountryDays] = useState(0);
+  const [categoryDays, setCategoryDays] = useState(0);
+  const [netDays, setNetDays] = useState(30);
   const productOptions = [
     'GS25', 'GS24', 'GZF8', 'GZF7', 'GZFL8', 'GN7', 'GS22U', 'GS20',
   ].map((c) => ({ value: c, label: c }));
+
+  const periodSelect = (value: number, onChange: (v: number) => void) => (
+    <>
+      <Text>기간:</Text>
+      <Select value={value} onChange={onChange} options={PERIOD_OPTIONS} style={{ minWidth: 160 }} />
+    </>
+  );
 
   const items = [
     {
@@ -70,12 +93,17 @@ export default function ChartGallery() {
       label: '시계열',
       children: (
         <Card>
-          <Space style={{ marginBottom: 12 }}>
+          <Space style={{ marginBottom: 12 }} wrap>
             <Text>제품:</Text>
             <Select mode="multiple" value={products} onChange={setProducts}
               options={productOptions} style={{ minWidth: 280 }} maxTagCount={4} />
+            {periodSelect(tsDays, setTsDays)}
+            <Text>단위:</Text>
+            <Select value={tsGran} onChange={setTsGran} style={{ minWidth: 100 }}
+              options={[{ value: 'month', label: '월' }, { value: 'week', label: '주' }, { value: 'day', label: '일' }]} />
           </Space>
-          <ChartPanel loader={() => fetchSentimentTimeseries(products, 90)} deps={[products]} />
+          <ChartPanel loader={() => fetchSentimentTimeseries(products, tsDays, tsGran)}
+            deps={[products, tsDays, tsGran]} />
         </Card>
       ),
     },
@@ -84,7 +112,9 @@ export default function ChartGallery() {
       label: '국가 분포',
       children: (
         <Card>
-          <ChartPanel loader={() => fetchCountryDistribution(undefined, 15)} deps={[]} height={500} />
+          <Space style={{ marginBottom: 12 }} wrap>{periodSelect(countryDays, setCountryDays)}</Space>
+          <ChartPanel loader={() => fetchCountryDistribution(undefined, 15, countryDays)}
+            deps={[countryDays]} height={500} />
         </Card>
       ),
     },
@@ -93,7 +123,9 @@ export default function ChartGallery() {
       label: '카테고리 분포',
       children: (
         <Card>
-          <ChartPanel loader={() => fetchCategoryDistribution(undefined, 15)} deps={[]} height={500} />
+          <Space style={{ marginBottom: 12 }} wrap>{periodSelect(categoryDays, setCategoryDays)}</Space>
+          <ChartPanel loader={() => fetchCategoryDistribution(undefined, 15, categoryDays)}
+            deps={[categoryDays]} height={500} />
         </Card>
       ),
     },
@@ -102,10 +134,11 @@ export default function ChartGallery() {
       label: '위기 타임라인',
       children: (
         <Card>
-          <Space style={{ marginBottom: 12 }}>
+          <Space style={{ marginBottom: 12 }} wrap>
             <Text>사례:</Text>
             <Select value={crisisCase} onChange={setCrisisCase}
               options={CRISIS_CASES} style={{ minWidth: 220 }} />
+            <Text type="secondary">(위기 사례는 사건 기간 고정)</Text>
           </Space>
           <ChartPanel loader={() => fetchCrisisTimeline(crisisCase)} deps={[crisisCase]} />
         </Card>
@@ -116,7 +149,12 @@ export default function ChartGallery() {
       label: '키워드 네트워크',
       children: (
         <Card>
-          <ChartPanel loader={() => fetchKeywordNetwork(undefined, 30, 3, 40)} deps={[]} height={560} />
+          <Space style={{ marginBottom: 12 }} wrap>
+            {periodSelect(netDays, setNetDays)}
+            <Text type="secondary">(전기간은 제품 선택 시 권장)</Text>
+          </Space>
+          <ChartPanel loader={() => fetchKeywordNetwork(undefined, netDays, 3, 40)}
+            deps={[netDays]} height={560} />
         </Card>
       ),
     },

@@ -33,18 +33,21 @@ _CRISIS_CATALOG = [
 @router.get("/sentiment-timeseries")
 async def chart_sentiment_timeseries(
     product_codes: List[str] = Query(..., description="제품 코드 목록 (반복 파라미터)"),
-    days: int = Query(90), granularity: str = Query("week"),
+    days: int = Query(90, description="조회 기간 (일). 0 = 전기간 (2007~)"),
+    granularity: str = Query("week"),
     db: AsyncSession = Depends(get_db),
 ):
-    """다제품 sentiment 시계열 → 라인 차트 규격."""
+    """다제품 sentiment 시계열 → 라인 차트 규격. days=0 이면 전기간."""
     trunc = granularity if granularity in ("day", "week", "month") else "week"
     codes = [c.upper() for c in product_codes]
-    rows = (await db.execute(text("""
+    # days=0 → 전기간 (기간 필터 생략). 옛 글 (r6 backfill 2007~) 까지 노출
+    day_filter = "" if days <= 0 else "AND v.published_at >= NOW() - make_interval(days => :days)"
+    rows = (await db.execute(text(f"""
         SELECT p.code AS product, date_trunc(:trunc, v.published_at)::date AS period,
                COUNT(*) AS cnt, ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
         FROM voc_active v JOIN products p ON p.id = v.product_id
         WHERE p.code = ANY(:codes)
-          AND v.published_at >= NOW() - make_interval(days => :days)
+          {day_filter}
           AND v.published_at IS NOT NULL
         GROUP BY p.code, period ORDER BY period
     """), {"trunc": trunc, "codes": codes, "days": days})).mappings().all()
@@ -71,20 +74,22 @@ async def chart_sentiment_timeseries(
 @router.get("/country-distribution")
 async def chart_country_distribution(
     product_code: Optional[str] = Query(None), top_n: int = Query(15),
+    days: int = Query(0, description="조회 기간 (일). 0 = 전기간 (기본)"),
     db: AsyncSession = Depends(get_db),
 ):
-    """국가별 VOC 분포 → 가로 막대."""
+    """국가별 VOC 분포 → 가로 막대. days=0 (기본) 이면 전기간."""
     top_n = max(1, min(top_n, 50))
     join = "JOIN products p ON p.id = v.product_id" if product_code else ""
     filt = "AND p.code = :code" if product_code else ""
-    params: dict = {"top_n": top_n}
+    dayf = "AND v.published_at >= NOW() - make_interval(days => :days)" if days > 0 else ""
+    params: dict = {"top_n": top_n, "days": days}
     if product_code:
         params["code"] = product_code.upper()
     rows = (await db.execute(text(f"""
         SELECT v.country_code AS country, COUNT(*) AS cnt,
                ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
         FROM voc_active v {join}
-        WHERE v.country_code IS NOT NULL {filt}
+        WHERE v.country_code IS NOT NULL {filt} {dayf}
         GROUP BY v.country_code ORDER BY cnt DESC LIMIT :top_n
     """), params)).mappings().all()
     raw = [{"country_code": r["country"], "voc_count": int(r["cnt"]),
@@ -99,20 +104,22 @@ async def chart_country_distribution(
 @router.get("/category-distribution")
 async def chart_category_distribution(
     product_code: Optional[str] = Query(None), top_n: int = Query(15),
+    days: int = Query(0, description="조회 기간 (일). 0 = 전기간 (기본)"),
     db: AsyncSession = Depends(get_db),
 ):
-    """카테고리별 VOC 분포 → 가로 막대."""
+    """카테고리별 VOC 분포 → 가로 막대. days=0 (기본) 이면 전기간."""
     top_n = max(1, min(top_n, 50))
     join = "JOIN products p ON p.id = v.product_id" if product_code else ""
     filt = "AND p.code = :code" if product_code else ""
-    params: dict = {"top_n": top_n}
+    dayf = "AND v.published_at >= NOW() - make_interval(days => :days)" if days > 0 else ""
+    params: dict = {"top_n": top_n, "days": days}
     if product_code:
         params["code"] = product_code.upper()
     rows = (await db.execute(text(f"""
         SELECT unnest(v.categories) AS cat, COUNT(*) AS cnt,
                ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
         FROM voc_active v {join}
-        WHERE v.categories IS NOT NULL {filt}
+        WHERE v.categories IS NOT NULL {filt} {dayf}
         GROUP BY cat ORDER BY cnt DESC LIMIT :top_n
     """), params)).mappings().all()
     raw = [{"category": r["cat"], "voc_count": int(r["cnt"]),
@@ -182,6 +189,8 @@ async def chart_keyword_network(
     min_cooccur = max(2, min_cooccur)
     max_nodes = max(5, min(max_nodes, 80))
     pfilt = "AND vr.product_id = (SELECT id FROM products WHERE code = :code)" if product_code else ""
+    # days=0 → 전기간 (단 self-join 이라 product_code 없는 전기간은 무거움 — 권장 안 함)
+    dayf = "AND vr.published_at >= NOW() - make_interval(days => :days)" if days > 0 else ""
     params: dict = {"days": days, "min_cooccur": min_cooccur}
     if product_code:
         params["code"] = product_code.upper()
@@ -191,8 +200,7 @@ async def chart_keyword_network(
             FROM voc_keywords a
             JOIN voc_keywords b ON a.voc_id = b.voc_id AND a.keyword < b.keyword
             JOIN voc_active vr ON vr.id = a.voc_id
-            WHERE vr.published_at >= NOW() - make_interval(days => :days)
-              AND vr.published_at IS NOT NULL {pfilt}
+            WHERE vr.published_at IS NOT NULL {dayf} {pfilt}
         ), ed AS (
             SELECT k1, k2, COUNT(*) AS w FROM pair
             GROUP BY k1, k2 HAVING COUNT(*) >= :min_cooccur
@@ -200,8 +208,7 @@ async def chart_keyword_network(
             SELECT vk.keyword, COUNT(*) AS f,
                    MODE() WITHIN GROUP (ORDER BY vr.language_detected) AS lang
             FROM voc_keywords vk JOIN voc_active vr ON vr.id = vk.voc_id
-            WHERE vr.published_at >= NOW() - make_interval(days => :days)
-              AND vr.published_at IS NOT NULL {pfilt}
+            WHERE vr.published_at IS NOT NULL {dayf} {pfilt}
             GROUP BY vk.keyword
         )
         SELECT e.k1, e.k2, e.w, f1.f AS f1, f1.lang AS l1, f2.f AS f2, f2.lang AS l2

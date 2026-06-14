@@ -23,19 +23,19 @@ export async function fetchSentimentTimeseries(
 }
 
 export async function fetchCountryDistribution(
-  productCode?: string, topN = 15,
+  productCode?: string, topN = 15, days = 0,
 ): Promise<ChartResponse> {
   const { data } = await api.get<ChartResponse>('/charts/country-distribution', {
-    params: { product_code: productCode, top_n: topN },
+    params: { product_code: productCode, top_n: topN, days },
   });
   return data;
 }
 
 export async function fetchCategoryDistribution(
-  productCode?: string, topN = 15,
+  productCode?: string, topN = 15, days = 0,
 ): Promise<ChartResponse> {
   const { data } = await api.get<ChartResponse>('/charts/category-distribution', {
-    params: { product_code: productCode, top_n: topN },
+    params: { product_code: productCode, top_n: topN, days },
   });
   return data;
 }
