@@ -32,10 +32,10 @@ export async function fetchCountryDistribution(
 }
 
 export async function fetchCategoryDistribution(
-  productCode?: string, topN = 15, days = 0,
+  productCode?: string, topN = 15, days = 0, country?: string,
 ): Promise<ChartResponse> {
   const { data } = await api.get<ChartResponse>('/charts/category-distribution', {
-    params: { product_code: productCode, top_n: topN, days },
+    params: { product_code: productCode, top_n: topN, days, country },
   });
   return data;
 }

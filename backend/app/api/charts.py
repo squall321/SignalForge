@@ -105,27 +105,32 @@ async def chart_country_distribution(
 async def chart_category_distribution(
     product_code: Optional[str] = Query(None), top_n: int = Query(15),
     days: int = Query(0, description="조회 기간 (일). 0 = 전기간 (기본)"),
+    country: Optional[str] = Query(None, description="국가 코드 한정 (드릴다운)"),
     db: AsyncSession = Depends(get_db),
 ):
-    """카테고리별 VOC 분포 → 가로 막대. days=0 (기본) 이면 전기간."""
+    """카테고리별 VOC 분포 → 가로 막대. days=0 (기본) 전기간. country 로 드릴다운."""
     top_n = max(1, min(top_n, 50))
     join = "JOIN products p ON p.id = v.product_id" if product_code else ""
     filt = "AND p.code = :code" if product_code else ""
     dayf = "AND v.published_at >= NOW() - make_interval(days => :days)" if days > 0 else ""
+    cfilt = "AND v.country_code = :country" if country else ""
     params: dict = {"top_n": top_n, "days": days}
     if product_code:
         params["code"] = product_code.upper()
+    if country:
+        params["country"] = country.upper()
     rows = (await db.execute(text(f"""
         SELECT unnest(v.categories) AS cat, COUNT(*) AS cnt,
                ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
         FROM voc_active v {join}
-        WHERE v.categories IS NOT NULL {filt} {dayf}
+        WHERE v.categories IS NOT NULL {filt} {dayf} {cfilt}
         GROUP BY cat ORDER BY cnt DESC LIMIT :top_n
     """), params)).mappings().all()
     raw = [{"category": r["cat"], "voc_count": int(r["cnt"]),
             "avg_score": float(r["avg_score"] or 0)} for r in rows]
+    suffix = (' — '+product_code.upper() if product_code else '') + (f' / {country.upper()}' if country else '')
     opt = build_bar([d["category"] for d in raw], [d["voc_count"] for d in raw],
-                    f"카테고리별 VOC 분포{' — '+product_code.upper() if product_code else ''}",
+                    f"카테고리별 VOC 분포{suffix}",
                     horizontal=True)
     return chart_response("bar", raw, opt,
                           f"상위 {len(raw)}개 카테고리 / 1위 {raw[0]['category'] if raw else '-'}")
