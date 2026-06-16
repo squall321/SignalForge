@@ -37,12 +37,15 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 LIMIT = int(os.getenv("REPROCESS_LIMIT", "0"))
 BATCH = int(os.getenv("REPROCESS_BATCH", "50"))
 
-SELECT_SQL = text("""
+SELECT_SQL = text(r"""
     SELECT id, content_original, language_detected
     FROM voc_records
     WHERE language_detected IS NOT NULL
       AND language_detected NOT IN ('en', 'und')
       AND (content_translated IS NULL OR content_translated = content_original)
+      -- ASCII-only 본문은 langdetect 오탐 (tl/so 등) — 이미 영어라 번역 불필요.
+      -- 제외 안 하면 매 cycle 대상으로 잡혀 통계 부풀림 + 시간 낭비 (잔재의 68%).
+      AND content_original !~ '^[\x00-\x7F]*$'
     ORDER BY id
     LIMIT :batch OFFSET :offset
 """)
