@@ -1,11 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from app.config import settings
+from app.core.session import verify_session
 from app.database import engine
 from app.models import Product, Platform, VocRecord, VocCategory, CrawlJob  # noqa: F401 — import 순서 보장
-from app.api import products, analytics, crawl_jobs, websocket, dashboard, kg, temporal, geo, community, insights, _internal, deep, alerts, shared, charts
+from app.api import products, analytics, crawl_jobs, websocket, dashboard, kg, temporal, geo, community, insights, _internal, deep, alerts, shared, charts, portal_sso
 
 
 @asynccontextmanager
@@ -52,7 +54,29 @@ app.include_router(alerts.router, prefix="/api/v1")
 app.include_router(_internal.router, prefix="/api/v1")
 app.include_router(shared.router, prefix="/api/v1")
 app.include_router(charts.router, prefix="/api/v1")
+app.include_router(portal_sso.router, prefix="/api/v1")
 app.include_router(websocket.router)
+
+
+# ── HWAX Portal SSO gate ──────────────────────────────────
+# PORTAL_JWKS_URL 이 설정된 경우에만 /api/v1/* 요청에 유효한 sf_session 쿠키를 요구한다.
+# 비어 있으면 완전한 pass-through (standalone 배포는 그대로). CORS 뒤에 등록해 CORS 가 감싸도록 한다.
+# @app.middleware('http') 는 BaseHTTPMiddleware 라 websocket scope 를 보지 않으므로 WS 는 게이트되지 않는다.
+_GATE_ALLOW = ("/api/v1/auth/portal-callback",)
+
+
+@app.middleware("http")
+async def portal_sso_gate(request: Request, call_next):
+    if (
+        settings.PORTAL_JWKS_URL
+        and request.method != "OPTIONS"
+        and request.url.path.startswith("/api/v1")
+        and request.url.path not in _GATE_ALLOW
+    ):
+        raw = request.cookies.get("sf_session")
+        if not raw or verify_session(raw) is None:
+            return JSONResponse(status_code=401, content={"detail": "portal session required"})
+    return await call_next(request)
 
 
 # ── 헬스체크 ──────────────────────────────────────────────

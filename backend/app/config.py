@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     API_KEY: str = "change-me"
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 
+    # ── HWAX Portal SSO (optional — 비어 있으면 SSO 비활성, 게이트 off, 콜백 404) ──
+    PORTAL_JWKS_URL: str = ""                # portal launch JWT 검증용 JWKS. 비면 SSO 전체 off
+    PORTAL_AUDIENCE: str = "signalforge"     # 토큰 aud; systems.yaml audience 와 일치해야 함
+    SF_SESSION_SECRET: str = ""              # sf_session 서명 HMAC 키 (SSO 활성 시 필수)
+    SESSION_COOKIE_PATH: str = "/signalforge/"  # 쿠키 Path (sub-path fix; '/' 도 가능)
+    SESSION_TTL_SECONDS: int = 43200         # 세션 수명 (12h)
+    PORTAL_SSO_LANDING: str = "/signalforge/"   # 콜백 후 303 redirect 대상
+
     # P4 트랙 A — 실시간 알림
     SLACK_WEBHOOK_URL: str = ""              # 비어 있으면 SlackChannel 은 dry-run
     SLACK_CHANNEL: str = ""                  # 선택. Slack incoming webhook 의 채널 override

@@ -15,6 +15,8 @@ deep-translator>=1.11.4
 vaderSentiment>=3.3.2
 anthropic>=0.30.0
 python-multipart>=0.0.9
+python-jose[cryptography]>=3.3.0
+itsdangerous>=2.1.0
 
 # Track E — 데이터 export (CSV/Excel/PDF)
 openpyxl>=3.1.0
