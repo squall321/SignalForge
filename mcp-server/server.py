@@ -275,5 +275,29 @@ async def chart_keyword_network(
     return await chart_keyword_network_tool(product_code, days, min_cooccur, max_nodes)
 
 
+# SF_MCP_TOKEN 이 설정되면 Authorization: Bearer 검증을 끼운다(에이전트용 정적 서비스 토큰).
+# streamable-http 는 스트리밍이라 BaseHTTPMiddleware(응답 버퍼링) 대신 순수 ASGI 로 헤더만 검사.
+# 미설정 시 기존처럼 무인증 — standalone 안전.
+class _BearerGate:
+    def __init__(self, app, token: str) -> None:
+        self.app, self.token = app, token
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            headers = dict(scope.get("headers") or [])
+            if headers.get(b"authorization", b"").decode() != f"Bearer {self.token}":
+                await send({"type": "http.response.start", "status": 401,
+                            "headers": [(b"content-type", b"application/json")]})
+                await send({"type": "http.response.body", "body": b'{"error":"unauthorized"}'})
+                return
+        await self.app(scope, receive, send)
+
+
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    _token = os.getenv("SF_MCP_TOKEN", "").strip()
+    if _token:
+        import uvicorn
+        uvicorn.run(_BearerGate(mcp.streamable_http_app(), _token),
+                    host=mcp.settings.host, port=mcp.settings.port)
+    else:
+        mcp.run(transport="streamable-http")
