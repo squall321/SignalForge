@@ -26,6 +26,11 @@ from tools.insights import (
     site_health_tool,
     top_emerging_keywords_tool,
 )
+from tools.breakdowns import (
+    get_platform_breakdown_tool,
+    get_engagement_leaders_tool,
+    get_language_breakdown_tool,
+)
 
 # @lat: mcp — [[mcp-server]] 참조. 7개 도구 정의.
 mcp = FastMCP(
@@ -234,18 +239,32 @@ async def chart_sentiment_timeseries(
 
 @mcp.tool()
 async def chart_country_distribution(
-    product_code: Optional[str] = None, top_n: int = 15
+    product_code: Optional[str] = None, top_n: int = 15, days: int = 0
 ) -> dict:
-    """국가별 VOC 분포를 가로 막대 차트 규격으로 반환. product_code 생략 시 전체."""
-    return await chart_country_distribution_tool(product_code, top_n)
+    """국가별 VOC 분포를 가로 막대 차트 규격으로 반환. product_code 생략 시 전체.
+
+    Args:
+        product_code: 제품 한정 — 선택
+        top_n: 상위 국가 수 (기본 15, 최대 50)
+        days: 0 이면 전기간, >0 이면 최근 N일(published_at 기준)
+    """
+    return await chart_country_distribution_tool(product_code, top_n, days)
 
 
 @mcp.tool()
 async def chart_category_distribution(
-    product_code: Optional[str] = None, top_n: int = 15
+    product_code: Optional[str] = None, top_n: int = 15,
+    days: int = 0, country: Optional[str] = None,
 ) -> dict:
-    """카테고리별 VOC 분포를 가로 막대 차트 규격으로 반환. product_code 생략 시 전체."""
-    return await chart_category_distribution_tool(product_code, top_n)
+    """카테고리별 VOC 분포를 가로 막대 차트 규격으로 반환. product_code 생략 시 전체.
+
+    Args:
+        product_code: 제품 한정 — 선택
+        top_n: 상위 카테고리 수 (기본 15, 최대 50)
+        days: 0 이면 전기간, >0 이면 최근 N일
+        country: 국가코드(예 'US') 지정 시 해당국으로 드릴다운 — 선택
+    """
+    return await chart_category_distribution_tool(product_code, top_n, days, country)
 
 
 @mcp.tool()
@@ -273,6 +292,49 @@ async def chart_keyword_network(
     Returns: {chart_type:"graph", raw:{nodes,edges,meta}, echarts_option, summary}
     """
     return await chart_keyword_network_tool(product_code, days, min_cooccur, max_nodes)
+
+
+# ── 차원 분해 도구 (보강 2026-06-25) — 미노출 데이터 차원 커버 ──
+@mcp.tool()
+async def get_platform_breakdown(
+    product_code: Optional[str] = None, period_days: int = 30, top_n: int = 20
+) -> list:
+    """플랫폼(커뮤니티/사이트)별 VOC 건수·평균감성·부정비율을 반환합니다.
+
+    platform_id 는 전 레코드에 채워져 있어 전수 커버됩니다. 어느 채널에서
+    말이 많고 감성이 나쁜지 파악할 때 사용합니다.
+
+    Args:
+        product_code: 제품 한정 — 선택 (없으면 전체 VOC)
+        period_days: 분석 기간 (일, 기본 30). 0 이면 전기간.
+        top_n: 상위 플랫폼 수 (기본 20, 최대 100)
+    """
+    return await get_platform_breakdown_tool(product_code, period_days, top_n)
+
+
+@mcp.tool()
+async def get_engagement_leaders(
+    product_code: Optional[str] = None, period_days: int = 30, limit: int = 20
+) -> list:
+    """engagement_score(좋아요/댓글/공유 기반) 상위 VOC를 반환합니다 — 바이럴·고영향 게시물.
+
+    Args:
+        product_code: 제품 한정 — 선택 (없으면 전체)
+        period_days: 분석 기간 (일, 기본 30). 0 이면 전기간.
+        limit: 반환 건수 (기본 20, 최대 100)
+    """
+    return await get_engagement_leaders_tool(product_code, period_days, limit)
+
+
+@mcp.tool()
+async def get_language_breakdown(period_days: int = 0, top_n: int = 25) -> list:
+    """언어(language_detected)별 VOC 건수·평균감성을 반환합니다 — 글로벌 커버리지 가시화.
+
+    Args:
+        period_days: 분석 기간 (일). 기본 0 = 전기간.
+        top_n: 상위 언어 수 (기본 25, 최대 60)
+    """
+    return await get_language_breakdown_tool(period_days, top_n)
 
 
 # SF_MCP_TOKEN 이 설정되면 Authorization: Bearer 검증을 끼운다(에이전트용 정적 서비스 토큰).

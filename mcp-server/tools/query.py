@@ -80,6 +80,8 @@ async def get_top_issues_tool(
 async def search_voc_tool(
     keyword: str, product_code: Optional[str] = None, limit: int = 30
 ) -> List[dict]:
+    # products 는 LEFT JOIN — 제품 태깅율이 ~18% 라 INNER JOIN 시 미태깅 VOC 82% 가
+    # 조용히 누락된다. 검색은 전체 voc_active 를 대상으로 해야 한다(product_code 지정 시만 좁힘).
     conditions = ["to_tsvector('english', COALESCE(v.content_translated, '')) @@ plainto_tsquery('english', :keyword)"]
     params: dict = {"keyword": keyword, "limit": limit}
 
@@ -96,8 +98,8 @@ async def search_voc_tool(
             pl.name AS platform_name,
             p.name_en AS product_name
         FROM voc_active v
-        JOIN products p ON p.id = v.product_id
-        JOIN platforms pl ON pl.id = v.platform_id
+        LEFT JOIN products p ON p.id = v.product_id
+        LEFT JOIN platforms pl ON pl.id = v.platform_id
         WHERE {where}
         ORDER BY v.engagement_score DESC NULLS LAST
         LIMIT :limit

@@ -70,57 +70,72 @@ async def chart_sentiment_timeseries_tool(
 
 # ── ② 분포 ────────────────────────────────────────────────────
 async def chart_country_distribution_tool(
-    product_code: Optional[str] = None, top_n: int = 15
+    product_code: Optional[str] = None, top_n: int = 15, days: int = 0
 ) -> dict:
-    """국가별 VOC 분포 → 가로 막대."""
+    """국가별 VOC 분포 → 가로 막대. days=0 이면 전기간, >0 이면 최근 N일(published_at)."""
     top_n = max(1, min(top_n, 50))
     filt = "AND p.code = :code" if product_code else ""
+    dfilt = "AND v.published_at >= NOW() - make_interval(days => :days)" if days else ""
     stmt = text(f"""
         SELECT v.country_code AS country, COUNT(*) AS cnt,
                ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
         FROM voc_active v {"JOIN products p ON p.id = v.product_id" if product_code else ""}
-        WHERE v.country_code IS NOT NULL {filt}
+        WHERE v.country_code IS NOT NULL {filt} {dfilt}
         GROUP BY v.country_code ORDER BY cnt DESC LIMIT :top_n
     """)
-    params = {"top_n": top_n}
+    params: dict = {"top_n": top_n}
     if product_code:
         params["code"] = product_code.upper()
+    if days:
+        params["days"] = days
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
     raw = [{"country_code": r["country"], "voc_count": int(r["cnt"]),
             "avg_score": float(r["avg_score"] or 0)} for r in rows]
+    period = "전기간" if not days else f"최근 {days}일"
     opt = build_bar([d["country_code"] for d in raw], [d["voc_count"] for d in raw],
-                    f"국가별 VOC 분포{' — '+product_code.upper() if product_code else ''}",
+                    f"국가별 VOC 분포{' — '+product_code.upper() if product_code else ''} ({period})",
                     horizontal=True)
     return chart_response("bar", raw, opt,
-                          f"상위 {len(raw)}개국 / 1위 {raw[0]['country_code'] if raw else '-'}")
+                          f"{period} 상위 {len(raw)}개국 / 1위 {raw[0]['country_code'] if raw else '-'}")
 
 
 async def chart_category_distribution_tool(
-    product_code: Optional[str] = None, top_n: int = 15
+    product_code: Optional[str] = None, top_n: int = 15,
+    days: int = 0, country: Optional[str] = None,
 ) -> dict:
-    """카테고리별 VOC 분포 → 가로 막대."""
+    """카테고리별 VOC 분포 → 가로 막대. days=0 전기간, country 지정 시 해당국으로 드릴다운."""
     top_n = max(1, min(top_n, 50))
     filt = "AND p.code = :code" if product_code else ""
+    dfilt = "AND v.published_at >= NOW() - make_interval(days => :days)" if days else ""
+    cfilt = "AND v.country_code = :country" if country else ""
     stmt = text(f"""
         SELECT unnest(v.categories) AS cat, COUNT(*) AS cnt,
                ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
         FROM voc_active v {"JOIN products p ON p.id = v.product_id" if product_code else ""}
-        WHERE v.categories IS NOT NULL {filt}
+        WHERE v.categories IS NOT NULL {filt} {dfilt} {cfilt}
         GROUP BY cat ORDER BY cnt DESC LIMIT :top_n
     """)
-    params = {"top_n": top_n}
+    params: dict = {"top_n": top_n}
     if product_code:
         params["code"] = product_code.upper()
+    if days:
+        params["days"] = days
+    if country:
+        params["country"] = country.upper()
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
     raw = [{"category": r["cat"], "voc_count": int(r["cnt"]),
             "avg_score": float(r["avg_score"] or 0)} for r in rows]
+    scope = []
+    if product_code: scope.append(product_code.upper())
+    if country: scope.append(country.upper())
+    scope.append("전기간" if not days else f"최근 {days}일")
+    label = " — ".join(scope)
     opt = build_bar([d["category"] for d in raw], [d["voc_count"] for d in raw],
-                    f"카테고리별 VOC 분포{' — '+product_code.upper() if product_code else ''}",
-                    horizontal=True)
+                    f"카테고리별 VOC 분포 ({label})", horizontal=True)
     return chart_response("bar", raw, opt,
-                          f"상위 {len(raw)}개 카테고리 / 1위 {raw[0]['category'] if raw else '-'}")
+                          f"{label} 상위 {len(raw)}개 카테고리 / 1위 {raw[0]['category'] if raw else '-'}")
 
 
 # ── ③ 위기 타임라인 ──────────────────────────────────────────
