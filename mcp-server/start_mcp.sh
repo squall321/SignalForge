@@ -5,7 +5,9 @@
 set -euo pipefail
 
 HERE="/home/koopark/claude/SignalForge/mcp-server"
-PORT="${MCP_PORT:-8001}"
+# 실가동 포트 8013. server.py 기본값은 8001 이지만 이 호스트는 8001 을 AIDataHub api_server 가
+# 점유 중이라, SF MCP 는 8013 으로 띄운다(8001 default 면 포트사용중 가드가 기동을 거부함).
+PORT="${MCP_PORT:-8013}"
 LOG="/tmp/signalforge-mcp.log"
 
 export MCP_PORT="$PORT"
