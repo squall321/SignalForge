@@ -31,6 +31,11 @@ from tools.breakdowns import (
     get_engagement_leaders_tool,
     get_language_breakdown_tool,
 )
+from tools.coverage import (
+    get_product_timeline_tool,
+    get_kg_relations_tool,
+    get_unmapped_voc_tool,
+)
 
 # @lat: mcp — [[mcp-server]] 참조. 7개 도구 정의.
 mcp = FastMCP(
@@ -335,6 +340,49 @@ async def get_language_breakdown(period_days: int = 0, top_n: int = 25) -> list:
         top_n: 상위 언어 수 (기본 25, 최대 60)
     """
     return await get_language_breakdown_tool(period_days, top_n)
+
+
+# ── 보강 R2 (2026-06-26) — matview 생애주기/지식그래프 + 미태깅 점검 ──
+@mcp.tool()
+async def get_product_timeline(product_code: str, recent_months: int = 0) -> dict:
+    """제품의 월별 VOC 생애주기를 반환합니다 (출시일 기준 건수/감성/부정율 추이).
+
+    galaxy_master_timeline matview 기반. 제품 출시 후 VOC 가 어떻게 변해왔는지 본다.
+
+    Args:
+        product_code: 제품 코드 (예 'GS25')
+        recent_months: 최근 N개월만 — 0 이면 전체 (기본 0)
+    """
+    return await get_product_timeline_tool(product_code, recent_months)
+
+
+@mcp.tool()
+async def get_kg_relations(
+    node: Optional[str] = None, edge_type: Optional[str] = None, top_n: int = 30
+) -> list:
+    """지식그래프 관계를 반환합니다 — 제품↔카테고리/국가/플랫폼 연관 (가중치·감성).
+
+    kg_edges_daily matview 기반. 특정 노드의 연관 관계나 특정 관계유형을 가중치 순으로.
+
+    Args:
+        node: 'product:GS25' / 'category:battery' / 'country:US' 등 — source/target 매칭 (선택)
+        edge_type: product_category / product_country / product_platform 중 — 선택
+        top_n: 가중치 합 상위 N (기본 30, 최대 100)
+    """
+    return await get_kg_relations_tool(node, edge_type, top_n)
+
+
+@mcp.tool()
+async def get_unmapped_voc(reason: Optional[str] = None, limit: int = 20) -> dict:
+    """미태깅(제품 미매핑) VOC를 점검합니다 — 전체의 ~82%를 차지하는 미태깅분 진단.
+
+    unmapped_reason 분포 + 샘플을 함께 반환. 무엇이 제품 매핑에서 빠지는지 파악.
+
+    Args:
+        reason: no_model_mention / non_galaxy / too_short / noise 중 — 샘플 한정 (선택)
+        limit: 샘플 건수 (기본 20, 최대 100)
+    """
+    return await get_unmapped_voc_tool(reason, limit)
 
 
 # SF_MCP_TOKEN 이 설정되면 Authorization: Bearer 검증을 끼운다(에이전트용 정적 서비스 토큰).
