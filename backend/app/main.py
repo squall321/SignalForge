@@ -1,3 +1,5 @@
+import secrets
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -73,6 +75,17 @@ async def portal_sso_gate(request: Request, call_next):
         and request.url.path.startswith("/api/v1")
         and request.url.path not in _GATE_ALLOW
     ):
+        # 기계 호출(AIDH sync 등 service-to-service) 은 세션 쿠키가 없다 —
+        # X-API-Key 가 settings.API_KEY 와 일치하면 통과 (constant-time).
+        # 기본값 'change-me' 인 배포에서는 이 우회가 비활성 (실키 설정 시에만).
+        header_key = request.headers.get("X-API-Key", "")
+        if (
+            settings.API_KEY
+            and settings.API_KEY != "change-me"
+            and header_key
+            and secrets.compare_digest(header_key, settings.API_KEY)
+        ):
+            return await call_next(request)
         raw = request.cookies.get("sf_session")
         if not raw or verify_session(raw) is None:
             return JSONResponse(status_code=401, content={"detail": "portal session required"})
