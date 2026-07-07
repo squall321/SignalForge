@@ -14,6 +14,10 @@ export FORCE
 SIF_DIR="$APPT_DIR/sif"
 mkdir -p "$SIF_DIR"
 
+# def 의 %files 소스경로(backend/requirements.txt 등)가 PROJECT_ROOT 기준으로 resolve 되도록
+# 빌드를 항상 PROJECT_ROOT 에서 실행한다.
+cd "$PROJECT_ROOT"
+
 TARGET="${1:-all}"
 [[ "$TARGET" == "--force" ]] && TARGET="all"
 
@@ -42,6 +46,12 @@ case "$TARGET" in
   mcp)
     build_or_pull "$SIF_DIR/mcp.sif" "" "$APPT_DIR/mcp.def"
     ;;
+  frontend)
+    # frontend.sif 는 dist 를 이미지에 베이크한다 → 먼저 포털 prefix 로 dist 를 재생성.
+    echo "→ dist rebuild (VITE_BASE_PATH=/signalforge/)"
+    ( cd "$PROJECT_ROOT/frontend" && VITE_BASE_PATH=/signalforge/ npm run build )
+    build_or_pull "$SIF_DIR/frontend.sif" "" "$APPT_DIR/frontend.def"
+    ;;
   all)
     build_or_pull "$SIF_DIR/postgres-base.sif" "docker://postgres:16-alpine"
     # postgres wrapper
@@ -58,9 +68,12 @@ case "$TARGET" in
     build_or_pull "$SIF_DIR/backend.sif"       "" "$APPT_DIR/backend.def"
     build_or_pull "$SIF_DIR/crawler.sif"       "" "$APPT_DIR/crawler.def"
     build_or_pull "$SIF_DIR/mcp.sif"           "" "$APPT_DIR/mcp.def"
+    echo "→ dist rebuild (VITE_BASE_PATH=/signalforge/)"
+    ( cd "$PROJECT_ROOT/frontend" && VITE_BASE_PATH=/signalforge/ npm run build )
+    build_or_pull "$SIF_DIR/frontend.sif"      "" "$APPT_DIR/frontend.def"
     ;;
   *)
-    echo "Usage: $0 [postgres|backend|crawler|mcp|all] [--force]"
+    echo "Usage: $0 [postgres|backend|crawler|mcp|frontend|all] [--force]"
     exit 1
     ;;
 esac

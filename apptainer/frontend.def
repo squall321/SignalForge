@@ -30,8 +30,9 @@ From: node:20-bookworm-slim
 %environment
     export PATH=/usr/local/bin:$PATH
     export NODE_ENV=production
-    # 컨테이너가 LISTEN 할 포트. up.sh 에서 host:17370 을 컨테이너:5173 으로 매핑한다.
-    export SF_WEB_PORT=5173
+    # apptainer 는 host network namespace 를 공유하므로 컨테이너가 곧 host 포트에 직접 바인딩한다
+    # (docker 식 포트매핑 없음). SF 표준 frontend 포트 = 17370. up.sh 에서 --env 로 오버라이드 가능.
+    export SF_WEB_PORT=17370
 
 %runscript
     # 디버깅용 foreground. logs 가 stdout 으로 직행한다.

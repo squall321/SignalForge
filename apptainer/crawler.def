@@ -3,16 +3,18 @@ From: python:3.12-slim
 
 %labels
     Maintainer SignalForge
-    Version 1.0
+    Version 1.1
     Service crawler
 
 %help
-    SignalForge Celery 크롤러 워커 컨테이너 (Playwright 포함).
+    SignalForge Celery 크롤러 워커 컨테이너 (Playwright 포함, bind-mount 코드).
     빌드 후 worker/beat 둘 다 이 이미지를 사용한다.
-    worker: apptainer instance start --bind $PROJECT_ROOT/crawler:/crawler \
-                apptainer/crawler.sif celery-worker
-    beat:   apptainer instance start --bind $PROJECT_ROOT/crawler:/crawler \
-                apptainer/crawler.sif celery-beat
+    worker: apptainer instance start --bind $PROJECT_ROOT/crawler:/crawler apptainer/sif/crawler.sif celery-worker
+    beat:   apptainer run --bind $PROJECT_ROOT/crawler:/crawler apptainer/sif/crawler.sif beat --loglevel=info
+
+# 의존성은 crawler/requirements.txt 단일 소스에서 설치 → def 하드코딩 stale 방지.
+%files
+    crawler/requirements.txt /opt/requirements.txt
 
 %post
     apt-get update && apt-get install -y \
@@ -38,20 +40,7 @@ From: python:3.12-slim
         libcairo2 \
     && rm -rf /var/lib/apt/lists/*
 
-    pip install --no-cache-dir \
-        celery[redis]==5.4.0 \
-        playwright==1.48.0 \
-        praw==7.8.1 \
-        httpx==0.28.0 \
-        beautifulsoup4==4.12.3 \
-        lxml==5.3.0 \
-        langdetect==1.0.9 \
-        deep-translator==1.11.4 \
-        vaderSentiment==3.3.2 \
-        sqlalchemy[asyncio]==2.0.36 \
-        asyncpg==0.30.0 \
-        python-dotenv==1.0.1 \
-        anthropic==0.40.0
+    pip install --no-cache-dir -r /opt/requirements.txt
 
     # Playwright Chromium 설치 (런타임 라이브러리는 위 apt-get 에서 이미 설치됨;
     # --with-deps 는 ttf-unifont / ttf-ubuntu-font-family 미존재(trixie)로 실패하므로 제거)
@@ -62,8 +51,13 @@ From: python:3.12-slim
     export PYTHONUNBUFFERED=1
 
 %runscript
-    # 기본: worker 실행 (인자로 오버라이드 가능)
-    cd /crawler && exec celery -A celery_app worker --loglevel=info --concurrency=4 "$@"
+    # 기본: worker. 첫 인자가 'beat' 이면 beat 로 전환 (worker/beat 단일 이미지 공용).
+    cd /crawler
+    if [ "${1:-}" = "beat" ]; then
+        shift
+        exec celery -A celery_app beat --loglevel=info "$@"
+    fi
+    exec celery -A celery_app worker --loglevel=info --concurrency="${CELERY_CONCURRENCY:-4}" "$@"
 
 %startscript
-    cd /crawler && exec celery -A celery_app worker --loglevel=info --concurrency=4
+    cd /crawler && exec celery -A celery_app worker --loglevel=info --concurrency="${CELERY_CONCURRENCY:-4}"
