@@ -51,13 +51,16 @@ From: python:3.12-slim
     export PYTHONUNBUFFERED=1
 
 %runscript
-    # 기본: worker. 첫 인자가 'beat' 이면 beat 로 전환 (worker/beat 단일 이미지 공용).
+    # CELERY_ROLE=beat 이면 beat, 아니면 worker (단일 이미지로 worker/beat 공용).
     cd /crawler
-    if [ "${1:-}" = "beat" ]; then
-        shift
+    if [ "${CELERY_ROLE:-worker}" = "beat" ]; then
         exec celery -A celery_app beat --loglevel=info "$@"
     fi
     exec celery -A celery_app worker --loglevel=info --concurrency="${CELERY_CONCURRENCY:-4}" "$@"
 
 %startscript
-    cd /crawler && exec celery -A celery_app worker --loglevel=info --concurrency="${CELERY_CONCURRENCY:-4}"
+    cd /crawler
+    if [ "${CELERY_ROLE:-worker}" = "beat" ]; then
+        exec celery -A celery_app beat --loglevel=info
+    fi
+    exec celery -A celery_app worker --loglevel=info --concurrency="${CELERY_CONCURRENCY:-4}"
