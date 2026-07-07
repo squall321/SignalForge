@@ -1,0 +1,400 @@
+<title>SignalForge — 시장 VOC Intelligence 보고서</title>
+<style>
+  :root{
+    --ground:#F4F7FA; --surface:#FFFFFF; --surface-2:#EAF1F7; --raise:#FFFFFF;
+    --ink:#0E1922; --ink-2:#33454F; --muted:#5E7180;
+    --line:#DBE4EC; --line-2:#C7D3DD;
+    --accent:#0072B2; --accent-2:#005D92; --wash:#E4F0F8;
+    --good:#0B8F69; --good-w:#E1F1EB; --warn:#B47600; --crit:#C24A00; --crit-w:#FBEBE2;
+    --sans:"Apple SD Gothic Neo","Noto Sans KR",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sh:0 1px 2px rgba(16,32,45,.05),0 8px 22px rgba(16,32,45,.05);
+    --sh-lg:0 2px 6px rgba(16,32,45,.06),0 16px 40px rgba(16,32,45,.08);
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --ground:#0A1118;--surface:#111C25;--surface-2:#0E1922;--raise:#16242F;--ink:#E9EFF4;--ink-2:#B2C0CB;--muted:#8195A2;
+    --line:#213240;--line-2:#2C4152;--accent:#4AA8DC;--accent-2:#84C6EA;--wash:#122735;
+    --good:#3FBF97;--good-w:#123027;--warn:#E0A94A;--crit:#EE8A5A;--crit-w:#31201A;
+    --sh:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.26);--sh-lg:0 2px 6px rgba(0,0,0,.35),0 18px 44px rgba(0,0,0,.4);
+  }}
+  :root[data-theme="light"]{
+    --ground:#F4F7FA;--surface:#FFFFFF;--surface-2:#EAF1F7;--raise:#FFFFFF;--ink:#0E1922;--ink-2:#33454F;--muted:#5E7180;
+    --line:#DBE4EC;--line-2:#C7D3DD;--accent:#0072B2;--accent-2:#005D92;--wash:#E4F0F8;
+    --good:#0B8F69;--good-w:#E1F1EB;--warn:#B47600;--crit:#C24A00;--crit-w:#FBEBE2;
+    --sh:0 1px 2px rgba(16,32,45,.05),0 8px 22px rgba(16,32,45,.05);--sh-lg:0 2px 6px rgba(16,32,45,.06),0 16px 40px rgba(16,32,45,.08);
+  }
+  :root[data-theme="dark"]{
+    --ground:#0A1118;--surface:#111C25;--surface-2:#0E1922;--raise:#16242F;--ink:#E9EFF4;--ink-2:#B2C0CB;--muted:#8195A2;
+    --line:#213240;--line-2:#2C4152;--accent:#4AA8DC;--accent-2:#84C6EA;--wash:#122735;
+    --good:#3FBF97;--good-w:#123027;--warn:#E0A94A;--crit:#EE8A5A;--crit-w:#31201A;
+    --sh:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.26);--sh-lg:0 2px 6px rgba(0,0,0,.35),0 18px 44px rgba(0,0,0,.4);
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);line-height:1.62;-webkit-font-smoothing:antialiased}
+  .tnum{font-variant-numeric:tabular-nums}
+  .wrap{max-width:66rem;margin:0 auto;padding:0 clamp(1.1rem,4vw,2rem)}
+
+  /* masthead + pager */
+  nav{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 88%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;gap:1rem;height:3.3rem}
+  nav .nm{font-weight:760;letter-spacing:-.01em;color:var(--ink);font-size:1.05rem}
+  nav .nm b{color:var(--accent)}
+  .pager{margin-left:auto;display:flex;gap:.35rem;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:999px;padding:.22rem}
+  .pager button{font-family:inherit;font-size:.8rem;font-weight:620;color:var(--muted);background:none;border:none;
+    border-radius:999px;padding:.32rem .8rem;cursor:pointer;white-space:nowrap;transition:.15s}
+  .pager button[aria-current="true"]{background:var(--accent);color:#fff;box-shadow:var(--sh)}
+  .pager button:hover:not([aria-current="true"]){color:var(--ink)}
+  @media(max-width:560px){.pager button .lo{display:none}.nm{font-size:.98rem}}
+
+  .page{display:none;animation:fade .32s ease}
+  .page.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .eyebrow{font-size:.72rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--accent-2)}
+  .hero{padding:clamp(1.9rem,4.5vw,3rem) 0 1.6rem}
+  h1{font-size:clamp(1.7rem,4.6vw,2.7rem);font-weight:780;letter-spacing:-.025em;margin:.6rem 0 0;text-wrap:balance;line-height:1.1}
+  .hero .lede{margin:.9rem 0 0;max-width:44rem;font-size:clamp(1rem,2.3vw,1.12rem);color:var(--ink-2)}
+  .hero .lede b{color:var(--ink);font-weight:640}
+  .aiready{display:inline-flex;align-items:center;gap:.5rem;margin-top:1.2rem;background:var(--wash);
+    border:1px solid var(--accent);color:var(--accent-2);border-radius:999px;padding:.32rem .85rem;font-size:.8rem;font-weight:640}
+  .aiready .d{width:.45rem;height:.45rem;border-radius:50%;background:var(--good)}
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:.55rem;margin-top:1.6rem}
+  @media(max-width:760px){.kpis{grid-template-columns:repeat(3,1fr)}}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.7rem .8rem;box-shadow:var(--sh)}
+  .kpi .n{font-size:clamp(1.12rem,2.5vw,1.45rem);font-weight:770;letter-spacing:-.02em}
+  .kpi .l{font-size:.68rem;color:var(--muted);margin-top:.1rem}
+
+  section{padding:2.3rem 0;border-top:1px solid var(--line)}
+  section:first-of-type{border-top:none}
+  .sh{display:flex;align-items:baseline;gap:.7rem;margin-bottom:.2rem}
+  .sn{font-family:var(--mono);font-size:.8rem;color:var(--accent-2);font-weight:600}
+  h2{font-size:clamp(1.35rem,3.2vw,1.75rem);font-weight:750;letter-spacing:-.02em;margin:0;text-wrap:balance}
+  .ss{color:var(--muted);margin:.2rem 0 1.5rem;max-width:44rem;font-size:.95rem}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.1rem 1.2rem;box-shadow:var(--sh)}
+  .panel h4{margin:0 0 .8rem;font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+  .bars{display:flex;flex-direction:column;gap:.42rem}
+  .bar{display:grid;grid-template-columns:8rem 1fr auto;align-items:center;gap:.6rem;font-size:.84rem}
+  .bar .nm{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar .tr{background:var(--surface-2);border-radius:5px;height:.6rem;overflow:hidden}
+  .bar .fl{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:5px}
+  .bar .vv{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:620;font-size:.82rem;min-width:3.5rem;text-align:right}
+
+  .pipe{display:flex;flex-wrap:wrap;align-items:stretch;gap:.5rem;margin-top:.4rem}
+  .stg{flex:1;min-width:7.5rem;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:.65rem .78rem;box-shadow:var(--sh)}
+  .stg .k{font-family:var(--mono);font-size:.64rem;color:var(--accent-2);font-weight:600}
+  .stg .t{font-weight:680;font-size:.9rem;margin:.12rem 0}
+  .stg .d{font-size:.74rem;color:var(--muted);line-height:1.4}
+  .arw{align-self:center;color:var(--line-2);font-weight:700}
+  @media(max-width:760px){.arw{transform:rotate(90deg)}}
+
+  .chip{display:inline-block;font-family:var(--mono);font-size:.72rem;color:var(--ink-2);background:var(--surface-2);
+    border:1px solid var(--line);border-radius:6px;padding:.12rem .42rem;margin:.16rem .16rem 0 0}
+  .toolcols{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-top:.4rem}
+  @media(max-width:760px){.toolcols{grid-template-columns:1fr}}
+  .tg{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.78rem .9rem;box-shadow:var(--sh)}
+  .tg .g{font-size:.74rem;font-weight:720;color:var(--accent-2);display:flex;justify-content:space-between;margin-bottom:.4rem}
+  .tg .g span{font-family:var(--mono);color:var(--muted);font-weight:600}
+
+  .pgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.65rem}
+  .pg{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:.78rem .9rem;box-shadow:var(--sh);transition:border-color .15s,transform .15s}
+  .pg:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .pg .r{font-family:var(--mono);font-size:.7rem;color:var(--accent-2);font-weight:600}
+  .pg h4{margin:.1rem 0 .25rem;font-size:.96rem;font-weight:680}
+  .pg p{margin:0;font-size:.81rem;color:var(--ink-2);line-height:1.45}
+
+  .kg{display:grid;grid-template-columns:1fr 1.2fr;gap:1.1rem;align-items:center}
+  @media(max-width:760px){.kg{grid-template-columns:1fr}}
+  .kgsvg{width:100%;height:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh)}
+  .edgekind{display:flex;flex-direction:column;gap:.55rem}
+  .ek{display:flex;align-items:center;gap:.7rem;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:.6rem .8rem;box-shadow:var(--sh)}
+  .ek .sw{width:1.4rem;height:.28rem;border-radius:3px;flex:none}
+  .ek .tx{flex:1;font-size:.85rem}
+  .ek .ct{font-variant-numeric:tabular-nums;font-weight:680;color:var(--ink)}
+
+  .chat{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-lg);overflow:hidden}
+  .chat .hd{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;border-bottom:1px solid var(--line);background:var(--surface-2)}
+  .chat .hd .dt{width:.55rem;height:.55rem;border-radius:50%;background:var(--good)}
+  .chat .hd .t{font-size:.78rem;font-weight:640;color:var(--muted)}
+  .chat .bd{padding:1rem;display:flex;flex-direction:column;gap:.8rem}
+  .msg{max-width:88%;font-size:.91rem;line-height:1.55}
+  .msg.u{align-self:flex-end;background:var(--accent);color:#fff;border-radius:14px 14px 4px 14px;padding:.55rem .9rem;font-weight:520}
+  .msg.a{align-self:flex-start;background:var(--surface-2);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:.68rem .95rem;color:var(--ink)}
+  .msg.a .call{font-family:var(--mono);font-size:.73rem;color:var(--accent-2);background:var(--wash);border:1px solid var(--line);
+    border-radius:7px;padding:.26rem .5rem;margin:.1rem 0 .5rem;display:inline-block}
+  .msg.a b{color:var(--ink);font-weight:670}
+  .msg.a .mini{margin-top:.5rem;font-size:.82rem;color:var(--ink-2)}
+  .msg.a .mini .kv{display:flex;justify-content:space-between;gap:1rem;padding:.12rem 0;border-bottom:1px dotted var(--line)}
+  .msg.a .mini .kv b{font-variant-numeric:tabular-nums}
+
+  table.cmp{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:.3rem}
+  table.cmp th{text-align:right;font-weight:620;color:var(--muted);font-size:.75rem;padding:.3rem .5rem;border-bottom:1px solid var(--line-2)}
+  table.cmp th:first-child{text-align:left}
+  table.cmp td{padding:.32rem .5rem;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  table.cmp td:first-child{color:var(--ink-2)}
+  td.v{text-align:right;font-weight:640}
+  .pos{color:var(--good)} .neg{color:var(--crit)} .zero{color:var(--muted)}
+  .win{display:inline-block;font-size:.64rem;font-weight:700;color:var(--accent-2);background:var(--wash);border-radius:5px;padding:0 .3rem;margin-left:.3rem}
+
+  .rm{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;margin-top:.6rem}
+  @media(max-width:760px){.rm{grid-template-columns:1fr}}
+  .ph{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem;box-shadow:var(--sh);position:relative}
+  .ph::before{content:"";position:absolute;left:0;top:1rem;bottom:1rem;width:3px;border-radius:3px;background:var(--accent)}
+  .ph .p{font-family:var(--mono);font-size:.72rem;color:var(--accent-2);font-weight:600}
+  .ph .h{font-weight:720;font-size:1rem;margin:.2rem 0 .5rem}
+  .ph ul{margin:0;padding-left:1.05rem;color:var(--ink-2);font-size:.85rem;line-height:1.5}
+  .ph li{margin:.2rem 0}
+  .link{display:grid;grid-template-columns:1fr auto 1fr;gap:.9rem;align-items:stretch;margin:.6rem 0 1.1rem}
+  @media(max-width:760px){.link{grid-template-columns:1fr}}
+  .src{border:1px solid var(--line);border-radius:13px;padding:.85rem 1rem;box-shadow:var(--sh)}
+  .src.q{background:var(--crit-w);border-color:color-mix(in srgb,var(--crit) 30%,var(--line))}
+  .src.b{background:var(--good-w);border-color:color-mix(in srgb,var(--good) 30%,var(--line))}
+  .src .st{font-weight:720;font-size:.96rem;display:flex;align-items:center;gap:.45rem}
+  .src .sd{font-size:.82rem;color:var(--ink-2);margin-top:.3rem}
+  .plus{align-self:center;font-size:1.4rem;color:var(--muted);font-weight:300}
+  .fuse{margin-top:.2rem;background:var(--wash);border:1px solid var(--accent);border-radius:13px;padding:.85rem 1.1rem}
+  .fuse .ft{font-weight:720;color:var(--accent-2);font-size:.94rem}
+  .fuse .fd{font-size:.86rem;color:var(--ink-2);margin-top:.3rem}
+
+  .callout{background:var(--wash);border:1px solid var(--accent);border-radius:13px;padding:.95rem 1.15rem;margin-top:1.1rem}
+  .callout b{color:var(--accent-2)}
+  .disclaim{font-size:.76rem;color:var(--muted);margin-top:.7rem;font-style:italic}
+
+  /* footer nav */
+  .pfoot{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-top:2rem;padding-top:1.3rem;border-top:1px solid var(--line)}
+  .pfoot .meta{color:var(--muted);font-size:.78rem}
+  .pfoot code{font-family:var(--mono);color:var(--accent-2);background:var(--surface-2);padding:.05rem .32rem;border-radius:5px}
+  .nextbtn{font-family:inherit;font-size:.86rem;font-weight:660;color:#fff;background:var(--accent);border:none;
+    border-radius:10px;padding:.55rem 1rem;cursor:pointer;box-shadow:var(--sh);white-space:nowrap}
+  .nextbtn.ghost{background:none;color:var(--accent-2);border:1px solid var(--line)}
+  .nextbtn:hover{filter:brightness(1.05)}
+  .pfoot .grp{display:flex;gap:.5rem}
+</style>
+
+<nav><div class="wrap">
+  <div class="nm">Signal<b>Forge</b></div>
+  <div class="pager" role="tablist" aria-label="보고서 페이지">
+    <button id="t1" role="tab" aria-current="true" onclick="go(1)">①&nbsp;데이터<span class="lo">&nbsp;·&nbsp;구조</span></button>
+    <button id="t2" role="tab" aria-current="false" onclick="go(2)">②&nbsp;활용<span class="lo">&nbsp;·&nbsp;전망</span></button>
+  </div>
+</div></nav>
+
+<!-- ══ PAGE 1 : 데이터 · 구조 (01–04) ══ -->
+<div class="page on" id="p1"><div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Samsung MobileExperience · Market VOC Intelligence</div>
+    <h1>시장의 목소리를, AI가 읽을 수 있는 데이터로.</h1>
+    <p class="lede">전 세계 90여 개 커뮤니티·리뷰·뉴스에서 <b>Galaxy 제품군 소비자 목소리(VOC)</b>를 실시간으로 모아, 번역·감성·분류·제품매핑을 거쳐 <b>LLM 이 곧바로 질의할 수 있는 형태</b>로 정제합니다.</p>
+    <span class="aiready"><span class="d"></span>LLM-Ready Market Intelligence · 2007–2026</span>
+    <div class="kpis tnum">
+      <div class="kpi"><div class="n">261,831</div><div class="l">수집 VOC</div></div>
+      <div class="kpi"><div class="n">95</div><div class="l">등록 플랫폼</div></div>
+      <div class="kpi"><div class="n">42</div><div class="l">언어 · 27개국</div></div>
+      <div class="kpi"><div class="n">3.16M</div><div class="l">추출 키워드</div></div>
+      <div class="kpi"><div class="n">22</div><div class="l">MCP 도구</div></div>
+      <div class="kpi"><div class="n">898MB</div><div class="l">정제 DB</div></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sh"><span class="sn">01</span><h2>수집 — 어디서, 얼마나</h2></div>
+    <p class="ss">글로벌 기술 포럼부터 한국 커뮤니티, 스페인·독일·인니어권까지 90여 채널을 상시 크롤링합니다. 2007년부터 현재까지 <b>17년치</b>를 아우릅니다.</p>
+    <div class="grid2">
+      <div class="panel"><h4>상위 수집 플랫폼 (active VOC)</h4>
+        <div class="bars tnum">
+          <div class="bar"><span class="nm">Hacker News</span><span class="tr"><span class="fl" style="width:100%"></span></span><span class="vv">86,192</span></div>
+          <div class="bar"><span class="nm">DCInside</span><span class="tr"><span class="fl" style="width:18%"></span></span><span class="vv">15,472</span></div>
+          <div class="bar"><span class="nm">Reddit</span><span class="tr"><span class="fl" style="width:8%"></span></span><span class="vv">6,023</span></div>
+          <div class="bar"><span class="nm">Clien</span><span class="tr"><span class="fl" style="width:5.5%"></span></span><span class="vv">4,065</span></div>
+          <div class="bar"><span class="nm">ppomppu</span><span class="tr"><span class="fl" style="width:4.6%"></span></span><span class="vv">3,359</span></div>
+          <div class="bar"><span class="nm">MLBPark</span><span class="tr"><span class="fl" style="width:3.6%"></span></span><span class="vv">2,646</span></div>
+          <div class="bar"><span class="nm">Kaskus (ID)</span><span class="tr"><span class="fl" style="width:2.5%"></span></span><span class="vv">1,774</span></div>
+          <div class="bar"><span class="nm">Xataka (ES)</span><span class="tr"><span class="fl" style="width:1.9%"></span></span><span class="vv">1,352</span></div>
+        </div>
+      </div>
+      <div class="panel"><h4>언어 분포 (상위 6 / 42)</h4>
+        <div class="bars tnum">
+          <div class="bar"><span class="nm">영어 (en)</span><span class="tr"><span class="fl" style="width:100%"></span></span><span class="vv">40,708</span></div>
+          <div class="bar"><span class="nm">한국어 (ko)</span><span class="tr"><span class="fl" style="width:73%"></span></span><span class="vv">29,623</span></div>
+          <div class="bar"><span class="nm">스페인어 (es)</span><span class="tr"><span class="fl" style="width:6.2%"></span></span><span class="vv">2,526</span></div>
+          <div class="bar"><span class="nm">인니어 (id)</span><span class="tr"><span class="fl" style="width:4.6%"></span></span><span class="vv">1,859</span></div>
+          <div class="bar"><span class="nm">독일어 (de)</span><span class="tr"><span class="fl" style="width:3.5%"></span></span><span class="vv">1,443</span></div>
+          <div class="bar"><span class="nm">포르투갈어 (pt)</span><span class="tr"><span class="fl" style="width:3.5%"></span></span><span class="vv">1,430</span></div>
+        </div>
+        <p style="font-size:.82rem;color:var(--muted);margin:.9rem 0 0">27개국 · 389개 제품군 매핑. 나머지 40여 언어는 번역 파이프라인이 영어로 정규화.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="sn">02</span><h2>AI-Ready Data — 원문에서 질의 가능한 신호로</h2></div>
+    <p class="ss">수집 원문은 42개 언어가 섞인 비정형 텍스트일 뿐입니다. 매 글을 6단계로 정제해 <b>언어·감성·주제·제품·국가가 태깅된 구조화 레코드</b>로 만듭니다.</p>
+    <div class="pipe">
+      <div class="stg"><div class="k">01 collect</div><div class="t">수집</div><div class="d">90여 채널 · 노이즈 필터</div></div><span class="arw">→</span>
+      <div class="stg"><div class="k">02 translate</div><div class="t">번역</div><div class="d">42언어 → 영어 정규화</div></div><span class="arw">→</span>
+      <div class="stg"><div class="k">03 sentiment</div><div class="t">감성</div><div class="d">−1~+1 · 긍/부정/중립</div></div><span class="arw">→</span>
+      <div class="stg"><div class="k">04 categorize</div><div class="t">분류</div><div class="d">카테고리·토픽</div></div><span class="arw">→</span>
+      <div class="stg"><div class="k">05 map</div><div class="t">제품매핑</div><div class="d">389 모델 정합</div></div><span class="arw">→</span>
+      <div class="stg"><div class="k">06 graph</div><div class="t">그래프화</div><div class="d">관계·시계열 MV</div></div>
+    </div>
+    <div class="callout"><b>왜 "AI-Ready" 인가.</b> 매 레코드가 <span class="chip">sentiment_score</span><span class="chip">categories[]</span><span class="chip">topics[]</span><span class="chip">product_id</span><span class="chip">country_code</span><span class="chip">content_translated</span> 로 태깅돼, LLM 이 "S25 배터리 부정 여론" 같은 질문을 <b>추측이 아니라 조건 질의</b>로 답합니다. 감성 분류 116,937건 · 영어 정규화 84,828건이 적재돼 있습니다.</div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="sn">03</span><h2>지식 그래프 — 제품을 둘러싼 관계망</h2></div>
+    <p class="ss">"무엇이 무엇과 함께 언급되는가"를 그래프로 축적합니다. 제품 노드에 카테고리·국가·플랫폼이 <b>동시출현 빈도와 감성</b>으로 연결돼 매일 <code>kg_edges_daily</code> 에 쌓입니다.</p>
+    <div class="kg">
+      <svg class="kgsvg" viewBox="0 0 320 240" role="img" aria-label="지식 그래프 개념도">
+        <g stroke-width="1.6" fill="none">
+          <line x1="160" y1="120" x2="80" y2="52" stroke="#0072B2"/><line x1="160" y1="120" x2="252" y2="56" stroke="#0072B2"/>
+          <line x1="160" y1="120" x2="46" y2="150" stroke="#0B8F69"/><line x1="160" y1="120" x2="70" y2="206" stroke="#0B8F69"/>
+          <line x1="160" y1="120" x2="256" y2="176" stroke="#B47600"/><line x1="160" y1="120" x2="238" y2="212" stroke="#B47600"/>
+        </g>
+        <g font-family="ui-sans-serif,system-ui" font-size="9" text-anchor="middle">
+          <circle cx="160" cy="120" r="26" fill="#0072B2"/><text x="160" y="117" fill="#fff" font-weight="700">Galaxy</text><text x="160" y="128" fill="#fff" font-weight="700">S25</text>
+          <circle cx="80" cy="52" r="16" fill="#DCEAF5"/><text x="80" y="55" fill="#005D92">camera</text>
+          <circle cx="252" cy="56" r="16" fill="#DCEAF5"/><text x="252" y="59" fill="#005D92">battery</text>
+          <circle cx="46" cy="150" r="14" fill="#D7EEE5"/><text x="46" y="153" fill="#0B6B50">KR</text>
+          <circle cx="70" cy="206" r="14" fill="#D7EEE5"/><text x="70" y="209" fill="#0B6B50">US</text>
+          <circle cx="256" cy="176" r="16" fill="#F3E7CE"/><text x="256" y="179" fill="#8A5B00">dcinside</text>
+          <circle cx="238" cy="212" r="15" fill="#F3E7CE"/><text x="238" y="215" fill="#8A5B00">reddit</text>
+        </g>
+      </svg>
+      <div class="edgekind">
+        <div class="ek"><span class="sw" style="background:#0072B2"></span><span class="tx"><b>제품 ↔ 카테고리</b><br><span style="color:var(--muted);font-size:.78rem">어떤 기능이 화제인가</span></span><span class="ct">15,278</span></div>
+        <div class="ek"><span class="sw" style="background:#B47600"></span><span class="tx"><b>제품 ↔ 플랫폼</b><br><span style="color:var(--muted);font-size:.78rem">어느 커뮤니티가 논하나</span></span><span class="ct">7,935</span></div>
+        <div class="ek"><span class="sw" style="background:#0B8F69"></span><span class="tx"><b>제품 ↔ 국가</b><br><span style="color:var(--muted);font-size:.78rem">어디서 반응하나</span></span><span class="ct">5,564</span></div>
+        <div style="font-size:.8rem;color:var(--muted);padding:.2rem .2rem 0">총 <b class="tnum" style="color:var(--ink)">28,777</b> 엣지 · 289 소스 · 124 타깃. 화면 <code>/kg</code> 과 도구 <span class="chip">get_kg_relations</span> 가 같은 그래프를 소비.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="sn">04</span><h2>MCP — AI가 데이터에 직접 말을 거는 창구</h2></div>
+    <p class="ss">Model Context Protocol 서버로, Claude 같은 LLM 이 <b>22개 도구</b>로 정제 DB(<code>voc_active</code>)에 직접 질의합니다. 화면 없이 자연어를 조건 질의로 바꿔 근거와 함께 답하며, 컨테이너로 <code>:8013/mcp</code> 에 상시 가동됩니다.</p>
+    <div class="toolcols">
+      <div class="tg"><div class="g">조회 <span>3</span></div><span class="chip">query_voc</span><span class="chip">search_voc</span><span class="chip">get_top_issues</span></div>
+      <div class="tg"><div class="g">분석 <span>4</span></div><span class="chip">compare_products</span><span class="chip">analyze_sentiment_trend</span><span class="chip">get_country_breakdown</span><span class="chip">get_voc_summary</span></div>
+      <div class="tg"><div class="g">차원 분해 <span>3</span></div><span class="chip">get_platform_breakdown</span><span class="chip">get_engagement_leaders</span><span class="chip">get_language_breakdown</span></div>
+      <div class="tg"><div class="g">관계·생애주기 <span>3</span></div><span class="chip">get_kg_relations</span><span class="chip">get_product_timeline</span><span class="chip">get_unmapped_voc</span></div>
+      <div class="tg"><div class="g">차트 규격 <span>5</span></div><span class="chip">chart_sentiment_timeseries</span><span class="chip">chart_country_distribution</span><span class="chip">chart_category_distribution</span><span class="chip">chart_crisis_timeline</span><span class="chip">chart_keyword_network</span></div>
+      <div class="tg"><div class="g">운영 <span>4</span></div><span class="chip">daily_briefing</span><span class="chip">alert_check</span><span class="chip">site_health</span><span class="chip">top_emerging_keywords</span></div>
+    </div>
+    <p style="font-size:.83rem;color:var(--muted);margin-top:.9rem">모든 도구가 화면과 <b>같은 <code>voc_active</code> 데이터·같은 차트 규격</b>을 반환해 대시보드와 AI 답변이 어긋나지 않습니다.</p>
+  </section>
+
+  <div class="pfoot">
+    <div class="meta">1 / 2 · 데이터 & 구조</div>
+    <button class="nextbtn" onclick="go(2)">활용 · 전망 보기 →</button>
+  </div>
+</div></div>
+
+<!-- ══ PAGE 2 : 활용 · 전망 (05–08) ══ -->
+<div class="page" id="p2"><div class="wrap">
+
+  <header class="hero" style="padding-bottom:1rem">
+    <div class="eyebrow">Application &amp; Roadmap</div>
+    <h1>물어보면 답하고, 품질과 잇는다.</h1>
+    <p class="lede">같은 데이터를 <b>과제별 비교·대시보드·AI 대화</b>로 활용하고, 다음 단계로 <b>사내 품질 데이터(QINGS)</b>와 연계합니다.</p>
+  </header>
+
+  <section style="border-top:none;padding-top:.6rem">
+    <div class="sh"><span class="sn">05</span><h2>과제별 비교 — 두 제품을, 항목별로</h2></div>
+    <p class="ss">"제품·카테고리별로 비교해 줘"는 <span class="chip">compare_products</span> 한 번으로 끝납니다. 실제 DB 에서 뽑은 <b>Galaxy S25 vs S24</b> 카테고리별 감성입니다.</p>
+    <div class="panel" style="max-width:40rem">
+      <table class="cmp tnum">
+        <thead><tr><th>카테고리</th><th>S25</th><th>S24</th><th>차이</th></tr></thead>
+        <tbody>
+          <tr><td>build_quality (마감)</td><td class="v pos">+0.81</td><td class="v zero">+0.10</td><td class="v pos">+0.71<span class="win">S25</span></td></tr>
+          <tr><td>camera</td><td class="v pos">+0.30</td><td class="v neg">−0.02</td><td class="v pos">+0.32<span class="win">S25</span></td></tr>
+          <tr><td>connectivity</td><td class="v pos">+0.34</td><td class="v zero">+0.06</td><td class="v pos">+0.28<span class="win">S25</span></td></tr>
+          <tr><td>battery</td><td class="v pos">+0.29</td><td class="v zero">+0.07</td><td class="v pos">+0.22<span class="win">S25</span></td></tr>
+          <tr><td>design</td><td class="v pos">+0.36</td><td class="v pos">+0.24</td><td class="v pos">+0.12<span class="win">S25</span></td></tr>
+          <tr><td>ai_features</td><td class="v pos">+0.22</td><td class="v pos">+0.17</td><td class="v pos">+0.04</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:.82rem;color:var(--muted);margin:.8rem 0 0">감성 −1.0 ~ +1.0 · 최근 30일 · S25 가 전 항목 우세, 특히 마감·카메라 격차 큼.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="sn">06</span><h2>대시보드 — 12개 분석 화면</h2></div>
+    <p class="ss">개요에서 시작해 시간·관계·지리·심층·운영 축으로 파고드는 웹 대시보드. 포털 <code>/signalforge/</code> 로 접속.</p>
+    <div class="pgs">
+      <div class="pg"><div class="r">/dashboard</div><h4>Overview</h4><p>전체 요약·감성 분포·TOP 제품</p></div>
+      <div class="pg"><div class="r">/charts</div><h4>차트 갤러리</h4><p>5종 차트 거시↔미시 드릴다운</p></div>
+      <div class="pg"><div class="r">/compare</div><h4>비교</h4><p>제품 간 카테고리별 감성 대조</p></div>
+      <div class="pg"><div class="r">/temporal</div><h4>시계열 인사이트</h4><p>감성·언급량 추이·이벤트 상관</p></div>
+      <div class="pg"><div class="r">/history</div><h4>17년 라이프사이클</h4><p>2007~ 제품 생애주기</p></div>
+      <div class="pg"><div class="r">/kg</div><h4>지식 그래프</h4><p>제품↔카테고리·국가·플랫폼</p></div>
+      <div class="pg"><div class="r">/geo</div><h4>국가 분석</h4><p>국가별 VOC·감성 지도</p></div>
+      <div class="pg"><div class="r">/community</div><h4>커뮤니티</h4><p>플랫폼별 여론 분화</p></div>
+      <div class="pg"><div class="r">/insights</div><h4>딥 인사이트</h4><p>자동 인사이트·위기 사례</p></div>
+      <div class="pg"><div class="r">/alerts</div><h4>실시간 알림</h4><p>부정 급증·임계 초과 감지</p></div>
+      <div class="pg"><div class="r">/collection</div><h4>수집 상태</h4><p>사이트별 수집 헬스</p></div>
+      <div class="pg"><div class="r">/data-quality</div><h4>데이터 품질</h4><p>매칭율·미태깅·번역 커버리지</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="sn">07</span><h2>AI 대화 예시</h2></div>
+    <p class="ss">한 질문이 여러 도구 호출로 이어지고 근거와 함께 답이 돌아옵니다. 실제 도구·실제 수치를 반영했습니다.</p>
+    <div class="chat">
+      <div class="hd"><span class="dt"></span><span class="t">SignalForge MCP · Claude</span></div>
+      <div class="bd">
+        <div class="msg u">요즘 Galaxy S25 반응 어때? 부정적인 이슈 있으면 알려줘.</div>
+        <div class="msg a"><span class="call">→ get_top_issues("GS25") · get_voc_summary("GS25")</span>
+          전반적으로 <b>긍정</b>입니다(평균 +0.3). 다만 <b>performance</b> 부정율 25.5% 로 가장 높고 <b>display</b> 22.5% 가 뒤를 잇습니다. 'overheating' 언급이 최근 눈에 띕니다.
+          <div class="mini"><div class="kv"><span>performance 부정율</span><b>25.5%</b></div><div class="kv"><span>display 부정율</span><b>22.5%</b></div><div class="kv"><span>battery 부정율</span><b>18.2%</b></div></div>
+        </div>
+        <div class="msg u">S24랑 비교하면 나아진 거야?</div>
+        <div class="msg a"><span class="call">→ compare_products(["GS25","GS24"])</span>
+          네, <b>전 카테고리에서 개선</b>됐습니다. 마감 +0.81(S24 +0.10), 카메라 +0.30(S24 −0.02) 로 격차가 큽니다. S24 에서 부정적이던 카메라 여론이 뒤집혔습니다.</div>
+        <div class="msg u">그럼 S25 발열 관련 실제 글 좀 보여줘.</div>
+        <div class="msg a"><span class="call">→ search_voc("overheating", product_code="GS25")</span>
+          engagement 순으로 찾았습니다. <b>"Knox Matrix 가 배터리 드레인·발열을 유발한다"</b>(부정)가 상위이며, 업데이트 후 개선됐다는 반응도 섞여 있습니다. 원문 링크 드릴까요?</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="sn">08</span><h2>Future Plans — 시장 데이터 × 품질 데이터</h2></div>
+    <p class="ss">지금까지가 <b>시장의 목소리</b>를 AI-Ready 로 만든 단계라면, 다음은 이 시장 빅데이터를 <b>사내 품질 데이터(QINGS)</b>와 잇는 것입니다. 소비자가 말하기 전에 잡고, 필드 불량과 시장 반응을 한 축에서 봅니다.</p>
+    <div class="link">
+      <div class="src q"><div class="st">⚠︎ QINGS · 불량 데이터</div><div class="sd">필드 불량·수리·반품 등 사내 품질 정보 — 무엇이, 언제, 어느 로트에서 실제로 고장났는가.</div></div>
+      <div class="plus">×</div>
+      <div class="src b"><div class="st">◎ SignalForge · 시장 빅데이터</div><div class="sd">26만+ VOC — 소비자가 무엇을, 어떻게 느끼며 말하는가. 발화 즉시, 원문 그대로.</div></div>
+    </div>
+    <div class="fuse"><div class="ft">연계 분석 (Cross-Signal)</div><div class="fd">"필드 불량으로 잡히기 전에 시장 여론에 먼저 신호가 뜨는가" — VOC 의 발열·배터리 부정 급증을 <b>QINGS 불량 리포트의 선행지표</b>로. 반대로 QINGS 가 놓치는 미신고 UX 불만을 VOC 가 보완.</div></div>
+    <div class="rm">
+      <div class="ph"><div class="p">PHASE 1 · 정합</div><div class="h">스키마 연결</div><ul><li>QINGS 불량 코드 ↔ VOC 카테고리 매핑</li><li>제품·모델·시기 키 정렬(389 모델)</li><li>공통 분석 축 정의</li></ul></div>
+      <div class="ph"><div class="p">PHASE 2 · 상관</div><div class="h">선행지표 탐지</div><ul><li>VOC 부정 급증 → 불량 리포트 시차 분석</li><li>"여론이 먼저 우는" 패턴 학습</li><li>Crisis 사례 재구성 검증</li></ul></div>
+      <div class="ph"><div class="p">PHASE 3 · 예측</div><div class="h">조기경보·근거</div><ul><li>LLM 이 두 데이터를 한 질의로 교차 답변</li><li>불량 위험 조기 알림 + 시장 근거 자동 첨부</li><li>차기 모델 설계 피드백</li></ul></div>
+    </div>
+    <p class="disclaim">※ QINGS 연계는 향후 계획(개념 설계)이며 실제 스키마는 사내 협의 후 확정됩니다. 상단 시장 데이터 수치는 실측값입니다.</p>
+  </section>
+
+  <div class="pfoot">
+    <div class="grp"><button class="nextbtn ghost" onclick="go(1)">← 데이터 · 구조</button></div>
+    <div class="meta">2 / 2 · <code>/signalforge/</code> · MCP <code>:8013</code></div>
+  </div>
+</div></div>
+
+<script>
+  function go(n){
+    var p1=document.getElementById('p1'),p2=document.getElementById('p2');
+    var on=(n===1);
+    p1.classList.toggle('on',on); p2.classList.toggle('on',!on);
+    document.getElementById('t1').setAttribute('aria-current',on?'true':'false');
+    document.getElementById('t2').setAttribute('aria-current',on?'false':'true');
+    window.scrollTo({top:0,behavior:'instant' in window?'instant':'auto'});
+  }
+</script>
