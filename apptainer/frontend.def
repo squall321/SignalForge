@@ -20,11 +20,11 @@ From: node:20-bookworm-slim
 %files
     # 사전 빌드된 SPA. 빌드 머신에서 VITE_BASE_PATH=/signalforge/ npm run build 후 dist 가 존재해야 함.
     frontend/dist /opt/web/dist
+    # /signalforge sub-path 정합 정적 서버 (node 내장 http 만 사용 — 추가 npm 의존 0).
+    frontend/webserver.js /opt/web/webserver.js
 
 %post
     set -eux
-    # tiny static file server. 빌드 시점에 한 번만 npm 접근 → 런타임 네트워크 의존도 0.
-    npm install -g serve@14
     mkdir -p /opt/web/dist
 
 %environment
@@ -35,13 +35,11 @@ From: node:20-bookworm-slim
     export SF_WEB_PORT=17370
 
 %runscript
-    # 디버깅용 foreground. logs 가 stdout 으로 직행한다.
-    exec serve -s /opt/web/dist -l "tcp://0.0.0.0:${SF_WEB_PORT:-5173}" "$@"
+    exec node /opt/web/webserver.js "$@"
 
 %startscript
-    # PRODUCTION: instance start. setsid+nohup 으로 startscript shell 이 종료돼도 daemon 이 살아남도록.
-    setsid nohup serve -s /opt/web/dist -l "tcp://0.0.0.0:${SF_WEB_PORT:-5173}" \
-        > /tmp/sf-web.log 2>&1 < /dev/null &
+    # apptainer instance 의 메인 프로세스로 foreground 실행 → 인스턴스가 살아있는 동안 서버 유지.
+    exec node /opt/web/webserver.js
 
 %help
     SignalForge frontend container (static-serve of prebuilt SPA).
