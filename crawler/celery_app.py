@@ -451,8 +451,10 @@ app.conf.beat_schedule = {
     # 환경: AUTO_SYNC_DRY_RUN=true 로 시뮬레이션 / AUTO_SYNC_WITH_SIF=1 로 SIF 포함.
     # 잠금: /tmp/sf_sync_to.lock (수동 sync-to-drive.sh 와 경합 방지).
     # audit: logs/audit/auto_sync.jsonl (round=auto_sync track=Y1).
-    "auto-sync-to-drive-30m": {
-        "task": "tasks.run_auto_sync_to_drive",
-        "schedule": crontab(minute="*/30"),
-    },
+    # 2026-07-07 컨테이너화: 이 태스크는 host rclone/apptainer/sif 접근이 필요해
+    # 컨테이너 beat 안에서는 실행 불가 → host crontab 으로 이관 (scripts/sync-to-drive.sh).
+    # "auto-sync-to-drive-30m": {
+    #     "task": "tasks.run_auto_sync_to_drive",
+    #     "schedule": crontab(minute="*/30"),
+    # },
 }
