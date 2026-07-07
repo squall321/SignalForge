@@ -14,6 +14,17 @@ BACKEND_DIR="$PROJECT_ROOT/backend"
 CRAWLER_DIR="$PROJECT_ROOT/crawler"
 MCP_DIR="$PROJECT_ROOT/mcp-server"
 
+# ── Apptainer rootless 인스턴스에 필요한 XDG/DBUS (미설정 시 instance 조작이 cgroup 에러) ──
+if [[ -z "${XDG_RUNTIME_DIR:-}" || ! -d "${XDG_RUNTIME_DIR:-/nonexistent}" ]]; then
+  if [[ -d "/run/user/$(id -u)" ]]; then
+    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+  else
+    export XDG_RUNTIME_DIR="${TMPDIR:-/tmp}/xdg-$(id -u)"
+    mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+  fi
+fi
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
+
 # ── 사내 표준 프록시 폴백 ────────────────────────────────────────────
 DEFAULT_FALLBACK_PROXY="http://168.219.61.252:8080"
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# SignalForge — 전체 서비스 기동 (AIDataHub 패턴)
-# PostgreSQL → Apptainer instance
-# Backend / Crawler(Celery) / MCP → native venv (호스트)
+# SignalForge — 전체 서비스 기동 (전부 Apptainer 컨테이너)
+# PostgreSQL / Backend / MCP / Crawler(worker+beat) / Frontend → Apptainer instance
+#   코드는 bind-mount, 의존성은 이미지, 시크릿/설정은 host env 상속(load_env) + --env 오버라이드.
 # Redis → 시스템 서비스 (이미 실행 중으로 가정)
 set -euo pipefail
 # shellcheck source=/dev/null
@@ -9,7 +9,6 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 load_env
 export_proxy
 require_apptainer
-require_python_venv
 ensure_dirs
 
 SIF_DIR="$APPT_DIR/sif"
@@ -86,20 +85,25 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. Backend (native venv)
+# 3. 앱 서비스 — Apptainer 컨테이너 (backend / mcp / crawler worker+beat / frontend)
 # ─────────────────────────────────────────────────────────────────────────────
-BACKEND_VENV="$BACKEND_DIR/.venv"
+for s in backend mcp crawler frontend; do
+  [[ -f "$SIF_DIR/$s.sif" ]] || { echo "[ERROR] $s.sif 없음 — 먼저 ./scripts/build.sh $s" >&2; exit 1; }
+done
 
-if [[ ! -d "$BACKEND_VENV" ]]; then
-  echo "→ backend venv 생성..."
-  "$PYBIN" -m venv "$BACKEND_VENV"
-fi
+# (a) 구버전 native 프로세스 정리 (컨테이너로 대체)
+for pf in backend celery-worker celery-beat mcp; do
+  p="$LOG_DIR/$pf.pid"
+  if [[ -f "$p" ]] && kill -0 "$(cat "$p")" 2>/dev/null; then
+    echo "  (native $pf 종료: $(cat "$p"))"; kill "$(cat "$p")" 2>/dev/null || true
+  fi
+  rm -f "$p"
+done
+pkill -f "$MCP_DIR/server.py" 2>/dev/null || true
+pkill -f "$PROJECT_ROOT/frontend/serve_prod.py" 2>/dev/null || true
+sleep 1
 
-echo "→ backend pip install..."
-"$BACKEND_VENV/bin/pip" install --quiet -r "$BACKEND_DIR/requirements.txt" \
-  > "$LOG_DIR/backend-pip.log" 2>&1
-
-# backend/.env 갱신
+# (b) backend/.env (컨테이너가 /app/.env 로 읽음)
 cat > "$BACKEND_DIR/.env" <<BENV
 DATABASE_URL=$DB_URL
 REDIS_URL=$REDIS_URL
@@ -121,105 +125,62 @@ SESSION_TTL_SECONDS=${SESSION_TTL_SECONDS:-43200}
 PORTAL_SSO_LANDING=${PORTAL_SSO_LANDING:-/signalforge/}
 BENV
 
-echo "→ alembic upgrade head"
-cd "$BACKEND_DIR"
-"$BACKEND_VENV/bin/alembic" upgrade head > "$LOG_DIR/alembic.log" 2>&1
+# (c) DB 마이그레이션 + 시드 (backend 이미지로 1회 실행)
+echo "→ alembic upgrade head (컨테이너)"
+apptainer exec --bind "$BACKEND_DIR:/app" --env DATABASE_URL="$DB_URL" \
+  "$SIF_DIR/backend.sif" sh -c "cd /app && alembic upgrade head" \
+  > "$LOG_DIR/alembic.log" 2>&1 || echo "  [WARN] alembic 실패 — $LOG_DIR/alembic.log"
+echo "→ seed master data (컨테이너)"
+apptainer exec --bind "$BACKEND_DIR:/app" --env DATABASE_URL="$DB_URL" \
+  "$SIF_DIR/backend.sif" sh -c "cd /app && python -m app.seeds.seed_master" \
+  > "$LOG_DIR/seed.log" 2>&1 || echo "  [WARN] seed 실패(이미 존재 가능)"
 
-echo "→ seed master data"
-PYTHONPATH="$BACKEND_DIR" "$BACKEND_VENV/bin/python" -m app.seeds.seed_master \
-  > "$LOG_DIR/seed.log" 2>&1 || echo "  [WARN] seed 실패 (이미 존재할 수 있음)"
+# (d) 인스턴스 재기동 헬퍼 — "$@" = 옵션들 + SIF, 마지막에 인스턴스명 부여
+sf_up() {
+  local name="$1"; shift
+  apptainer instance stop "$name" 2>/dev/null || true
+  echo "→ instance $name"
+  apptainer instance start "$@" "$name" > "$LOG_DIR/$name.log" 2>&1
+}
 
-# 기존 uvicorn 종료
-if [[ -f "$LOG_DIR/backend.pid" ]] && kill -0 "$(cat "$LOG_DIR/backend.pid")" 2>/dev/null; then
-  echo "  (기존 uvicorn 종료)"
-  kill "$(cat "$LOG_DIR/backend.pid")" || true
-  sleep 1
-fi
+sf_up sf-backend \
+  --bind "$BACKEND_DIR:/app" \
+  --env API_PORT="${API_PORT:-8000}" --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" \
+  "$SIF_DIR/backend.sif"
 
-require_port_free "${API_PORT:-8000}" "API"
-echo "→ uvicorn 시작 (백그라운드, port=${API_PORT:-8000})"
-PYTHONPATH="$BACKEND_DIR" \
-nohup "$BACKEND_VENV/bin/uvicorn" app.main:app \
-    --host "${API_HOST:-0.0.0.0}" --port "${API_PORT:-8000}" \
-    > "$LOG_DIR/backend.log" 2>&1 &
-echo $! > "$LOG_DIR/backend.pid"
-
-echo "→ /health 대기..."
+echo "→ backend /health 대기..."
 for i in $(seq 1 30); do
-  if curl -sf "http://127.0.0.1:${API_PORT:-8000}/health" >/dev/null 2>&1; then
-    echo "✓ backend ready (${i}회 시도)"; break
-  fi
+  curl -sf "http://127.0.0.1:${API_PORT:-8000}/health" >/dev/null 2>&1 && { echo "✓ backend ready (${i})"; break; }
   sleep 2
 done
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. Crawler venv (Celery worker + beat)
-# ─────────────────────────────────────────────────────────────────────────────
-# 크롤러는 프로젝트 루트 .venv 공유 (이미 설치됨)
-CRAWLER_VENV="$PROJECT_ROOT/.venv"
+sf_up sf-mcp \
+  --bind "$MCP_DIR:/mcp-server" \
+  --env MCP_PORT="${MCP_PORT:-8001}" --env DATABASE_URL="$DB_URL" \
+  "$SIF_DIR/mcp.sif"
 
-if [[ ! -d "$CRAWLER_VENV" ]]; then
-  echo "→ crawler venv 생성..."
-  "$PYBIN" -m venv "$CRAWLER_VENV"
-  "$CRAWLER_VENV/bin/pip" install --quiet -r "$CRAWLER_DIR/requirements.txt" \
-    > "$LOG_DIR/crawler-pip.log" 2>&1
-fi
+sf_up sf-crawler-worker \
+  --bind "$CRAWLER_DIR:/crawler" \
+  --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" --env CELERY_CONCURRENCY="${CELERY_CONCURRENCY:-4}" \
+  "$SIF_DIR/crawler.sif"
 
-# 기존 celery 종료
-for pidfile in "$LOG_DIR/celery-worker.pid" "$LOG_DIR/celery-beat.pid"; do
-  if [[ -f "$pidfile" ]] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then
-    kill "$(cat "$pidfile")" || true
-  fi
-done
-sleep 1
+sf_up sf-crawler-beat \
+  --bind "$CRAWLER_DIR:/crawler" \
+  --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" --env CELERY_ROLE=beat \
+  "$SIF_DIR/crawler.sif"
 
-echo "→ Celery worker 시작 (백그라운드)"
-cd "$CRAWLER_DIR"
-DATABASE_URL="$DB_URL" REDIS_URL="$REDIS_URL" \
-nohup "$CRAWLER_VENV/bin/celery" -A celery_app worker \
-    --loglevel=info --concurrency="${CELERY_CONCURRENCY:-4}" \
-    > "$LOG_DIR/celery-worker.log" 2>&1 &
-echo $! > "$LOG_DIR/celery-worker.pid"
-
-echo "→ Celery beat 시작 (백그라운드)"
-DATABASE_URL="$DB_URL" REDIS_URL="$REDIS_URL" \
-nohup "$CRAWLER_VENV/bin/celery" -A celery_app beat \
-    --loglevel=info \
-    > "$LOG_DIR/celery-beat.log" 2>&1 &
-echo $! > "$LOG_DIR/celery-beat.pid"
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. MCP 서버 (native venv — mcp-server 전용)
-# ─────────────────────────────────────────────────────────────────────────────
-MCP_VENV="$MCP_DIR/.venv"
-
-if [[ ! -d "$MCP_VENV" ]]; then
-  echo "→ mcp venv 생성..."
-  "$PYBIN" -m venv "$MCP_VENV"
-  "$MCP_VENV/bin/pip" install --quiet -r "$MCP_DIR/requirements.txt" \
-    > "$LOG_DIR/mcp-pip.log" 2>&1
-fi
-if [[ -f "$LOG_DIR/mcp.pid" ]] && kill -0 "$(cat "$LOG_DIR/mcp.pid")" 2>/dev/null; then
-  kill "$(cat "$LOG_DIR/mcp.pid")" || true; sleep 1
-fi
-
-require_port_free "${MCP_PORT:-8001}" "MCP"
-echo "→ MCP 서버 시작 (백그라운드, port=${MCP_PORT:-8001})"
-DATABASE_URL="$DB_URL" REDIS_URL="$REDIS_URL" \
-nohup "$MCP_VENV/bin/python" "$MCP_DIR/server.py" \
-    > "$LOG_DIR/mcp.log" 2>&1 &
-echo $! > "$LOG_DIR/mcp.pid"
+sf_up sf-frontend \
+  --env SF_WEB_PORT="${WEB_PORT:-17370}" \
+  "$SIF_DIR/frontend.sif"
 
 # ─────────────────────────────────────────────────────────────────────────────
 echo ""
 echo "================================================================"
-echo " ✅ SignalForge 서비스 기동 완료"
+echo " ✅ SignalForge 서비스 기동 완료 (전체 Apptainer 컨테이너)"
 echo "================================================================"
-echo "  API      → http://localhost:${API_PORT:-8000}"
-echo "  API docs → http://localhost:${API_PORT:-8000}/docs"
-echo "  MCP      → http://localhost:${MCP_PORT:-8001}"
-echo ""
-echo "  상태:   ./scripts/status.sh"
-echo "  로그:   tail -f $LOG_DIR/backend.log"
-echo "  중지:   ./scripts/down.sh"
-echo "================================================================"
+echo "  postgres → instance $INST_POSTGRES (:${POSTGRES_PORT})"
+echo "  backend  → sf-backend   http://localhost:${API_PORT:-8000}"
+echo "  mcp      → sf-mcp       http://localhost:${MCP_PORT:-8001}/mcp"
+echo "  crawler  → sf-crawler-worker + sf-crawler-beat"
+echo "  frontend → sf-frontend  http://localhost:${WEB_PORT:-17370}"
+echo "  redis    → 시스템 서비스 (:${REDIS_PORT:-6379})"
