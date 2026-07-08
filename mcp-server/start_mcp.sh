@@ -4,7 +4,8 @@
 # SF_MCP_TOKEN 설정 시 Authorization: Bearer 검증(에이전트용), 미설정 시 무인증 standalone.
 set -euo pipefail
 
-HERE="/home/koopark/claude/SignalForge/mcp-server"
+# 스크립트 실제 위치 기준(하드코딩 금지) — 서버마다 체크아웃 경로가 달라도(~/Projects, ~/claude 등) 동작.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 실가동 포트 8013. server.py 기본값은 8001 이지만 이 호스트는 8001 을 AIDataHub api_server 가
 # 점유 중이라, SF MCP 는 8013 으로 띄운다(8001 default 면 포트사용중 가드가 기동을 거부함).
 PORT="${MCP_PORT:-8013}"

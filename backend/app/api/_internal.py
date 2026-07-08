@@ -3843,15 +3843,14 @@ def hook_history(
 #
 # 보안: localhost only. 외부 노출 금지.
 
+# 프로젝트 루트(.../SignalForge) — 이 파일 위치 기준(하드코딩 금지, 서버마다 경로 달라도 동작).
+_SF_ROOT = Path(__file__).resolve().parents[3]
+
 # 송신/수신 양측이 공유하는 audit JSONL 경로.  Y1-Y4 가 동일 파일에 기록.
-_AUTO_SYNC_AUDIT_DEFAULT = Path(
-    "/home/koopark/claude/SignalForge/logs/audit/portal_deploy.jsonl"
-)
+_AUTO_SYNC_AUDIT_DEFAULT = _SF_ROOT / "logs/audit/portal_deploy.jsonl"
 
 # sif manifest (push 측이 매 사이클마다 갱신, pull 측은 delta 판정 입력).
-_AUTO_SYNC_LATEST_DEFAULT = Path(
-    "/home/koopark/claude/SignalForge/apptainer/sif/LATEST.json"
-)
+_AUTO_SYNC_LATEST_DEFAULT = _SF_ROOT / "apptainer/sif/LATEST.json"
 
 # 성공으로 간주할 event 토큰 — 부정확한 잠금/실패 이벤트는 별도 카운트.
 _AUTO_SYNC_OK_EVENTS = {"end", "db_ok", "sif_ok", "env_ok", "db_restored"}
