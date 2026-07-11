@@ -2,6 +2,9 @@
 # SignalForge — Apptainer 이미지 빌드 (AIDataHub 패턴)
 # 사용: ./scripts/build.sh [postgres|backend|crawler|mcp|all] [--force]
 set -euo pipefail
+# 무거운 빌드(Chromium 다운로드·이미지 생성)가 메모리 스파이크로 OOM 을 유발할 때
+# postgres 대신 이 빌드가 먼저 죽도록 자신(과 자식)의 oom_score_adj 를 높인다(희생양화).
+echo 800 > /proc/self/oom_score_adj 2>/dev/null || true
 # shellcheck source=/dev/null
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 load_env

@@ -33,9 +33,11 @@ if [[ ! -f "$SIF_DIR/postgres.sif" ]]; then
   echo "[ERROR] postgres.sif 없음. 먼저: ./scripts/build.sh postgres" >&2; exit 1
 fi
 
+PG_FRESH=0
 if instance_running "$INST_POSTGRES"; then
   echo "✓ $INST_POSTGRES 이미 실행 중"
 else
+  PG_FRESH=1
   # stale lock 정리
   for f in "$DATA_DIR/postgres-run/.s.PGSQL.${POSTGRES_PORT}.lock" \
            "$DATA_DIR/postgres/pgdata/postmaster.pid"; do
@@ -125,25 +127,36 @@ SESSION_TTL_SECONDS=${SESSION_TTL_SECONDS:-43200}
 PORTAL_SSO_LANDING=${PORTAL_SSO_LANDING:-/signalforge/}
 BENV
 
-# (c) DB 마이그레이션 + 시드 (backend 이미지로 1회 실행)
-echo "→ alembic upgrade head (컨테이너)"
-apptainer exec --bind "$BACKEND_DIR:/app" --env DATABASE_URL="$DB_URL" \
-  "$SIF_DIR/backend.sif" sh -c "cd /app && alembic upgrade head" \
-  > "$LOG_DIR/alembic.log" 2>&1 || echo "  [WARN] alembic 실패 — $LOG_DIR/alembic.log"
-echo "→ seed master data (컨테이너)"
-apptainer exec --bind "$BACKEND_DIR:/app" --env DATABASE_URL="$DB_URL" \
-  "$SIF_DIR/backend.sif" sh -c "cd /app && python -m app.seeds.seed_master" \
-  > "$LOG_DIR/seed.log" 2>&1 || echo "  [WARN] seed 실패(이미 존재 가능)"
+# (c) DB 마이그레이션 + 시드 — postgres 를 새로 띄운 경우만 (워치독 반복 호출 시 재실행 방지)
+if [ "$PG_FRESH" -eq 1 ]; then
+  echo "→ alembic upgrade head (컨테이너)"
+  apptainer exec --bind "$BACKEND_DIR:/app" --env DATABASE_URL="$DB_URL" \
+    "$SIF_DIR/backend.sif" sh -c "cd /app && alembic upgrade head" \
+    > "$LOG_DIR/alembic.log" 2>&1 || echo "  [WARN] alembic 실패 — $LOG_DIR/alembic.log"
+  echo "→ seed master data (컨테이너)"
+  apptainer exec --bind "$BACKEND_DIR:/app" --env DATABASE_URL="$DB_URL" \
+    "$SIF_DIR/backend.sif" sh -c "cd /app && python -m app.seeds.seed_master" \
+    > "$LOG_DIR/seed.log" 2>&1 || echo "  [WARN] seed 실패(이미 존재 가능)"
+else
+  echo "✓ postgres 기존 유지 — alembic/seed skip"
+fi
 
-# (d) 인스턴스 재기동 헬퍼 — "$@" = 옵션들 + SIF, 마지막에 인스턴스명 부여
+# (d) 인스턴스 재기동 헬퍼 — $1=이름 $2=헬스체크(eval 문자열) $3~=옵션+SIF.
+#     이미 건강하면 skip → 워치독이 매분 호출해도 정상 서비스는 무중단.
 sf_up() {
-  local name="$1"; shift
+  local name="$1" check="$2"; shift 2
+  # if 조건이라 set -e 안전. transient race(기동 직후 미리스닝 등) 흡수 위해 3회 재시도.
+  local i
+  for i in 1 2 3; do
+    if eval "$check" >/dev/null 2>&1; then echo "✓ $name 정상 (skip)"; return 0; fi
+    sleep 1
+  done
   apptainer instance stop "$name" 2>/dev/null || true
   echo "→ instance $name"
   apptainer instance start "$@" "$name" > "$LOG_DIR/$name.log" 2>&1
 }
 
-sf_up sf-backend \
+sf_up sf-backend "ss -tln 2>/dev/null | grep -E '[:.]${API_PORT:-8000}\b' >/dev/null" \
   --bind "$BACKEND_DIR:/app" \
   --env API_PORT="${API_PORT:-8000}" --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" \
   "$SIF_DIR/backend.sif"
@@ -154,22 +167,22 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
-sf_up sf-mcp \
+sf_up sf-mcp "ss -tln 2>/dev/null | grep -E '[:.]${MCP_PORT:-8001}\b' >/dev/null" \
   --bind "$MCP_DIR:/mcp-server" \
   --env MCP_PORT="${MCP_PORT:-8001}" --env DATABASE_URL="$DB_URL" \
   "$SIF_DIR/mcp.sif"
 
-sf_up sf-crawler-worker \
+sf_up sf-crawler-worker "ps -eo args 2>/dev/null | grep -E '[c]elery -A celery_app worker' >/dev/null" \
   --bind "$CRAWLER_DIR:/crawler" \
   --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" --env CELERY_CONCURRENCY="${CELERY_CONCURRENCY:-4}" \
   "$SIF_DIR/crawler.sif"
 
-sf_up sf-crawler-beat \
+sf_up sf-crawler-beat "ps -eo args 2>/dev/null | grep -E '[c]elery -A celery_app beat' >/dev/null" \
   --bind "$CRAWLER_DIR:/crawler" \
   --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" --env CELERY_ROLE=beat \
   "$SIF_DIR/crawler.sif"
 
-sf_up sf-frontend \
+sf_up sf-frontend "ss -tln 2>/dev/null | grep -E '[:.]${WEB_PORT:-17370}\b' >/dev/null" \
   --env SF_WEB_PORT="${WEB_PORT:-17370}" \
   "$SIF_DIR/frontend.sif"
 
