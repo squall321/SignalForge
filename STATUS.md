@@ -210,6 +210,10 @@ Phase B 번역 백필 10,522/10,705(98.3%) 복구, Phase C 3회 재태깅 누적
 - Tools: `query_voc`, `get_top_issues`, `analyze_sentiment_trend`, `compare_products`, `get_country_breakdown`, `search_voc` 구현됨
 - `mcp-server/tools/query.py`, `analytics.py` 완성
 
+> ⚠️ 이 절은 낡음(현재 port **8013**, tool **22개**). 최신 구조·상위 게이트웨이(HWAXMcpGateway :9110)·
+> 스키마 함정(categories vs topics)은 **[`mcp-server/README.md`](mcp-server/README.md)** 참조.
+> 에이전트는 :8013 을 직접 안 침 — 인증·토큰발급은 상위 게이트웨이가 함.
+
 ---
 
 ## 4. 현재 문제점 및 미해결 사항
