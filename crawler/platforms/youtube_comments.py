@@ -51,13 +51,28 @@ logger = logging.getLogger(__name__)
 
 _API = "https://www.googleapis.com/youtube/v3"
 
-# 기본 검색어 — Galaxy 최신 플래그십 + 폴더블 (영/한 혼합). env 로 override.
+# 기본 검색어 — 전 제품군 시리즈 레벨(모델별이면 quota 폭발) + 경쟁사. 영/한 혼합.
+# 시리즈 질의로 넓게 훑으면 댓글에서 구체 모델(S26/S24/폴드7…)이 언급되고 normalize 가 자동 매핑.
+# env YOUTUBE_QUERIES(콤마구분) 로 override.
 _DEFAULT_QUERIES: List[str] = [
-    "Samsung Galaxy S26 Ultra review",
-    "Galaxy Z Fold8 review",
-    "Galaxy Z Flip8",
-    "삼성 갤럭시 S26 리뷰",
-    "Galaxy S26 camera",
+    "Samsung Galaxy S review",
+    "Samsung Galaxy Z Fold review",
+    "Samsung Galaxy Z Flip review",
+    "Samsung Galaxy A series review",
+    "Samsung Galaxy Note review",
+    "Samsung Galaxy Tab S review",
+    "Samsung Galaxy Watch review",
+    "Samsung Galaxy Buds review",
+    "Samsung Galaxy Ring review",
+    "Samsung Galaxy FE review",
+    "Samsung Galaxy unboxing",
+    "Samsung Galaxy comparison",
+    "삼성 갤럭시 리뷰",
+    "갤럭시 S 리뷰",
+    "갤럭시 폴드 리뷰",
+    "갤럭시 워치 리뷰",
+    "iPhone vs Samsung Galaxy",
+    "Pixel vs Samsung Galaxy",
 ]
 
 
@@ -92,6 +107,10 @@ class YouTubeCommentsCrawler(BaseCrawler):
         self.region = os.getenv("YOUTUBE_REGION", "").strip()
         # 영상 정렬 — relevance 가 '토론이 몰린 영상'을 준다(date 는 갓 업로드돼 댓글 0건이 많음).
         self.order = os.getenv("YOUTUBE_ORDER", "relevance").strip() or "relevance"
+        # 기간 슬라이싱(모든 기간 backfill 용) — RFC3339. 지정하면 그 구간 영상만 검색.
+        # 미지정이면 전 기간(YouTube 기본). 연도 backfill 은 youtube-backfill.sh 가 주입.
+        self.published_after = os.getenv("YOUTUBE_PUBLISHED_AFTER", "").strip()
+        self.published_before = os.getenv("YOUTUBE_PUBLISHED_BEFORE", "").strip()
 
     async def crawl(self) -> List[RawVOC]:
         if not self.api_key:
@@ -111,7 +130,11 @@ class YouTubeCommentsCrawler(BaseCrawler):
                     seen_videos.add(vid)
                     out.extend(await self._fetch_comments(client, vid, vtitle, q))
                     await self._random_delay()
-        self.logger.info("YouTube 수집 완료 — 영상 %d개 / 댓글 %d건", len(seen_videos), len(out))
+        window = ""
+        if self.published_after or self.published_before:
+            window = f" [기간 {self.published_after or '~'}~{self.published_before or '~'}]"
+        self.logger.info("YouTube 수집 완료%s — 질의 %d · 영상 %d개 / 댓글 %d건",
+                         window, len(_queries()), len(seen_videos), len(out))
         return out
 
     async def _search_videos(self, client: httpx.AsyncClient, query: str) -> List[tuple]:
@@ -123,6 +146,10 @@ class YouTubeCommentsCrawler(BaseCrawler):
         }
         if self.region:
             params["relevanceLanguage"] = self.region
+        if self.published_after:
+            params["publishedAfter"] = self.published_after
+        if self.published_before:
+            params["publishedBefore"] = self.published_before
         try:
             r = await client.get(f"{_API}/search", params=params)
             if r.status_code != 200:
