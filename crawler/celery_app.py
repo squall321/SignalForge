@@ -276,8 +276,9 @@ app.conf.beat_schedule = {
     # probe 403 시 빈 결과 반환. _fetch_topic 만 향후 교체. 6h 주기 (라이브화 시 의미).
     "crawl-quora-6h":        {"task":"tasks.crawl_platform","schedule":21600.0,"args":("quora",None,None)},
     # 2026-07-17 Track C: YouTube 댓글 — Data API v3. Galaxy 리뷰/쇼츠 영상의 시청자 댓글.
-    # YOUTUBE_API_KEY 미설정 시 graceful skip(0건). 4h 주기, quota ~525u/run(무료 10k/일).
-    "crawl-youtube-4h":      {"task":"tasks.crawl_platform","schedule":14400.0,"args":("youtube",None,None)},
+    # ※ celery 큐 정체(82 크롤러 → 대기 ~3h)로 host cron(scripts/youtube-collect.sh)으로 이관.
+    #   API 기반이라 빠른데 느린 HTML 크롤러 뒤에 굶는 것을 회피. beat 항목은 비활성.
+    # "crawl-youtube-4h":      {"task":"tasks.crawl_platform","schedule":14400.0,"args":("youtube",None,None)},
     # 2026-06-01 Track G: 품질 모니터링 — 매시 30분
     "health-check-hourly": {
         "task": "tasks.run_health_check",
