@@ -4,6 +4,7 @@ import ReactECharts from 'echarts-for-react';
 import type { EChartsOption } from 'echarts';
 import { useQuery } from '@tanstack/react-query';
 import { fetchProductLifecycle } from '../../services/insightsApi';
+import { useProductOptions } from '../../hooks/useFilterMeta';
 import type { ProductLifecycleResponse } from '../../types/insights';
 import {
   defaultAxisTooltipFormatter,
@@ -12,12 +13,6 @@ import {
 } from '../../utils/chartTheme';
 
 const { Text } = Typography;
-
-const PRODUCTS = [
-  'GS25', 'GS25P', 'GS25U',
-  'GZF7', 'GZFL7',
-  'GW8', 'GB3', 'GR2',
-];
 
 export function buildLifecycleOption(resp: ProductLifecycleResponse): EChartsOption {
   const labels = resp.points.map((p) => `D+${p.d_offset}`);
@@ -48,6 +43,8 @@ export function buildLifecycleOption(resp: ProductLifecycleResponse): EChartsOpt
 
 export default function LifecycleCard() {
   const [product, setProduct] = useState('GS25');
+  // 전체 제품(활성) 동적 로드 — 하드코딩 목록 대신 어떤 기종이든 선택 가능.
+  const { data: productMeta } = useProductOptions();
   const { data, isLoading } = useQuery({
     queryKey: ['insights', 'lifecycle', product],
     queryFn: () => fetchProductLifecycle(product),
@@ -63,10 +60,12 @@ export default function LifecycleCard() {
       extra={
         <Select
           size="small"
+          showSearch
+          optionFilterProp="label"
           value={product}
           onChange={setProduct}
-          style={{ width: 100 }}
-          options={PRODUCTS.map((p) => ({ value: p, label: p }))}
+          style={{ width: 180 }}
+          options={(productMeta ?? []).map((p) => ({ value: p.code, label: `${p.name} (${p.code})` }))}
         />
       }
     >

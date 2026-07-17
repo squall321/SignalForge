@@ -50,7 +50,8 @@ export const CATEGORY_CATALOG: Array<{ code: string; label: string }> = [
 
 interface ProductRead {
   code: string;
-  name: string;
+  name_en: string;
+  name_ko: string | null;
 }
 
 export function useProductOptions() {
@@ -59,7 +60,8 @@ export function useProductOptions() {
     queryFn: async () => {
       try {
         const { data } = await api.get<ProductRead[]>('/products', { params: { is_active: true } });
-        return data.map((p) => ({ code: p.code, name: p.name }));
+        // 백엔드는 name_ko/name_en 을 준다(단일 name 필드 없음) → 한글 우선, 없으면 영문·코드.
+        return data.map((p) => ({ code: p.code, name: p.name_ko || p.name_en || p.code }));
       } catch {
         // 백엔드 미가동 시 폴백 — 데모 4종
         return [

@@ -7,6 +7,7 @@ import type { EChartsOption } from 'echarts';
 import WorldChoropleth from '../components/geo/WorldChoropleth';
 import type { CountryMetric } from '../types/geo';
 import { alpha2ToAlpha3, alpha3ToAlpha2 } from '../utils/countryCodes';
+import { useProductOptions } from '../hooks/useFilterMeta';
 import {
   fetchSentimentTimeseries, fetchCountryDistribution, fetchCategoryDistribution,
   fetchCrisisTimeline, fetchKeywordNetwork, type ChartResponse,
@@ -30,8 +31,6 @@ const PERIOD_OPTIONS = [
   { value: 90, label: '최근 90일' },
   { value: 30, label: '최근 30일' },
 ];
-
-const PRODUCT_CODES = ['GS25', 'GS24', 'GZF8', 'GZF7', 'GZFL8', 'GN7', 'GS22U', 'GS20'];
 
 // line/timeline 차트에 시간 미시 줌 (dataZoom inside+slider) + PNG 저장 toolbox 를 얹는다.
 // backend echarts_option 의 series/xAxis 는 그대로 두고 컨트롤만 추가 (얕은 병합 안전).
@@ -107,7 +106,9 @@ export default function ChartGallery() {
   const [drawer, setDrawer] = useState<{ open: boolean; title: string; body: string }>(
     { open: false, title: '', body: '' });
 
-  const productOptions = PRODUCT_CODES.map((c) => ({ value: c, label: c }));
+  // 전체 제품(활성) 동적 로드 — 하드코딩 목록 대신 어떤 기종이든 선택 가능.
+  const { data: productMeta } = useProductOptions();
+  const productOptions = (productMeta ?? []).map((p) => ({ value: p.code, label: `${p.name} (${p.code})` }));
   const filterOptions = [{ value: '', label: '전체 제품' }, ...productOptions];
 
   const periodSel = (value: number, onChange: (v: number) => void) => (

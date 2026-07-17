@@ -11,6 +11,7 @@ import { useFilterStore } from '../../stores/useFilterStore';
 import { useQuery } from '@tanstack/react-query';
 import { fetchEmergingKeywords } from '../../services/insightsApi';
 import { fetchGlobalSearch, type SearchResponse } from '../../services/searchApi';
+import { useProductOptions } from '../../hooks/useFilterMeta';
 import {
   PAGE_ENTRIES,
   filterEntries,
@@ -18,15 +19,6 @@ import {
 } from './commandPaletteUtils';
 
 const { Text } = Typography;
-
-// MVP 정적 메타 — 백엔드 /api/v1/products 가 전체 48개를 주지만 후보용으로 핵심만 노출.
-// (필터바 옵션과 동기화하기 전까지 임시.)
-const PRODUCT_ENTRIES: SearchEntry[] = [
-  { kind: 'product', label: 'Galaxy S25', key: 'gs25 galaxy s25', path: '/dashboard', payload: { products: ['GS25'] } },
-  { kind: 'product', label: 'Galaxy S25 Ultra', key: 'gs25u galaxy s25 ultra', path: '/dashboard', payload: { products: ['GS25U'] } },
-  { kind: 'product', label: 'Galaxy Z Fold6', key: 'gzf6 fold6', path: '/dashboard', payload: { products: ['GZF6'] } },
-  { kind: 'product', label: 'Galaxy Z Flip6', key: 'gzl6 flip6', path: '/dashboard', payload: { products: ['GZL6'] } },
-];
 
 const PLATFORM_ENTRIES: SearchEntry[] = [
   { kind: 'platform', label: 'Reddit', key: 'reddit', path: '/community', payload: { platforms: ['reddit'] } },
@@ -74,6 +66,19 @@ export default function CommandPalette({ open, onClose }: Props) {
       payload: { keyword: k.keyword },
     }));
   }, [kwData]);
+
+  // 제품 후보 — 전체 제품(활성) 동적 로드. 하드코딩 대신 실 카탈로그로 빈 검색창 기본 추천 구성.
+  const { data: productMeta } = useProductOptions();
+  const productEntries: SearchEntry[] = useMemo(
+    () => (productMeta ?? []).map((p) => ({
+      kind: 'product' as const,
+      label: `${p.name} (${p.code})`,
+      key: `${p.code} ${p.name}`.toLowerCase(),
+      path: '/dashboard',
+      payload: { products: [p.code] },
+    })),
+    [productMeta],
+  );
 
   // ─── 백엔드 통합 검색 (UX R2 트랙 E) ──────────────────────────────────────
   // query 300ms debounce → /_internal/search 호출. 빈 쿼리는 호출 자체 스킵.
@@ -133,8 +138,8 @@ export default function CommandPalette({ open, onClose }: Props) {
   }, [backendSearch]);
 
   const staticEntries: SearchEntry[] = useMemo(
-    () => [...PAGE_ENTRIES, ...PRODUCT_ENTRIES, ...PLATFORM_ENTRIES, ...CATEGORY_ENTRIES, ...keywordEntries],
-    [keywordEntries],
+    () => [...PAGE_ENTRIES, ...productEntries, ...PLATFORM_ENTRIES, ...CATEGORY_ENTRIES, ...keywordEntries],
+    [productEntries, keywordEntries],
   );
 
   // 결과 merge: 백엔드 결과를 먼저, 그 뒤 client-side filtered 결과를 추가하되 중복 제거.
