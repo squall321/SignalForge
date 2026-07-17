@@ -195,6 +195,9 @@ _CRAWLER_SPECS = {
     # 현재 Cloudflare managed challenge 로 모든 endpoint 403. graceful 스켈레톤만 등록 — 정책
     # 변경(브라우저 자동화 또는 상용 프록시) 시 _fetch_topic 교체로 즉시 라이브 가동. 6h 주기.
     "quora":          ("platforms.quora",          "QuoraCrawler"),
+    # 2026-07-17 Track C: YouTube 댓글 — Data API v3(commentThreads). Galaxy 리뷰/쇼츠
+    # 영상의 시청자 댓글 = 고밀도 VOC. YOUTUBE_API_KEY 필요, 미설정 시 graceful skip. 4h 주기.
+    "youtube":        ("platforms.youtube_comments", "YouTubeCommentsCrawler"),
 }
 
 # 모듈을 워커 기동 시점(메인 프로세스)에 정적 로드 → prefork 자식이 sys.modules 상속.
