@@ -1,19 +1,34 @@
 """MCP Query Tools — VOC 조회"""
 from typing import Optional, List
+from datetime import datetime
 from db import get_db_session
 from sqlalchemy import text
 
 
+def _parse_dt(s: str):
+    """'YYYY-MM-DD' 또는 ISO 타임스탬프 → datetime. asyncpg 는 str 를 안 받으므로 객체로 변환."""
+    return datetime.fromisoformat(s)
+
+
 async def query_voc_tool(
-    product_code: str,
+    product_code: Optional[str] = None,
     country: Optional[str] = None,
     category: Optional[str] = None,
     sentiment: Optional[str] = None,
+    platform: Optional[str] = None,
+    keyword: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     limit: int = 20,
 ) -> List[dict]:
-    conditions = ["p.code = :product_code"]
-    params: dict = {"product_code": product_code.upper(), "limit": limit}
+    # 모든 필터가 선택 — product_code 없이도 전체 VOC 를 자유 조회(제품 태깅 ~18% 라
+    # LEFT JOIN 으로 미태깅 VOC 도 포함). 날짜구간(published_at)·플랫폼·키워드까지 조합 가능.
+    conditions: List[str] = ["TRUE"]
+    params: dict = {"limit": limit}
 
+    if product_code:
+        conditions.append("p.code = :product_code")
+        params["product_code"] = product_code.upper()
     if country:
         conditions.append("v.country_code = :country")
         params["country"] = country.upper()
@@ -23,6 +38,20 @@ async def query_voc_tool(
     if category:
         conditions.append(":category = ANY(v.categories)")
         params["category"] = category
+    if platform:
+        conditions.append("pl.code = :platform")
+        params["platform"] = platform
+    if keyword:
+        conditions.append(
+            "to_tsvector('english', COALESCE(v.content_translated, '')) "
+            "@@ plainto_tsquery('english', :keyword)")
+        params["keyword"] = keyword
+    if start_date:
+        conditions.append("v.published_at >= :start_date")
+        params["start_date"] = _parse_dt(start_date)
+    if end_date:
+        conditions.append("v.published_at < :end_date")
+        params["end_date"] = _parse_dt(end_date)
 
     where = " AND ".join(conditions)
     stmt = text(f"""
@@ -32,10 +61,11 @@ async def query_voc_tool(
             v.language_detected, v.country_code,
             v.sentiment_score, v.sentiment_label, v.categories,
             v.likes_count, v.comments_count, v.engagement_score,
-            v.published_at, pl.name AS platform_name
+            v.published_at, pl.name AS platform_name,
+            p.code AS product_code, p.name_ko AS product_name
         FROM voc_active v
-        JOIN products p ON p.id = v.product_id
-        JOIN platforms pl ON pl.id = v.platform_id
+        LEFT JOIN products p ON p.id = v.product_id
+        LEFT JOIN platforms pl ON pl.id = v.platform_id
         WHERE {where}
         ORDER BY v.published_at DESC NULLS LAST
         LIMIT :limit

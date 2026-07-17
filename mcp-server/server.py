@@ -49,23 +49,34 @@ mcp = FastMCP(
 
 @mcp.tool()
 async def query_voc(
-    product_code: str,
+    product_code: Optional[str] = None,
     country: Optional[str] = None,
     category: Optional[str] = None,
     sentiment: Optional[str] = None,
+    platform: Optional[str] = None,
+    keyword: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     limit: int = 20,
 ) -> list:
     """
-    특정 제품의 VOC를 조건별로 조회합니다.
+    VOC를 조건별로 자유 조회합니다. 모든 필터가 선택이며 조합 가능합니다.
+    product_code 를 생략하면 전체 제품(미태깅 포함)을 횡단 조회합니다.
 
     Args:
-        product_code: 제품 코드 (예: GS25U, GZF7, GZFL7)
+        product_code: 제품 코드 (예: GS25U, GZF7) — 생략 시 전체
         country: 국가 코드 (예: KR, US, DE) — 선택
         category: 카테고리 코드 (battery, camera, display, performance, software, build_quality, price, design, connectivity, ai_features, accessories, comparison) — 선택
         sentiment: 감성 필터 (positive, negative, neutral) — 선택
+        platform: 플랫폼 코드 (예: reddit, youtube, gsmarena) — 선택
+        keyword: 본문 전문검색 키워드 (영어 권장) — 선택
+        start_date: 시작일 YYYY-MM-DD (published_at >=) — 선택
+        end_date: 종료일 YYYY-MM-DD (published_at <, 반열림) — 선택
         limit: 반환 건수 (기본 20, 최대 100)
     """
-    return await query_voc_tool(product_code, country, category, sentiment, min(limit, 100))
+    return await query_voc_tool(
+        product_code, country, category, sentiment, platform,
+        keyword, start_date, end_date, min(limit, 100))
 
 
 @mcp.tool()
@@ -109,16 +120,23 @@ async def analyze_sentiment_trend(
     product_code: str,
     period_days: int = 90,
     granularity: str = "week",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
 ) -> dict:
     """
     제품의 감성 점수 시계열 트렌드를 분석합니다.
+    start_date/end_date 로 임의 구간을 지정할 수 있고(예: 특정 분기·연도),
+    지정하지 않으면 최근 period_days 일을 봅니다.
 
     Args:
         product_code: 제품 코드
-        period_days: 분석 기간 (일, 기본 90)
+        period_days: 분석 기간 (일, 기본 90) — start/end 미지정 시 적용
         granularity: 집계 단위 (day, week, month — 기본 week)
+        start_date: 시작일 YYYY-MM-DD (published_at >=) — 선택
+        end_date: 종료일 YYYY-MM-DD (published_at <, 반열림) — 선택
     """
-    return await analyze_sentiment_trend_tool(product_code, period_days, granularity)
+    return await analyze_sentiment_trend_tool(
+        product_code, period_days, granularity, start_date, end_date)
 
 
 @mcp.tool()
