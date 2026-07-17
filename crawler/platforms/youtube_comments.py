@@ -87,9 +87,11 @@ class YouTubeCommentsCrawler(BaseCrawler):
     def __init__(self, product_code: Optional[str] = None, job_id: Optional[int] = None):
         super().__init__("youtube", product_code=product_code, job_id=job_id)
         self.api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
-        self.videos_per_query = int(os.getenv("YOUTUBE_VIDEOS_PER_QUERY", "5"))
-        self.comments_per_video = min(int(os.getenv("YOUTUBE_COMMENTS_PER_VIDEO", "100")), 100)
+        self.videos_per_query = int(os.getenv("YOUTUBE_VIDEOS_PER_QUERY") or "5")
+        self.comments_per_video = min(int(os.getenv("YOUTUBE_COMMENTS_PER_VIDEO") or "100"), 100)
         self.region = os.getenv("YOUTUBE_REGION", "").strip()
+        # 영상 정렬 — relevance 가 '토론이 몰린 영상'을 준다(date 는 갓 업로드돼 댓글 0건이 많음).
+        self.order = os.getenv("YOUTUBE_ORDER", "relevance").strip() or "relevance"
 
     async def crawl(self) -> List[RawVOC]:
         if not self.api_key:
@@ -116,7 +118,7 @@ class YouTubeCommentsCrawler(BaseCrawler):
         """search.list → [(videoId, title), ...] 최근 관련 영상."""
         params = {
             "part": "snippet", "q": query, "type": "video",
-            "order": "date", "maxResults": self.videos_per_query,
+            "order": self.order, "maxResults": self.videos_per_query,
             "key": self.api_key,
         }
         if self.region:

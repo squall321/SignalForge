@@ -175,6 +175,7 @@ sf_up sf-mcp "ss -tln 2>/dev/null | grep -E '[:.]${MCP_PORT:-8001}\b' >/dev/null
 sf_up sf-crawler-worker "ps -eo args 2>/dev/null | grep -E '[c]elery -A celery_app worker' >/dev/null" \
   --bind "$CRAWLER_DIR:/crawler" \
   --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" --env CELERY_CONCURRENCY="${CELERY_CONCURRENCY:-4}" \
+  --env YOUTUBE_API_KEY="${YOUTUBE_API_KEY:-}" \
   "$SIF_DIR/crawler.sif"
 
 sf_up sf-crawler-beat "ps -eo args 2>/dev/null | grep -E '[c]elery -A celery_app beat' >/dev/null" \
