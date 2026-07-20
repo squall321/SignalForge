@@ -55,36 +55,45 @@ ts_now() { date -u +"%Y%m%d-%H%M%SZ"; }
 dump_name() { echo "${PROJ_PREFIX}-db-$(ts_now).sql.gz"; }
 dump_glob() { echo "${PROJ_PREFIX}-db-*.sql.gz"; }
 
-# ── 7. PG 명령 추상화 (apptainer instance 우선, 없으면 host) ────
+# ── 7. PG 명령 추상화 (host client 우선, 없으면 apptainer instance) ────
+# ⚠️ cron/detached 에서 `apptainer exec instance://` 는 cgroup manager(systemd/DBUS
+#    세션 없음) 로 실패하면서도 '빈 출력'을 내 빈 dump 를 만든다(654개 20byte 백업 사고).
+#    host 에 pg_dump 가 있으면(대부분) loopback trust 로 직접 뜨는 게 cron-safe 라 우선.
 pg_dump_cmd() {
   # stdout 으로 평문 SQL 출력 — 호출자가 gzip
-  if [[ -n "$PROJ_PG_INSTANCE" ]] && instance_running "$PROJ_PG_INSTANCE"; then
+  if command -v pg_dump >/dev/null 2>&1; then
+    PGPASSWORD="$POSTGRES_PASSWORD" \
+      pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" \
+              -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+              --no-owner --no-privileges --clean --if-exists
+  elif [[ -n "$PROJ_PG_INSTANCE" ]] && instance_running "$PROJ_PG_INSTANCE"; then
     PGPASSWORD="$POSTGRES_PASSWORD" \
       apptainer exec "instance://$PROJ_PG_INSTANCE" \
       pg_dump -h 127.0.0.1 -p "$POSTGRES_PORT" \
               -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
               --no-owner --no-privileges --clean --if-exists
   else
-    PGPASSWORD="$POSTGRES_PASSWORD" \
-      pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" \
-              -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-              --no-owner --no-privileges --clean --if-exists
+    echo "[ERROR] pg_dump 불가 — host client 도 instance 도 없음" >&2
+    return 1
   fi
 }
 
 psql_cmd() {
-  # 인자: psql 추가 옵션 (예: -c "SELECT 1")
-  if [[ -n "$PROJ_PG_INSTANCE" ]] && instance_running "$PROJ_PG_INSTANCE"; then
+  # 인자: psql 추가 옵션 (예: -c "SELECT 1"). host client 우선(cron-safe), 없으면 instance.
+  if command -v psql >/dev/null 2>&1; then
+    PGPASSWORD="$POSTGRES_PASSWORD" \
+      psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" \
+           -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+           "$@"
+  elif [[ -n "$PROJ_PG_INSTANCE" ]] && instance_running "$PROJ_PG_INSTANCE"; then
     PGPASSWORD="$POSTGRES_PASSWORD" \
       apptainer exec "instance://$PROJ_PG_INSTANCE" \
       psql -h 127.0.0.1 -p "$POSTGRES_PORT" \
            -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
            "$@"
   else
-    PGPASSWORD="$POSTGRES_PASSWORD" \
-      psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" \
-           -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-           "$@"
+    echo "[ERROR] psql 불가 — host client 도 instance 도 없음" >&2
+    return 1
   fi
 }
 
