@@ -184,8 +184,14 @@ export function openAlertSocket(
   onMessage: (msg: { type: string; data: unknown }) => void,
   onError?: (e: Event) => void,
 ): WebSocket {
-  const base = api.defaults.baseURL ?? '';
-  const wsUrl = base.replace(/^http/, 'ws') + '/alerts/ws';
+  // baseURL 은 상대경로('/signalforge/api/v1')라 replace(/^http/) 로는 스킴이 안 붙는다.
+  // WebSocket 은 절대 URL(스킴+호스트 필수) → window.location 에서 조립한다.
+  // 포털 뒤: wss://host/signalforge/api/v1/alerts/ws · standalone: ws(s)://host/api/v1/alerts/ws
+  const base = api.defaults.baseURL ?? '/api/v1';
+  const abs = /^https?:\/\//.test(base)
+    ? base.replace(/^http/, 'ws')
+    : `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${base}`;
+  const wsUrl = `${abs}/alerts/ws`;
   const ws = new WebSocket(wsUrl);
   ws.onmessage = (ev) => {
     try {
