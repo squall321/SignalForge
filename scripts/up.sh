@@ -127,18 +127,24 @@ SESSION_TTL_SECONDS=${SESSION_TTL_SECONDS:-43200}
 PORTAL_SSO_LANDING=${PORTAL_SSO_LANDING:-/signalforge/}
 BENV
 
-# (c) DB 마이그레이션 + 시드 — postgres 를 새로 띄운 경우만 (워치독 반복 호출 시 재실행 방지)
-if [ "$PG_FRESH" -eq 1 ]; then
+# (c) DB 마이그레이션 — PG 신규이거나 배포(SF_MIGRATE=1)일 때 실행. alembic 은 멱등이라 기존 DB 엔
+#     적용 안 된 리비전만 반영된다. 과거엔 PG_FRESH 만 봐서, 기존 cae00 DB 에 신규 마이그레이션이
+#     영영 반영 안 되던 gap 이 있었다(예: voc_active 뷰 누락 → 'relation does not exist').
+#     워치독 반복 호출은 SF_MIGRATE 없이 → skip 되어 매분 exec 부담 없음.
+if [ "$PG_FRESH" -eq 1 ] || [ "${SF_MIGRATE:-0}" = "1" ]; then
   echo "→ alembic upgrade head (컨테이너)"
   apptainer exec --bind "$BACKEND_DIR:/app" --env DATABASE_URL="$DB_URL" \
     "$SIF_DIR/backend.sif" sh -c "cd /app && alembic upgrade head" \
     > "$LOG_DIR/alembic.log" 2>&1 || echo "  [WARN] alembic 실패 — $LOG_DIR/alembic.log"
+fi
+# 시드(마스터 데이터)는 신규 DB 만 — 재실행 시 중복/충돌 방지.
+if [ "$PG_FRESH" -eq 1 ]; then
   echo "→ seed master data (컨테이너)"
   apptainer exec --bind "$BACKEND_DIR:/app" --env DATABASE_URL="$DB_URL" \
     "$SIF_DIR/backend.sif" sh -c "cd /app && python -m app.seeds.seed_master" \
     > "$LOG_DIR/seed.log" 2>&1 || echo "  [WARN] seed 실패(이미 존재 가능)"
 else
-  echo "✓ postgres 기존 유지 — alembic/seed skip"
+  echo "✓ postgres 기존 유지 — seed skip (alembic 은 배포 시 멱등 실행)"
 fi
 
 # (d) 인스턴스 재기동 헬퍼 — $1=이름 $2=헬스체크(eval 문자열) $3~=옵션+SIF.
