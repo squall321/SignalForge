@@ -25,6 +25,37 @@ if [[ -z "${XDG_RUNTIME_DIR:-}" || ! -d "${XDG_RUNTIME_DIR:-/nonexistent}" ]]; t
 fi
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
 
+# ── apptainer 선택: 시스템 것보다 '추출본'을 우선 ────────────────────────
+# 시스템 apptainer(예: 1.3.3/1.5.x)의 conf 는 root 소유라 `systemd cgroups = yes` 를 못 바꾸고,
+# 그러면 rootless instance start 가 user D-Bus 세션을 요구해 실패한다(실측):
+#   failed to connect to dbus ... could not detect the OwnerUID
+#   FATAL: while executing starter: ... exit status 255
+# XDG_RUNTIME_DIR 을 맞춰도 bus 소켓 자체가 없으면 그대로 실패하므로, conf 가 사용자 소유라
+# `systemd cgroups = no` 로 만들 수 있는 추출본을 먼저 쓴다(HEAXHub start.sh 와 같은 전략).
+# 스크립트 곳곳이 `apptainer` 를 그대로 호출하므로, 심 디렉터리를 PATH 앞에 얹어 일괄 적용한다.
+_sf_pick_apptainer() {
+  local c cand="${SF_APPTAINER:-}"
+  if [[ -z "$cand" ]]; then
+    for c in "$APPT_DIR"/.tools/apptainer-*/usr/bin/apptainer \
+             "$PROJECT_ROOT"/../HWAXPortal/infra/apptainer/bin-*/usr/bin/apptainer \
+             "$HOME"/claude/HWAXPortal/infra/apptainer/bin-*/usr/bin/apptainer \
+             "$HOME"/claude/HEAXHub/deploy/apptainer/.tools/apptainer-*/usr/bin/apptainer; do
+      [[ -x "$c" ]] && { cand="$c"; break; }
+    done
+  fi
+  [[ -n "$cand" && -x "$cand" ]] || return 0   # 없으면 시스템 것 그대로 사용
+  # 이 추출본의 conf 가 사용자 소유면 systemd cgroups 를 끈다(멱등).
+  local conf; conf="$(dirname "$(dirname "$(dirname "$cand")")")/etc/apptainer/apptainer.conf"
+  if [[ -w "$conf" ]] && grep -qiE '^systemd cgroups = yes' "$conf" 2>/dev/null; then
+    sed -i 's/^systemd cgroups = yes/systemd cgroups = no/' "$conf" 2>/dev/null || true
+  fi
+  local shim="${TMPDIR:-/tmp}/sf-apptshim-$(id -u)"
+  mkdir -p "$shim" && ln -sf "$cand" "$shim/apptainer"
+  export PATH="$shim:$PATH"
+  export SF_APPTAINER="$cand"
+}
+_sf_pick_apptainer
+
 # ── 사내 표준 프록시 폴백 ────────────────────────────────────────────
 DEFAULT_FALLBACK_PROXY="http://168.219.61.252:8080"
 
