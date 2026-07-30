@@ -82,6 +82,20 @@ _voc_count() {
   if [[ -n "${SF_VOC_COUNT:-}" ]]; then
     echo "$SF_VOC_COUNT"; return
   fi
+  # 접속 정보가 없으면 .env 에서 읽는다. sync-to-drive 는 DB 덤프를 서브셸
+  # (drive-sync/backup-to-drive.sh)에 위임하는데, 거기서 export 한 POSTGRES_* 는
+  # 부모로 돌아오지 않는다. 그래서 이 함수가 기본값(5432/postgres)으로 붙어 인증에
+  # 실패하고 LATEST.json 의 voc_count 가 실제 37만건인데도 0 으로 기록됐다 —
+  # 받는 쪽이 "덤프가 비었다"로 오해할 수 있는 값이라 여기서 직접 채운다.
+  if [[ -z "${POSTGRES_PORT:-}" && -f "$PROJECT_ROOT/.env" ]]; then
+    local _k
+    for _k in POSTGRES_HOST POSTGRES_PORT POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB; do
+      [[ -n "${!_k:-}" ]] && continue
+      local _v
+      _v="$(sed -n "s/^$_k=//p" "$PROJECT_ROOT/.env" | tail -1 | sed 's/^["'"'"']//; s/["'"'"']$//')"
+      [[ -n "$_v" ]] && export "$_k=$_v"
+    done
+  fi
   if command -v apptainer >/dev/null 2>&1 \
      && apptainer instance list 2>/dev/null | awk '{print $1}' | grep -qx sf_postgres; then
     local v
