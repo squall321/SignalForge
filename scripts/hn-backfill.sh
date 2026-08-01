@@ -13,7 +13,8 @@ STATE="$ROOT/logs/hn-backfill-year.state"
 FLOOR=2011   # HN 에 Galaxy 언급이 의미있게 나오는 하한(갤럭시 S 2010~)
 mkdir -p "$ROOT/logs"
 
-exec 9>"/tmp/sf-hn-backfill.lock"
+# 전역 backfill 락 — youtube/hn/kr/global backfill 이 동시에 안 돌게(메모리 파일업 방지).
+exec 9>"/tmp/sf-backfill-global.lock"
 flock -n 9 || exit 0
 
 if [ -f "$STATE" ]; then YEAR="$(cat "$STATE")"; else YEAR=$(( $(date +%Y) - 1 )); fi

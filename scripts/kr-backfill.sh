@@ -11,7 +11,8 @@ load_env >/dev/null 2>&1 || true
 LOG="$ROOT/logs/kr-backfill.log"
 mkdir -p "$ROOT/logs"
 
-exec 9>"/tmp/sf-kr-backfill.lock"
+# 전역 backfill 락 — youtube/hn/kr/global backfill 이 동시에 안 돌게(메모리 파일업 방지).
+exec 9>"/tmp/sf-backfill-global.lock"
 flock -n 9 || exit 0
 
 DB="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-127.0.0.1}:${POSTGRES_PORT}/${POSTGRES_DB}"

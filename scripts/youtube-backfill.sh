@@ -14,7 +14,8 @@ STATE="$ROOT/logs/youtube-backfill-year.state"
 FLOOR=2016
 mkdir -p "$ROOT/logs"
 
-exec 9>"/tmp/sf-youtube-backfill.lock"
+# 전역 backfill 락 — youtube/hn/kr/global backfill 이 동시에 안 돌게(메모리 파일업 방지).
+exec 9>"/tmp/sf-backfill-global.lock"
 flock -n 9 || exit 0
 
 KEY="${YOUTUBE_API_KEY:-}"
