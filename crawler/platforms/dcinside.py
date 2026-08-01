@@ -156,9 +156,14 @@ class DCInsideCrawler(BaseCrawler):
                 ).astimezone(timezone.utc)
             if re.match(r"\d{2}\.\d{2} \d{2}:\d{2}:\d{2}", text):
                 now = datetime.now(KST)
-                return datetime.strptime(text[:14], "%m.%d %H:%M:%S").replace(
+                dt = datetime.strptime(text[:14], "%m.%d %H:%M:%S").replace(
                     year=now.year, tzinfo=KST
-                ).astimezone(timezone.utc)
+                )
+                # 연도 없는 MM.DD 는 올해로 가정하되, 미래가 되면 작년으로 보정.
+                # (연말 경계 + backfill 로 옛 글을 받을 때 published_at 오염 방지)
+                if dt > now:
+                    dt = dt.replace(year=now.year - 1)
+                return dt.astimezone(timezone.utc)
         except Exception:
             pass
         return None

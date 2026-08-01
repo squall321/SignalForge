@@ -96,9 +96,19 @@ _voc_count() {
       [[ -n "$_v" ]] && export "$_k=$_v"
     done
   fi
+  local v=""
+  # host psql 우선 — cron/detached 에서 `apptainer exec instance://` 는 cgroup manager
+  # (systemd/DBUS 세션 없음) 오류로 빈값을 내 voc_count 가 0 으로 기록되던 원인.
+  # loopback trust 라 host client 로 바로 붙는다. host 에 psql 없을 때만 instance fallback.
+  if command -v psql >/dev/null 2>&1; then
+    v=$(PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" \
+        psql -h "${POSTGRES_HOST:-127.0.0.1}" -p "${POSTGRES_PORT:-5432}" \
+             -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-signalforge}" \
+             -t -A -c "SELECT count(*) FROM voc_records" 2>/dev/null) || v=""
+    [[ -n "$v" ]] && { echo "$v"; return; }
+  fi
   if command -v apptainer >/dev/null 2>&1 \
      && apptainer instance list 2>/dev/null | awk '{print $1}' | grep -qx sf_postgres; then
-    local v
     v=$(PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" \
         apptainer exec instance://sf_postgres \
         psql -h 127.0.0.1 -p "${POSTGRES_PORT:-5432}" \
