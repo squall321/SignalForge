@@ -147,16 +147,39 @@ else
   echo "✓ postgres 기존 유지 — seed skip (alembic 은 배포 시 멱등 실행)"
 fi
 
+# 살아 있는 인스턴스 **밑에서** SIF 파일이 교체됐는지 판정한다(교체됐으면 0).
+#   sync-from-drive 는 apptainer/sif/*.sif 를 덮어쓰는데, down.sh 는 postgres 만 내리므로
+#   sf-frontend/sf-backend/sf-mcp 는 그대로 살아 있다. 그러면 그 인스턴스의 squashfs 마운트가
+#   깨진 파일을 가리키게 되고, 프로세스는 한동안 멀쩡해 보이다가 새 페이지를 읽는 순간 죽는다
+#   (같은 사고가 cae00 의 mxwp_api 에서 있었다 — deploy-all-from-drive 주석 참조).
+#   포트가 열려 있다는 것만으로 skip 하면 이 상태를 그대로 방치해 결국 프록시가 502 를 낸다.
+_sif_replaced_under() {  # $1=인스턴스명 $2=SIF 경로
+  local name="$1" sif="$2" pid proc_age sif_age
+  [ -f "$sif" ] || return 1
+  pid="$(apptainer instance list 2>/dev/null | awk -v n="$name" '$1==n {print $2; exit}')"
+  [ -n "$pid" ] || return 1                       # 안 떠 있으면 어차피 새로 만든다
+  proc_age="$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' ')"
+  [ -n "$proc_age" ] || return 1
+  sif_age=$(( $(date +%s) - $(stat -c %Y "$sif" 2>/dev/null || echo 0) ))
+  [ "$sif_age" -lt "$proc_age" ]                  # SIF 가 인스턴스보다 나중에 바뀜 = 교체됨
+}
+
 # (d) 인스턴스 재기동 헬퍼 — $1=이름 $2=헬스체크(eval 문자열) $3~=옵션+SIF.
 #     이미 건강하면 skip → 워치독이 매분 호출해도 정상 서비스는 무중단.
+#     단, SIF 가 교체된 인스턴스는 건강해 보여도 반드시 재생성한다(위 주석의 502 원인).
 sf_up() {
   local name="$1" check="$2"; shift 2
-  # if 조건이라 set -e 안전. transient race(기동 직후 미리스닝 등) 흡수 위해 3회 재시도.
-  local i
-  for i in 1 2 3; do
-    if eval "$check" >/dev/null 2>&1; then echo "✓ $name 정상 (skip)"; return 0; fi
-    sleep 1
-  done
+  local sif="${!#}"                                # 마지막 인자가 SIF 경로
+  if _sif_replaced_under "$name" "$sif"; then
+    echo "↻ $name — SIF 가 교체됨(옛 이미지로 가동 중) → 재생성"
+  else
+    # if 조건이라 set -e 안전. transient race(기동 직후 미리스닝 등) 흡수 위해 3회 재시도.
+    local i
+    for i in 1 2 3; do
+      if eval "$check" >/dev/null 2>&1; then echo "✓ $name 정상 (skip)"; return 0; fi
+      sleep 1
+    done
+  fi
   apptainer instance stop "$name" 2>/dev/null || true
   echo "→ instance $name"
   apptainer instance start "$@" "$name" > "$LOG_DIR/$name.log" 2>&1
