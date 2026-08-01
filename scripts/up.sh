@@ -180,7 +180,10 @@ sf_up() {
       sleep 1
     done
   fi
-  apptainer instance stop "$name" 2>/dev/null || true
+  # ⚠ apptainer 는 인자 오류가 아닌 '인스턴스 없음'에도 **usage 를 stdout 으로** 뱉고 실제
+  # 사유("no instance found")만 stderr 로 보낸다(실측 1.3.3). 2>/dev/null 만 걸면 정확히
+  # 거꾸로 — 쓸모없는 usage 4줄이 배포 로그를 덮고 진짜 오류는 숨는다(cae00 실측).
+  apptainer instance stop "$name" >/dev/null 2>&1 || true
   echo "→ instance $name"
   apptainer instance start "$@" "$name" > "$LOG_DIR/$name.log" 2>&1
 }
