@@ -175,9 +175,13 @@ class NaverCafeCrawler(BaseCrawler):
                 ).astimezone(timezone.utc)
             elif re.match(r"\d{2}\.\d{2}", text):
                 now = datetime.now(KST)
-                return datetime.strptime(text[:5], "%m.%d").replace(
+                dt = datetime.strptime(text[:5], "%m.%d").replace(
                     year=now.year, tzinfo=KST
-                ).astimezone(timezone.utc)
+                )
+                # 연도 없는 MM.DD 는 올해로 가정하되, 미래면 작년(연말 경계·backfill 보호).
+                if dt.date() > now.date():
+                    dt = dt.replace(year=now.year - 1)
+                return dt.astimezone(timezone.utc)
         except Exception:
             pass
         return None

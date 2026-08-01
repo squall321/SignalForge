@@ -200,6 +200,10 @@ class QuasarzoneCrawler(BaseCrawler):
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
+        # 상세 헤더의 풀 날짜(YYYY-MM-DD HH:MM[:SS]) → published_at override.
+        # 목록은 MM-DD(연도·시각 없음)뿐이라 backfill 옛글이 부정확 → 상세의 원 게시시각 사용.
+        detail_dt = self._extract_detail_date(soup)
+
         # 본문 — <textarea id="org_contents"> 안에 HTML-escaped 콘텐츠
         org_el = soup.select_one("textarea#org_contents")
         body_text = ""
@@ -225,7 +229,7 @@ class QuasarzoneCrawler(BaseCrawler):
             content=body_content,
             source_url=post_url,
             author_name=row.author_name,
-            published_at=row.published_at,
+            published_at=detail_dt or row.published_at,
             likes_count=row.likes_count,
             comments_count=len(comments),
             country_code="KR",
@@ -321,6 +325,29 @@ class QuasarzoneCrawler(BaseCrawler):
         except ValueError:
             return 0
 
+    def _extract_detail_date(self, soup) -> Optional[datetime]:
+        """상세 페이지 헤더에서 풀 날짜(YYYY-MM-DD HH:MM[:SS]) 를 찾아 반환.
+        목록 MM-DD 보다 정확한 원 게시시각 — backfill 옛글의 published_at 무결성 확보."""
+        # 게시글 정보 영역 우선, 없으면 전체에서 첫 풀 datetime.
+        areas = []
+        for sel in (".title-view-info", ".view-info", ".user-info", ".title-area"):
+            el = soup.select_one(sel)
+            if el:
+                areas.append(el)
+        areas.append(soup)  # fallback: 문서 전체
+        for area in areas:
+            m = re.search(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?",
+                          area.get_text(" ", strip=True))
+            if m:
+                s = m.group(0)
+                fmt = "%Y-%m-%d %H:%M:%S" if len(s) == 19 else "%Y-%m-%d %H:%M"
+                try:
+                    return datetime.strptime(s, fmt).replace(
+                        tzinfo=KST).astimezone(timezone.utc)
+                except ValueError:
+                    continue
+        return None
+
     def _parse_quasar_date(self, text: str) -> Optional[datetime]:
         """목록 표기: 'MM-DD' (이전일자) 또는 'HH:MM' (오늘)"""
         text = (text or "").strip()
@@ -330,9 +357,11 @@ class QuasarzoneCrawler(BaseCrawler):
             now = datetime.now(KST)
             if re.match(r"^\d{2}-\d{2}$", text):
                 m, d = text.split("-")
-                return datetime(
-                    year=now.year, month=int(m), day=int(d), tzinfo=KST
-                ).astimezone(timezone.utc)
+                dt = datetime(year=now.year, month=int(m), day=int(d), tzinfo=KST)
+                # 연도 없는 MM-DD 는 올해로 가정하되, 미래면 작년(연말 경계·backfill 옛글 보호).
+                if dt.date() > now.date():
+                    dt = dt.replace(year=now.year - 1)
+                return dt.astimezone(timezone.utc)
             if re.match(r"^\d{2}:\d{2}$", text):
                 h, mi = text.split(":")
                 return datetime(
