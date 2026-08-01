@@ -218,6 +218,24 @@ class HackerNewsCrawler(BaseCrawler):
         story_cutoff = now_i - STORY_WINDOW_SECONDS
         comment_cutoff = now_i - COMMENT_WINDOW_SECONDS
 
+        # 과거 backfill 모드 — HN_BACKFILL_AFTER/BEFORE(unix ts) 지정 시 그 구간(연도)만 검색.
+        # Algolia numericFilters 는 콤마=AND → created_at_i>after,created_at_i<before.
+        # 미지정이면 기존처럼 "최근 창"(반복 방지). hn-backfill.sh 가 연도별로 주입.
+        bf_after = os.getenv("HN_BACKFILL_AFTER", "").strip()
+        bf_before = os.getenv("HN_BACKFILL_BEFORE", "").strip()
+        if bf_after or bf_before:
+            _parts = []
+            if bf_after:
+                _parts.append(f"created_at_i>{bf_after}")
+            if bf_before:
+                _parts.append(f"created_at_i<{bf_before}")
+            story_filter = comment_filter = ",".join(_parts)
+            logger.info("HN backfill 모드 — created_at_i 윈도우 [%s ~ %s]",
+                        bf_after or "~", bf_before or "~")
+        else:
+            story_filter = f"created_at_i>{story_cutoff}"
+            comment_filter = f"created_at_i>{comment_cutoff}"
+
         # 검색어 선택 (전체 또는 random sample)
         terms = self._select_terms()
         logger.info(
@@ -239,7 +257,7 @@ class HackerNewsCrawler(BaseCrawler):
                         query=q,
                         tags="story",
                         hits_per_page=STORY_HITS_PER_PAGE,
-                        numeric_filters=f"created_at_i>{story_cutoff}",
+                        numeric_filters=story_filter,
                     )
                     new_count = 0
                     for h in hits:
@@ -271,7 +289,7 @@ class HackerNewsCrawler(BaseCrawler):
                         query=q,
                         tags="comment",
                         hits_per_page=COMMENT_HITS_PER_PAGE,
-                        numeric_filters=f"created_at_i>{comment_cutoff}",
+                        numeric_filters=comment_filter,
                     )
                     new_count = 0
                     for h in hits:
