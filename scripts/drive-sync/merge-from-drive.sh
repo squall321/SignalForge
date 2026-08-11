@@ -57,8 +57,17 @@ gunzip -c "$DUMP" | PGPASSWORD="$POSTGRES_PASSWORD" apptainer exec -i "instance:
 : > /tmp/sf-merge.log
 merge_table() {
   local t="$1" pk="$2" exid="${3:-0}" where="${4:-}"
+  # psql 이 접속·인증 실패로 죽으면 stdout 이 빈 문자열이라 '테이블 없음'과 구별되지 않는다.
+  # 그러면 전 테이블이 skip 되고 rc 도 안 올라가 '✓ merge 완료' 로 끝난다 — 한 행도 안
+  # 들어왔는데 성공으로 보고되는 것이다(비밀번호 회전·포트 변경·컨테이너 재기동 직후에 흔하다).
+  # 'f' 가 나와야 진짜 '없음'이고, 빈 문자열은 조회 자체가 실패한 것이다.
   for db in "$TARGET_DB" "$STAGE_DB"; do
-    [ "$(PIN "$db" -tAc "SELECT to_regclass('public.$t') IS NOT NULL;")" = "t" ] || { echo "    · $t: $db 에 없음 — skip"; return 0; }
+    local _ex; _ex="$(PIN "$db" -tAc "SELECT to_regclass('public.$t') IS NOT NULL;" 2>/dev/null)"
+    case "$_ex" in
+      t) : ;;
+      f) echo "    · $t: $db 에 없음 — skip"; return 0 ;;
+      *) echo "    ✗ $t: $db 조회 실패(접속·인증 확인) — merge 중단" >&2; return 1 ;;
+    esac
   done
   local exclude="$pk"; [ "$exid" = "1" ] && exclude="$pk,id"
   # 삽입 컬럼 = 전체 - (exid 면 id 제외). upsert SET = 전체 - (pk ∪ id).

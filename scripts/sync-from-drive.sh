@@ -195,8 +195,11 @@ if [[ $WITH_DB -eq 1 ]]; then
     fi
 
     # 3) 실 restore 위임
-    ( cd "$DRIVE_SYNC_DIR" && bash sync-from-drive.sh )
-    RESTORE_RC=$?
+    # `|| RESTORE_RC=$?` 없이 단순 명령으로 두면 set -e 가 여기서 스크립트를 끝내버려
+    # 다음 줄에 도달하지 못한다. 그래서 RESTORE_RC 는 늘 0 이었고, 아래 실패 분기
+    # (restore_fail 감사·안전백업 경로 안내)는 통째로 죽은 코드였다.
+    RESTORE_RC=0
+    ( cd "$DRIVE_SYNC_DIR" && bash sync-from-drive.sh ) || RESTORE_RC=$?
     audit_event "db_restored"
 
     # 4) 검증

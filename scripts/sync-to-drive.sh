@@ -124,7 +124,10 @@ if [[ $WITH_DB -eq 1 ]]; then
     echo "  (dry-run) skip — 실 실행 시 scripts/drive-sync/backup-to-drive.sh 호출"
     audit_event "db_dryrun"
   else
-    if [[ ! -x "$DRIVE_SYNC_DIR/backup-to-drive.sh" ]]; then
+    # -x 로 보면 안 된다 — 아래는 `bash <파일>` 로 부르므로 실행비트가 필요 없는데,
+    # 실행비트만 사라지면(rsync -r·unzip·umask 다른 계정 체크아웃) DB 백업이 조용히
+    # 빠지고 SIF/env 단계만 돌아 '✓ 완료'로 끝난다. 메시지도 '없음'이라 추적이 엉뚱해진다.
+    if [[ ! -f "$DRIVE_SYNC_DIR/backup-to-drive.sh" ]]; then
       echo "[WARN] $DRIVE_SYNC_DIR/backup-to-drive.sh 없음 — DB 단계 스킵"
       audit_event "db_skip" "\"reason\":\"no_helper\""
     else

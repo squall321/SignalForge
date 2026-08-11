@@ -64,11 +64,28 @@ else
 fi
 
 # 5) restore
+# ON_ERROR_STOP=1 이 없으면 psql 은 SQL 에러가 나도, 입력이 0바이트여도 exit 0 을 낸다.
+# 그래서 운영 DB 를 DROP 한 뒤 빈 덤프를 '복원'하고 성공으로 보고할 수 있었다.
 echo "→ restore from $DUMP"
-gunzip -c "$DUMP" | psql_cmd >/dev/null
+if ! gunzip -c "$DUMP" | psql_cmd -v ON_ERROR_STOP=1 >/dev/null; then
+  echo "[FAIL] restore 실패 — psql 이 에러로 중단했다." >&2
+  echo "       롤백용 안전백업: $SAFETY" >&2
+  exit 1
+fi
 
-# 6) 간이 검증
-ROW_TABLES=$(psql_cmd -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null | tr -d ' ' || echo "?")
+# 6) 검증 — 세기만 하고 비교를 안 해서 tables=0 도 '완료'로 찍혔다. 실제로 판정한다.
+ROW_TABLES=$(psql_cmd -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null | tr -d ' ' || echo "")
+case "$ROW_TABLES" in
+  ''|*[!0-9]*)
+    echo "[FAIL] 복원 후 테이블 수를 조회하지 못했다 — DB 접속을 확인하라." >&2
+    echo "       롤백용 안전백업: $SAFETY" >&2
+    exit 1 ;;
+  0)
+    echo "[FAIL] 복원 후 public 스키마에 테이블이 0개다 — 덤프가 비었거나 복원이 안 됐다." >&2
+    echo "       원본 덤프: $DUMP ($(du -h "$DUMP" 2>/dev/null | cut -f1))" >&2
+    echo "       롤백용 안전백업: $SAFETY" >&2
+    exit 1 ;;
+esac
 echo "[OK] restore 완료 — public schema tables=$ROW_TABLES"
 
 echo
