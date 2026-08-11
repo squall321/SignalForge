@@ -174,7 +174,21 @@ if [[ $WITH_DB -eq 1 ]]; then
       set -a; source "$PROJECT_ROOT/.env"; set +a
     fi
     # 1) 사전 측정
-    PRE_VOC="$(sf_voc_count 2>/dev/null || echo 0)"
+    # 조회 실패와 '진짜 0행' 을 같은 0 으로 뭉개면 안 된다. 그러면 아래 `-gt 0` 이 false 가
+    # 되어 안전백업을 건너뛴 채 파괴적 restore 로 들어가고, _verify_helper 의 낙차 가드도
+    # SF_PRE_VOC=0 이면 drop_pct 를 0 으로 계산해 무조건 PASS 한다 — 한 번의 psql 실패가
+    # '롤백 수단'과 '데이터 소실 감지'를 동시에 끄는 것이다(43만행 DB).
+    # 백엔드 재기동 직후·PG 재시작 중처럼 psql 이 잠깐 안 붙는 창에서 그대로 발생한다.
+    PRE_VOC="$(sf_voc_count 2>/dev/null)" || PRE_VOC=""
+    case "$PRE_VOC" in
+      ''|*[!0-9]*)
+        echo "  [Y4] ✗ voc_records 조회 실패 — 안전백업/낙차가드를 세울 수 없어 restore 를 중단한다." >&2
+        echo "       DB 접속을 확인한 뒤 다시 실행하라(강제하려면 SF_ALLOW_UNMEASURED=1)." >&2
+        audit_sync "pre_measure_fail" "\"reason\":\"voc_count_unavailable\""
+        if [[ "${SF_ALLOW_UNMEASURED:-0}" != "1" ]]; then exit 1; fi
+        echo "  [Y4] ⚠ SF_ALLOW_UNMEASURED=1 — 무방비 상태로 진행한다."
+        PRE_VOC=0 ;;
+    esac
     echo "  [Y4] pre voc_records=$PRE_VOC"
     audit_sync "pre_measure" "\"pre_voc\":$PRE_VOC"
     # 2) 안전백업

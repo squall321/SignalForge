@@ -61,17 +61,55 @@ rclone copy "$DUMP_FILE" "$DRIVE_PATH/" --progress
 rclone copy "$SUM_FILE"  "$DRIVE_PATH/"
 rclone copy "$GUIDE_FILE" "$DRIVE_PATH/"
 
-# 4) 보존정책 — TS 정렬 후 오래된 것 제거
-echo "→ 보존정책: 최신 $DRIVE_RETAIN 개만 유지"
+# 4) Drive 보존정책 — '최신 N개' 는 이 cron 주기에 맞지 않는다.
+#    crontab 은 */30 sync-to-drive(--no-sif) 로 하루 48회 이걸 부른다. RETAIN=5 는 하루 1회
+#    백업을 전제한 상수라, 실제로는 2.5시간 넘은 것을 전부 지워 오프사이트 복구창이
+#    1.5시간까지 줄어 있었다(실측: Drive 의 5개가 전부 같은 날 03:00~04:30).
+#    논리적 사고(잘못된 삭제·크롤러 오염)는 보통 몇 시간~며칠 뒤 발견되는데 그때 되돌릴
+#    스냅샷이 없다는 뜻이다. 문서·설정은 '최신 5개'라고만 해서 5일치로 읽힌다.
+#
+#    시간 기준으로 바꾼다 — 최근 24시간은 전부 남기고(세밀 롤백), 그보다 오래된 것은
+#    하루 한 개(그날의 최신)만 DRIVE_RETAIN_DAYS 일까지 남긴다.
+#    5일 전량 보존은 43GB 지만 이 정책은 약 9GB 다(182MB × (48+4)).
+#    파일명이 <prefix>-db-YYYYMMDD-HHMMSSZ.sql.gz 라 이름만으로 판정한다.
+DRIVE_RETAIN_DAYS="${DRIVE_RETAIN_DAYS:-5}"
+echo "→ Drive 보존정책: 최근 24시간 전량 + 이후 일별 1개 (${DRIVE_RETAIN_DAYS}일)"
 mapfile -t ALL < <(rclone lsf "$DRIVE_PATH" --include "${PROJ_PREFIX}-db-*.sql.gz" 2>/dev/null | sort -r)
-if [[ ${#ALL[@]} -gt $DRIVE_RETAIN ]]; then
-  for old in "${ALL[@]:$DRIVE_RETAIN}"; do
+mapfile -t DELS < <(printf '%s\n' "${ALL[@]}" | PFX="$PROJ_PREFIX" DAYS="$DRIVE_RETAIN_DAYS" python3 -c '
+import os, re, sys, datetime as dt
+pfx, days = os.environ["PFX"], int(os.environ["DAYS"])
+rx = re.compile(rf"^{re.escape(pfx)}-db-(\d{{8}})-(\d{{6}})Z\.sql\.gz$")
+# utcnow() 는 폐기 예정이라 aware 로 받고 naive 로 되돌린다(파일명이 UTC 라 비교 대상도 naive).
+now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None); keep_day = set()
+for name in (l.strip() for l in sys.stdin if l.strip()):
+    m = rx.match(name)
+    if not m:            # 이름 규칙이 다르면 건드리지 않는다(안전측)
+        continue
+    ts = dt.datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M%S")
+    age_h = (now - ts).total_seconds() / 3600
+    if age_h <= 24:                      # 최근 24시간은 전부 보존
+        continue
+    if age_h > days * 24:                # 보존기간 초과 → 삭제
+        print(name); continue
+    d = m.group(1)
+    if d in keep_day:                    # 그날 것 중 최신 하나만 남긴다(입력이 내림차순)
+        print(name)
+    else:
+        keep_day.add(d)
+')
+if [[ ${#DELS[@]} -gt 0 ]]; then
+  del_fail=0
+  for old in "${DELS[@]}"; do
+    [[ -n "$old" ]] || continue
     echo "    - delete $old"
-    rclone deletefile "$DRIVE_PATH/$old" 2>/dev/null || true
+    # 실패를 `|| true` 로 삼키면 안 된다 — 지워졌다고 믿는데 Drive 에 남아 같은 이름의
+    # 객체가 둘 생기는 일이 실제로 있었다. 세어서 마지막에 알린다.
+    rclone deletefile "$DRIVE_PATH/$old" 2>/dev/null || del_fail=$((del_fail+1))
     rclone deletefile "$DRIVE_PATH/${old}.sha256" 2>/dev/null || true
     TS="$(echo "$old" | sed "s|${PROJ_PREFIX}-db-||; s|.sql.gz||")"
     rclone deletefile "$DRIVE_PATH/RESTORE-GUIDE-${TS}.md" 2>/dev/null || true
   done
+  [[ "$del_fail" -gt 0 ]] && echo "  ⚠ Drive 삭제 실패 ${del_fail}건 — 같은 이름의 객체가 중복될 수 있다(rclone dedupe 확인)"
 fi
 
 # 4b) 로컬 보존정책 — Drive 쪽만 정리하고 로컬은 무한 누적이었다. 30분마다 덤프가 쌓여

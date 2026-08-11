@@ -113,9 +113,31 @@ HAS_LATEST_JSON=0
 # 1a) LATEST.json 우선 (push 측이 기록한 manifest)
 if rclone cat "$REMOTE_ROOT/LATEST.json" > "$TMP_LATEST" 2>/dev/null && [[ -s "$TMP_LATEST" ]]; then
   HAS_LATEST_JSON=1
-  REMOTE_DB_SHA=$(python3 -c "import json,sys;print(json.load(open('$TMP_LATEST')).get('db_sha256',''))" 2>/dev/null || echo "")
-  REMOTE_DUMP_NAME=$(python3 -c "import json,sys;print(json.load(open('$TMP_LATEST')).get('last_dump',''))" 2>/dev/null || echo "")
-  log "LATEST.json: db_sha256=${REMOTE_DB_SHA:0:12}…  last_dump=$REMOTE_DUMP_NAME"
+  # 생산자(scripts/lib/latest-meta.sh)는 db_dump:{sha256,filename} 중첩 구조로 쓴다.
+  # 여기서 최상위 db_sha256 / last_dump 를 찾던 탓에 .get(키,'') 가 늘 빈 문자열을 냈고,
+  # 150행 게이트의 `-n "$LOCAL_DB_SHA"` 가 항상 거짓이라 변경감지가 영구 무력화됐다.
+  # 즉 원본이 하나도 안 바뀌어도 5분마다 DROP+CREATE 복원을 돈다(43만행 DB).
+  # 구버전 LATEST.json 도 있을 수 있어 중첩 → 최상위 순으로 본다.
+  _lat() { python3 -c "
+import json,sys
+try: d=json.load(open('$TMP_LATEST'))
+except Exception: sys.exit(3)
+dd=d.get('db_dump') or {}
+v=dd.get('$1') or d.get('$2') or ''
+print(v)"; }
+  REMOTE_DB_SHA="$(_lat sha256 db_sha256)"   || REMOTE_DB_SHA="__PARSE_FAIL__"
+  REMOTE_DUMP_NAME="$(_lat filename last_dump)" || REMOTE_DUMP_NAME=""
+  if [[ "$REMOTE_DB_SHA" == "__PARSE_FAIL__" ]]; then
+    log "[WARN] LATEST.json 파싱 실패 — db-dumps 직접 polling 으로 폴백"
+    HAS_LATEST_JSON=0; REMOTE_DB_SHA=""
+  elif [[ -z "$REMOTE_DB_SHA" ]]; then
+    # 파싱은 됐는데 값이 비었다 = 스키마가 또 어긋난 것이다. 조용히 '변경됨'으로 처리하면
+    # 매 주기 파괴적 복원을 돈다. 크게 알리고 폴백 경로로 넘긴다.
+    log "[WARN] LATEST.json 에 db 해시가 없다(스키마 불일치?) — 직접 polling 으로 폴백"
+    HAS_LATEST_JSON=0
+  else
+    log "LATEST.json: db_sha256=${REMOTE_DB_SHA:0:12}…  last_dump=$REMOTE_DUMP_NAME"
+  fi
 else
   # 1b) 폴백: db-dumps/ 의 최신 .sha256 파일을 받아 sha 추출
   log "LATEST.json 부재 → db-dumps/ 직접 polling"
