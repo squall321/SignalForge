@@ -74,6 +74,23 @@ if [[ ${#ALL[@]} -gt $DRIVE_RETAIN ]]; then
   done
 fi
 
+# 4b) 로컬 보존정책 — Drive 쪽만 정리하고 로컬은 무한 누적이었다. 30분마다 덤프가 쌓여
+#     2.5개월 만에 3,200파일 165GB 가 됐고 /home 이 92% 까지 찼다(실측). 로컬 덤프는
+#     Drive 업로드용 스테이징이자 단기 롤백용이므로 오래된 것을 들고 있을 이유가 없다.
+#     기본 7일(다른 백업 스크립트의 RETAIN_DAYS 관례와 동일). LOCAL_RETAIN_DAYS 로 조정.
+LOCAL_RETAIN_DAYS="${LOCAL_RETAIN_DAYS:-7}"
+if [[ -d "$PROJ_DUMP_DIR" ]]; then
+  n_del=$(find "$PROJ_DUMP_DIR" -maxdepth 1 -name "${PROJ_PREFIX}-db-*.sql.gz" -mtime +"$LOCAL_RETAIN_DAYS" | wc -l)
+  if [[ "$n_del" -gt 0 ]]; then
+    echo "→ 로컬 보존정책: ${LOCAL_RETAIN_DAYS}일 초과 ${n_del}개 삭제"
+    find "$PROJ_DUMP_DIR" -maxdepth 1 -mtime +"$LOCAL_RETAIN_DAYS" \
+         \( -name "${PROJ_PREFIX}-db-*.sql.gz" -o -name "${PROJ_PREFIX}-db-*.sql.gz.sha256" \
+            -o -name "RESTORE-GUIDE-*.md" \) -delete
+  else
+    echo "→ 로컬 보존정책: ${LOCAL_RETAIN_DAYS}일 초과 없음"
+  fi
+fi
+
 # 5) (옵션) 공유 링크
 LINK=$(rclone link "$DRIVE_PATH/$(basename "$DUMP_FILE")" 2>/dev/null || true)
 
