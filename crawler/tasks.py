@@ -198,6 +198,8 @@ _CRAWLER_SPECS = {
     # 2026-07-17 Track C: YouTube 댓글 — Data API v3(commentThreads). Galaxy 리뷰/쇼츠
     # 영상의 시청자 댓글 = 고밀도 VOC. YOUTUBE_API_KEY 필요, 미설정 시 graceful skip. 4h 주기.
     "youtube":        ("platforms.youtube_comments", "YouTubeCommentsCrawler"),
+    # 2026-08-12: 종합뉴스 — Google News RSS(site 제한없음) 삼성/갤럭시 다국어·이슈 쿼리.
+    "googlenews":     ("platforms.googlenews",       "GoogleNewsCrawler"),
 }
 
 # 모듈을 워커 기동 시점(메인 프로세스)에 정적 로드 → prefork 자식이 sys.modules 상속.
