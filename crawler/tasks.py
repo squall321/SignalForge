@@ -200,6 +200,8 @@ _CRAWLER_SPECS = {
     "youtube":        ("platforms.youtube_comments", "YouTubeCommentsCrawler"),
     # 2026-08-12: 종합뉴스 — Google News RSS(site 제한없음) 삼성/갤럭시 다국어·이슈 쿼리.
     "googlenews":     ("platforms.googlenews",       "GoogleNewsCrawler"),
+    # 2026-08-12: WP REST 뉴스 옛기사 backfill(9to5google/phandroid/sammobile 연도 슬라이싱).
+    "wpnews":         ("platforms.wpnews",           "WPNewsCrawler"),
 }
 
 # 모듈을 워커 기동 시점(메인 프로세스)에 정적 로드 → prefork 자식이 sys.modules 상속.
