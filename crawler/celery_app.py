@@ -150,9 +150,9 @@ app.conf.beat_schedule = {
     "crawl-tomsguide-4h":  {"task":"tasks.crawl_platform","schedule":14400.0,"args":("tomsguide",None,None)},
     "crawl-gizmodo-jp-4h": {"task":"tasks.crawl_platform","schedule":14400.0,"args":("gizmodo_jp",None,None)},
     # 2026-05-31 4차 신규 추가 (AU+IN+ES)
-    "crawl-ausdroid-12h":  {"task":"tasks.crawl_platform","schedule":43200.0,"args":("ausdroid",None,None)},
+    # [비활성 2026-08-13: 소스 폐쇄/봇차단·콘텐츠부재] "crawl-ausdroid-12h":  {"task":"tasks.crawl_platform","schedule":43200.0,"args":("ausdroid",None,None)},
     "crawl-gizmodo-au-4h": {"task":"tasks.crawl_platform","schedule":14400.0,"args":("gizmodo_au",None,None)},
-    "crawl-gadgets360-4h": {"task":"tasks.crawl_platform","schedule":14400.0,"args":("gadgets360",None,None)},
+    # [비활성 2026-08-13: 소스 폐쇄/봇차단·콘텐츠부재] "crawl-gadgets360-4h": {"task":"tasks.crawl_platform","schedule":14400.0,"args":("gadgets360",None,None)},
     "crawl-xataka-3h":     {"task":"tasks.crawl_platform","schedule":10800.0,"args":("xataka",None,None)},
     # 2026-05-31 5차 신규 추가
     "crawl-tecnoblog-4h":    {"task":"tasks.crawl_platform","schedule":14400.0,"args":("tecnoblog",None,None)},
@@ -241,17 +241,17 @@ app.conf.beat_schedule = {
     "crawl-kaskus-6h":       {"task":"tasks.crawl_platform","schedule":21600.0,"args":("kaskus",None,None)},
     # 2026-06-08 Stage 5B R2: AnandTech Forums (US, XenForo 2.3 영문 IT 포럼) — 게스트 tag/thread page-N.
     # 코드 11KB 완성 (AnandTechCrawler, 2026-05-31 사장). 4pda 패턴 등록. 4h 주기 (영문 신호 빈도 보통).
-    "crawl-anandtech-4h":    {"task":"tasks.crawl_platform","schedule":14400.0,"args":("anandtech",None,None)},
+    # [비활성 2026-08-13: 소스 폐쇄/봇차단·콘텐츠부재] "crawl-anandtech-4h":    {"task":"tasks.crawl_platform","schedule":14400.0,"args":("anandtech",None,None)},
     # 2026-06-08 Stage 5B R5: DroidSans (TH, 태국 Android 전문 매체) — WordPress RSS sammobile 패턴.
     # 200 OK 무차단, TH voc 29 → 보강. 6h 주기 (TH 신호 빈도 보통, sanook 보조).
     "crawl-droidsans-6h":    {"task":"tasks.crawl_platform","schedule":21600.0,"args":("droidsans",None,None)},
     # 2026-06-08 Stage 5C T1: NL/CA/CN 공백 3국 보강 — 모두 직접 RSS 200 OK, 6h 주기 보수.
     # nu.nl: NL 종합지 Tech, tweakers GN 우회 보완.
-    "crawl-nu-nl-6h":        {"task":"tasks.crawl_platform","schedule":21600.0,"args":("nu_nl",None,None)},
+    # [비활성 2026-08-13: 소스 폐쇄/봇차단·콘텐츠부재] "crawl-nu-nl-6h":        {"task":"tasks.crawl_platform","schedule":21600.0,"args":("nu_nl",None,None)},
     # iPhone in Canada: CA Apple/통신 매체, mobilesyrup 보완.
     "crawl-iphoneincanada-6h":{"task":"tasks.crawl_platform","schedule":21600.0,"args":("iphoneincanada",None,None)},
     # sspai: CN 디지털 매체, ithome 보완 (중·영문 매칭).
-    "crawl-sspai-6h":        {"task":"tasks.crawl_platform","schedule":21600.0,"args":("sspai",None,None)},
+    # [비활성 2026-08-13: 소스 폐쇄/봇차단·콘텐츠부재] "crawl-sspai-6h":        {"task":"tasks.crawl_platform","schedule":21600.0,"args":("sspai",None,None)},
     # 2026-06-08 Stage 5C T3: JagatReview (ID, kaskus 우회 ID 보강) — WP REST API 무차단. 6h.
     "crawl-jagatreview-6h":  {"task":"tasks.crawl_platform","schedule":21600.0,"args":("jagatreview",None,None)},
     # 2026-06-09 data_grow H4: Mastodon (Global fediverse) — 익명 hashtag API, Bluesky 보조.
