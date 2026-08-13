@@ -49,7 +49,7 @@ class WPNewsCrawler(BaseCrawler):
 
     MIN_DELAY = 0.4
     MAX_DELAY = 1.0
-    MAX_PAGES = 8          # 사이트·쿼리·연도당 최대 페이지(100/page)
+    MAX_PAGES = 3          # 사이트·쿼리·연도당 최대 페이지(100/page). NLP 부하로 과하지 않게.
     PER_PAGE = 100
 
     def __init__(self, product_code: Optional[str] = None, job_id: Optional[int] = None):
