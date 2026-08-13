@@ -202,6 +202,8 @@ _CRAWLER_SPECS = {
     "googlenews":     ("platforms.googlenews",       "GoogleNewsCrawler"),
     # 2026-08-12: WP REST 뉴스 옛기사 backfill(9to5google/phandroid/sammobile 연도 슬라이싱).
     "wpnews":         ("platforms.wpnews",           "WPNewsCrawler"),
+    # 2026-08-13: Wayback(archive.org) 뉴스 옛기사 backfill — RSS-only 매체 연도별 소급.
+    "waybacknews":    ("platforms.wayback_news",     "WaybackNewsCrawler"),
 }
 
 # 모듈을 워커 기동 시점(메인 프로세스)에 정적 로드 → prefork 자식이 sys.modules 상속.
