@@ -343,6 +343,7 @@ app.conf.beat_schedule = {
     "refresh-kpi-overview-10m": {
         "task": "tasks.refresh_kpi_overview",
         "schedule": crontab(minute="*/10"),
+        "options": {"expires": 540},  # 멱등 — 큐 폭증 방지
     },
     # P2 신규 (2026-06-01)
     "ingest-keywords-30m":  {"task":"tasks.run_ingest_keywords","schedule": 1800.0, "args":(1000,20)},
@@ -424,6 +425,7 @@ app.conf.beat_schedule = {
     "warm-dashboard-overview-5m": {
         "task": "tasks.warm_dashboard_cache",
         "schedule": crontab(minute="*/5"),
+        "options": {"expires": 240},  # 멱등 — 4분 내 미처리 시 폐기(다음 것이 대체, 큐 폭증 방지)
     },
     # 2026-06-05 R20 Track E: 백필 안전장치 실 운영 모니터링 — 매일 09:30 KST.
     # reports/backfill_audit.jsonl 의 최근 7일 row 를 스캔하여 PRESERVE_EXISTING
@@ -441,6 +443,7 @@ app.conf.beat_schedule = {
         "task": "tasks.run_alert_slack_dispatch",
         "schedule": crontab(minute="*/5"),
         "args": (50, 24),
+        "options": {"expires": 240},  # 멱등 — 큐 폭증 방지
     },
     # 2026-06-05 R26: validator 후크 폴링 — 매 5분.
     # reports/ + docs/dashboard/ 의 R*.md 를 mtime 기준 스캔하여 새 보고서
@@ -450,6 +453,7 @@ app.conf.beat_schedule = {
     "validator-hook-5m": {
         "task": "tasks.run_validator_hook",
         "schedule": crontab(minute="*/5"),
+        "options": {"expires": 240},  # 멱등 — 큐 폭증 방지
     },
     # 2026-06-07 Stage 4.5 Y1: 송신 측 양방향 자동 동기화 — 매 30분.
     # backup-to-drive (DB dump → Drive) + LATEST.json 갱신.  수신 측은 LATEST.json
