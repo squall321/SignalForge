@@ -100,12 +100,24 @@ class WaybackNewsCrawler(BaseCrawler):
 
     async def _fetch_snapshot(self, client, ts, rss_url, pub, seen) -> List[RawVOC]:
         url = f"{WB}/{ts}id_/{rss_url}"
-        try:
-            r = await client.get(url, timeout=45.0)
-            if r.status_code != 200 or len(r.text) < 100:
+        text = None
+        for attempt in range(3):   # archive.org 503/429 은 흔함 → 백오프 재시도
+            try:
+                r = await client.get(url, timeout=45.0)
+                if r.status_code == 200 and len(r.text) >= 100:
+                    text = r.text
+                    break
+                if r.status_code in (429, 502, 503, 504):
+                    await asyncio.sleep(2.5 * (attempt + 1))
+                    continue
                 return []
-            root = ET.fromstring(r.text)
-        except (httpx.HTTPError, ET.ParseError):
+            except httpx.HTTPError:
+                await asyncio.sleep(2.5 * (attempt + 1))
+        if text is None:
+            return []
+        try:
+            root = ET.fromstring(text)
+        except ET.ParseError:
             return []
         ns = {"a": "http://www.w3.org/2005/Atom"}
         items = root.findall(".//a:entry", ns) or root.findall(".//item")
