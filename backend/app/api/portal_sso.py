@@ -100,3 +100,16 @@ async def portal_callback(
         max_age=settings.SESSION_TTL_SECONDS,
     )
     return resp
+
+
+@router.post("/logout", status_code=204)
+async def logout(resp: Response) -> None:
+    """세션 쿠키만 즉시 만료시킨다 — 인가도 본문도 요구하지 않는다.
+
+    왜 필요한가. 포털에서 로그아웃해도 여기 세션이 남아 SignalForge 가 계속 열려 있었다.
+    쿠키가 httpOnly 라 브라우저 JS 로는 못 지우고, 이 서비스에는 로그아웃 경로가 아예
+    없었다(실측 401). 인가를 요구하지 않는 이유 — 이 동작은 '요청한 브라우저가 가진
+    쿠키를 지운다' 뿐이라 남의 세션에 영향이 없고, 인가를 걸면 정작 쿠키만 있는
+    브라우저가 못 쓴다.
+    """
+    resp.delete_cookie(key="sf_session", path=settings.SESSION_COOKIE_PATH)

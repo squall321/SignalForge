@@ -64,7 +64,10 @@ app.include_router(websocket.router)
 # PORTAL_JWKS_URL 이 설정된 경우에만 /api/v1/* 요청에 유효한 sf_session 쿠키를 요구한다.
 # 비어 있으면 완전한 pass-through (standalone 배포는 그대로). CORS 뒤에 등록해 CORS 가 감싸도록 한다.
 # @app.middleware('http') 는 BaseHTTPMiddleware 라 websocket scope 를 보지 않으므로 WS 는 게이트되지 않는다.
-_GATE_ALLOW = ("/api/v1/auth/portal-callback",)
+# 로그아웃도 열어 둔다 — 세션이 없거나 만료된 브라우저가 정확히 그걸 지우러 오기
+# 때문이다. 게이트를 걸면 "세션이 필요하다" 며 401 을 주고, 정작 끊어야 할 세션은
+# 그대로 남는다(실측). 이 엔드포인트는 요청자 자신의 쿠키만 지우므로 열려도 안전하다.
+_GATE_ALLOW = ("/api/v1/auth/portal-callback", "/api/v1/auth/logout")
 
 
 @app.middleware("http")
