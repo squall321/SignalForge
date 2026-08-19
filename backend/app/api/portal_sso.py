@@ -103,7 +103,7 @@ async def portal_callback(
 
 
 @router.post("/logout", status_code=204)
-async def logout(resp: Response) -> None:
+async def logout(request: Request, resp: Response) -> None:
     """세션 쿠키만 즉시 만료시킨다 — 인가도 본문도 요구하지 않는다.
 
     왜 필요한가. 포털에서 로그아웃해도 여기 세션이 남아 SignalForge 가 계속 열려 있었다.
@@ -112,4 +112,10 @@ async def logout(resp: Response) -> None:
     쿠키를 지운다' 뿐이라 남의 세션에 영향이 없고, 인가를 걸면 정작 쿠키만 있는
     브라우저가 못 쓴다.
     """
+    # 교차 출처 요청은 막는다(로그아웃 CSRF). 인가는 필요 없지만 남의 페이지가 임의로
+    # 사용자를 로그아웃시키는 것은 막아야 한다. 브라우저가 자동으로 보내는 Sec-Fetch-Site
+    # 를 본다 — 헤더가 없으면(curl 등) 통과시킨다. 그 경우 지울 브라우저 쿠키도 없다.
+    site = request.headers.get("sec-fetch-site", "")
+    if site and site not in ("same-origin", "same-site", "none"):
+        raise HTTPException(status_code=403, detail="cross-site logout is not allowed")
     resp.delete_cookie(key="sf_session", path=settings.SESSION_COOKIE_PATH)
