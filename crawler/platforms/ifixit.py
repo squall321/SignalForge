@@ -42,22 +42,21 @@ logger = logging.getLogger(__name__)
 NEWS_RSS = "https://www.ifixit.com/News/feed"
 ANSWERS_SEARCH_API = (
     "https://www.ifixit.com/api/2.0/search/{q}"
-    "?filter=question&limit={limit}"
+    "?filter=question&limit={limit}&offset={offset}"
 )
 ANSWERS_PAGE = "https://www.ifixit.com/Answers/View/{qid}"
 
-# Answers 검색 키워드 fan-out
+# Answers 검색 키워드 fan-out — 결함·증상 지향(구체적 불량 신호 극대화).
+# 너무 좁은 모델명(예: 'Galaxy S25')은 0건이라 제외, 증상 키워드를 조합.
 ANSWERS_TERMS = [
-    "Samsung Galaxy",
-    "Galaxy S25",
-    "Galaxy S24",
-    "Galaxy Fold",
-    "Galaxy Flip",
-    "Galaxy Note",
-    "Galaxy Buds",
+    "Samsung Galaxy", "Galaxy battery", "Galaxy screen", "Galaxy charging",
+    "Galaxy won't turn on", "Galaxy overheating", "Galaxy Fold", "Galaxy Flip",
+    "Galaxy Note", "Galaxy Buds", "Galaxy Watch", "Galaxy Tab", "Galaxy camera",
+    "Galaxy water damage", "Galaxy black screen",
 ]
-ANSWERS_PER_TERM = 20
-MAX_POSTS = 150
+ANSWERS_PER_TERM = 50      # limit 파라미터 (검색결과에 본문 text 포함 → 상세 fetch 불필요)
+ANSWERS_MAX_PAGES = 3      # moreResults 시 offset 페이지네이션 상한
+MAX_POSTS = 500
 
 # Galaxy/Samsung 키워드 필터 (영문)
 GALAXY_KEYWORD_RE = re.compile(
@@ -76,14 +75,6 @@ GALAXY_KEYWORD_RE = re.compile(
 QID_RE = re.compile(r"/Answers/View/(\d+)")
 
 # OG meta
-OG_DESC_RE = re.compile(
-    r'<meta\s+property="og:description"\s+content="([^"]+)"', re.I
-)
-OG_TITLE_RE = re.compile(
-    r'<meta\s+property="og:title"\s+content="([^"]+)"', re.I
-)
-# 답변 페이지 본문 첫 datetime 마커 (질문 작성 시각)
-DATETIME_RE = re.compile(r'datetime="([^"]+)"')
 
 
 class IFixitCrawler(BaseCrawler):
@@ -116,33 +107,18 @@ class IFixitCrawler(BaseCrawler):
             except Exception as e:
                 logger.warning(f"  iFixit News RSS 실패: {e}")
 
-            # 2) Answers search fan-out
+            # 2) Answers search fan-out — 검색결과에 본문(text)·작성일(date)·url 이
+            #    다 담겨 있어 상세페이지 fetch 불필요. 결과에서 바로 RawVOC 생성.
             seen_qids: Set[str] = set()
             for term in ANSWERS_TERMS:
                 try:
-                    qids = await self._search_question_ids(client, term)
-                    new = [qid for qid in qids if qid not in seen_qids]
-                    seen_qids.update(new)
-                    logger.info(
-                        f"  iFixit Answers '{term}': {len(qids)} 검색 / "
-                        f"{len(new)} 신규 qid"
-                    )
+                    vocs = await self._search_answers(client, term, seen_qids)
+                    galaxy = [v for v in vocs if self._is_galaxy_related(v)]
+                    items.extend(galaxy)
+                    logger.info(f"  iFixit Answers '{term}': {len(galaxy)}건")
                     await self._random_delay()
                 except Exception as e:
                     logger.warning(f"  iFixit Answers '{term}' 실패: {e}")
-
-            # 3) 각 qid → og:description 본문 + datetime
-            for qid in list(seen_qids)[:MAX_POSTS]:
-                try:
-                    voc = await self._fetch_question(client, qid)
-                    if voc is None:
-                        continue
-                    if not self._is_galaxy_related(voc):
-                        continue
-                    items.append(voc)
-                    await self._random_delay()
-                except Exception as e:
-                    logger.debug(f"  iFixit qid={qid} 실패: {e}")
 
         # dedupe by external_id
         seen: set = set()
@@ -235,72 +211,56 @@ class IFixitCrawler(BaseCrawler):
 
     # ---------- Answers search ----------
 
-    async def _search_question_ids(
-        self, client: httpx.AsyncClient, term: str
-    ) -> List[str]:
-        """검색 API → question dataType 만 추려 qid (URL 끝 숫자) 반환."""
+    async def _search_answers(
+        self, client: httpx.AsyncClient, term: str, seen_qids: Set[str]
+    ) -> List[RawVOC]:
+        """검색 API 결과(title·text·date·url·username)에서 바로 RawVOC 생성.
+
+        moreResults 이면 offset 페이지네이션(ANSWERS_MAX_PAGES 상한)."""
         from urllib.parse import quote
-        url = ANSWERS_SEARCH_API.format(q=quote(term), limit=ANSWERS_PER_TERM)
-        resp = await client.get(url)
-        if resp.status_code != 200:
-            return []
-        try:
-            data = resp.json()
-        except Exception:
-            return []
-        results = data.get("results") or []
-        qids: List[str] = []
-        for r in results:
-            if r.get("dataType") != "question":
-                continue
-            url_r = r.get("url") or ""
-            m = QID_RE.search(url_r)
-            if m:
-                qids.append(m.group(1))
-        return qids
-
-    async def _fetch_question(
-        self, client: httpx.AsyncClient, qid: str
-    ) -> Optional[RawVOC]:
-        url = ANSWERS_PAGE.format(qid=qid)
-        resp = await client.get(url, follow_redirects=True)
-        if resp.status_code != 200:
-            return None
-        return self._parse_question(qid, str(resp.url), resp.text)
-
-    def _parse_question(
-        self, qid: str, url: str, html: str
-    ) -> Optional[RawVOC]:
-        title_m = OG_TITLE_RE.search(html)
-        desc_m = OG_DESC_RE.search(html)
-        dt_m = DATETIME_RE.search(html)
-
-        title = self._unescape(title_m.group(1)) if title_m else ""
-        desc = self._unescape(desc_m.group(1)) if desc_m else ""
-
-        # 제목 trailing 카테고리 노이즈 제거: " - Samsung Galaxy A"
-        title = re.sub(r"\s*-\s*Samsung\s+Galaxy[^-]*$", "", title, flags=re.I).strip()
-
-        content = f"{title}\n{desc}".strip()
-        if len(content) < 20:
-            return None
-
-        published_at = self._parse_iso(dt_m.group(1)) if dt_m else None
-
-        external_id = hashlib.md5(f"ifixit_q#{qid}".encode()).hexdigest()[:16]
-
-        return RawVOC(
-            external_id=external_id,
-            content=content,
-            source_url=url,
-            author_name=None,
-            published_at=published_at,
-            country_code="US",
-            meta={
-                "qid": qid,
-                "source": "ifixit_answers",
-            },
-        )
+        out: List[RawVOC] = []
+        for page in range(ANSWERS_MAX_PAGES):
+            url = ANSWERS_SEARCH_API.format(
+                q=quote(term), limit=ANSWERS_PER_TERM, offset=page * ANSWERS_PER_TERM)
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                break
+            try:
+                data = resp.json()
+            except ValueError:
+                break
+            for r in (data.get("results") or []):
+                if r.get("dataType") != "question":
+                    continue
+                url_r = r.get("url") or ""
+                m = QID_RE.search(url_r)
+                qid = m.group(1) if m else (str(r.get("postid") or "") or None)
+                if not qid or qid in seen_qids:
+                    continue
+                seen_qids.add(qid)
+                title = self._unescape(r.get("title") or "")
+                text = self._unescape(r.get("raw_text") or r.get("text") or "")
+                content = f"{title}\n{text}".strip()
+                if len(content) < 20:
+                    continue
+                ts = r.get("date")
+                published_at = None
+                if isinstance(ts, (int, float)) and ts > 0:
+                    published_at = datetime.fromtimestamp(ts, tz=timezone.utc)
+                out.append(RawVOC(
+                    external_id=hashlib.md5(f"ifixit_q#{qid}".encode()).hexdigest()[:16],
+                    content=content,
+                    source_url=url_r or ANSWERS_PAGE.format(qid=qid),
+                    author_name=r.get("username"),
+                    published_at=published_at,
+                    comments_count=int(r.get("answer_count") or 0),
+                    country_code="US",
+                    meta={"qid": qid, "source": "ifixit_answers"},
+                ))
+            if not data.get("moreResults"):
+                break
+            await self._random_delay()
+        return out
 
     # ---------- helpers ----------
 
@@ -325,15 +285,3 @@ class IFixitCrawler(BaseCrawler):
         except Exception:
             return None
 
-    @staticmethod
-    def _parse_iso(text: Optional[str]) -> Optional[datetime]:
-        """ISO 8601 'YYYY-MM-DDTHH:MM:SS-07:00' → UTC."""
-        if not text:
-            return None
-        try:
-            dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt.astimezone(timezone.utc)
-        except Exception:
-            return None
