@@ -206,6 +206,8 @@ _CRAWLER_SPECS = {
     "waybacknews":    ("platforms.wayback_news",     "WaybackNewsCrawler"),
     # 2026-08-18: 앱스토어 리뷰 — Google Play(내부API)+Apple(RSS) Samsung 앱 리뷰.
     "appstore":       ("platforms.appstore",         "AppStoreCrawler"),
+    # 2026-08-18: 리콜/규제 DB — US CPSC 공식 리콜(정본 결함).
+    "recalls":        ("platforms.recalls",          "RecallsCrawler"),
 }
 
 # 모듈을 워커 기동 시점(메인 프로세스)에 정적 로드 → prefork 자식이 sys.modules 상속.

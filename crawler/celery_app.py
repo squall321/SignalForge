@@ -279,6 +279,8 @@ app.conf.beat_schedule = {
     "crawl-googlenews-3h":   {"task":"tasks.crawl_platform","schedule":10800.0,"args":("googlenews",None,None)},
     # 2026-08-18: 앱스토어 리뷰(Play+Apple, 6국×삼성앱) 6h.
     "crawl-appstore-6h":     {"task":"tasks.crawl_platform","schedule":21600.0,"args":("appstore",None,None)},
+    # 2026-08-18: 리콜/규제 DB(CPSC) 저용량·고신호, 일 1회.
+    "crawl-recalls-daily":   {"task":"tasks.crawl_platform","schedule":86400.0,"args":("recalls",None,None)},
     # 2026-07-17 Track C: YouTube 댓글 — Data API v3. Galaxy 리뷰/쇼츠 영상의 시청자 댓글.
     # ※ celery 큐 정체(82 크롤러 → 대기 ~3h)로 host cron(scripts/youtube-collect.sh)으로 이관.
     #   API 기반이라 빠른데 느린 HTML 크롤러 뒤에 굶는 것을 회피. beat 항목은 비활성.
