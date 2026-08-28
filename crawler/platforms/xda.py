@@ -189,15 +189,21 @@ class XDACrawler(BaseCrawler):
                 author_el = card.select_one("a.article-author") or card.select_one("[rel=author]")
                 author = author_el.get_text(strip=True) if author_el else "XDA"
 
-                # Galaxy 관련 여부 확인
-                if not any(kw.lower() in title.lower() for kw in GALAXY_KEYWORDS):
+                # 요약(dek) — 카드에 p.display-card-excerpt 존재. 제목만이면 75자로 너무 얕아
+                # 결함 키워드 매칭이 약했다. 제목+요약으로 본문 강화(추가 fetch 없음).
+                exc_el = card.select_one("p.display-card-excerpt") or card.select_one(".display-card-excerpt")
+                excerpt = exc_el.get_text(strip=True) if exc_el else ""
+                content = f"{title}\n{excerpt}".strip() if excerpt else title
+
+                # Galaxy 관련 여부 확인 (제목+요약 기준)
+                if not any(kw.lower() in content.lower() for kw in GALAXY_KEYWORDS):
                     continue
 
                 uid = hashlib.md5(article_url.encode()).hexdigest()[:16]
 
                 results.append(RawVOC(
                     external_id=uid,
-                    content=title,
+                    content=content,
                     source_url=article_url,
                     author_name=author,
                     published_at=published_at,
