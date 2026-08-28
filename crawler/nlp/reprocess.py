@@ -50,6 +50,19 @@ SELECT_SQL = text(r"""
     LIMIT :batch OFFSET :offset
 """)
 
+# keyset 커서판 — translate_backlog 가 실패 행을 건너뛰며 backlog 전체를 1회 통과할 때 사용.
+SELECT_CURSOR_SQL = text(r"""
+    SELECT id, content_original, language_detected
+    FROM voc_records
+    WHERE language_detected IS NOT NULL
+      AND language_detected NOT IN ('en', 'und')
+      AND (content_translated IS NULL OR content_translated = content_original)
+      AND content_original !~ '^[\x00-\x7F]*$'
+      AND id > :after
+    ORDER BY id
+    LIMIT :batch
+""")
+
 UPDATE_SQL = text("""
     UPDATE voc_records
     SET content_translated = :tr,
@@ -188,20 +201,23 @@ async def translate_backlog(limit: int = 1000) -> dict:
     engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     fixed = skipped = seen = 0
+    after = 0   # id 커서 — 성공/실패 무관하게 전진해 backlog 전체를 1회 통과.
     try:
-        # 번역 성공한 행은 다음 조회의 WHERE 에서 빠지므로 offset 없이 항상 앞에서 15건씩.
+        # 이전 offset=0 고정 방식은 배치 하나가 전부 실패(일시 rate-limit 등)하면 그 즉시
+        # break → 뒤 수천 건을 방치했다. keyset 커서로 실패 행을 건너뛰며 끝까지 스캔하고,
+        # 실패분은 다음 스케줄 실행(레이트리밋 해소 후)에 재시도한다.
         while True:
             async with Session() as db:
-                rows = (await db.execute(SELECT_SQL, {"batch": 15, "offset": 0})).all()
+                rows = (await db.execute(SELECT_CURSOR_SQL,
+                                         {"batch": 15, "after": after})).all()
                 if not rows:
-                    break
-                progressed = False
+                    break   # backlog 전체 1회 통과 완료
                 for r in rows:
                     seen += 1
+                    after = r.id   # 성공하면 WHERE 에서 빠지고, 실패해도 id>after 로 건너뜀
                     try:
                         if await _reprocess_row(db, r):
                             fixed += 1
-                            progressed = True
                         else:
                             skipped += 1
                         await db.commit()   # 행 단위 커밋 — time limit 에 잘려도 진행 보존
@@ -211,8 +227,8 @@ async def translate_backlog(limit: int = 1000) -> dict:
                         log.warning(f"행 {r.id} 번역 실패: {e}")
                     if limit and seen >= limit:
                         break
-            if (limit and seen >= limit) or not progressed:
-                break   # 이 배치에서 하나도 번역 못했으면(전부 skip) 무한루프 방지
+            if limit and seen >= limit:
+                break
     finally:
         await engine.dispose()
     log.info(f"[translate_backlog] 복구 {fixed} / 시도 {seen} (건너뜀 {skipped})")
