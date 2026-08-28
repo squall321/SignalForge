@@ -6,7 +6,7 @@
   - 레이트리밋/일시오류 시 지수 백오프 재시도
 를 적용해 대량 수집/재처리에서도 번역 성공률을 확보한다.
 """
-from deep_translator import GoogleTranslator
+from deep_translator import GoogleTranslator, MyMemoryTranslator
 import asyncio
 import logging
 import random
@@ -23,6 +23,15 @@ LANG_MAP = {
     "zh-cn": "zh-CN",
     "zh-tw": "zh-TW",
     "jw": "jv",     # 자바어
+}
+
+# MyMemory fallback 언어 코드(지역 포함 필요). Google 이 'No translation found' 로
+# 간헐 실패할 때 무료·무키 대안으로 사용.
+MYMEMORY_MAP = {
+    "ko": "ko-KR", "ja": "ja-JP", "zh-cn": "zh-CN", "zh-tw": "zh-TW", "zh": "zh-CN",
+    "es": "es-ES", "pt": "pt-PT", "de": "de-DE", "fr": "fr-FR", "ru": "ru-RU",
+    "it": "it-IT", "tr": "tr-TR", "nl": "nl-NL", "id": "id-ID", "th": "th-TH",
+    "vi": "vi-VN", "ar": "ar-SA", "pl": "pl-PL", "sv": "sv-SE",
 }
 
 # Google 무료 한도(초당 5건) 안전 마진: 호출 간 최소 0.25s = 초당 4건
@@ -67,6 +76,7 @@ async def translate_to_english(text: str, source_lang: str = "auto") -> str:
     src = LANG_MAP.get(source_lang, source_lang)
     loop = asyncio.get_event_loop()
 
+    # 1차: Google (rate-limit 시 지수 백오프 재시도)
     for attempt in range(1, _MAX_RETRIES + 1):
         try:
             await _throttle()
@@ -74,16 +84,28 @@ async def translate_to_english(text: str, source_lang: str = "auto") -> str:
                 None,
                 lambda: GoogleTranslator(source=src, target="en").translate(text),
             )
-            return result or text
+            if result:
+                return result
+            break  # 빈 결과('No translation found' 등) → MyMemory fallback
         except Exception as e:
             if attempt < _MAX_RETRIES and _is_rate_limit(e):
-                # 지수 백오프 + 지터
                 backoff = min(2 ** attempt + random.uniform(0, 1), 30)
-                logger.debug(
-                    f"번역 재시도 {attempt}/{_MAX_RETRIES} ({source_lang}) {backoff:.1f}s 후"
-                )
                 await asyncio.sleep(backoff)
                 continue
-            logger.warning(f"번역 실패 ({source_lang}, {attempt}회): {e}")
-            return text
-    return text
+            logger.debug(f"Google 번역 실패 ({source_lang}): {e} → MyMemory fallback")
+            break
+
+    # 2차 fallback: MyMemory (무료·무키). Google 이 간헐 'No translation found' 낼 때 대응.
+    mm = MYMEMORY_MAP.get(source_lang) or MYMEMORY_MAP.get(src)
+    if mm:
+        try:
+            await _throttle()
+            result = await loop.run_in_executor(
+                None,
+                lambda: MyMemoryTranslator(source=mm, target="en-US").translate(text),
+            )
+            if result:
+                return result
+        except Exception as e:
+            logger.warning(f"번역 실패 (MyMemory {source_lang}): {e}")
+    return text  # 둘 다 실패 → 원문 보존
