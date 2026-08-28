@@ -70,6 +70,11 @@ _DEFAULT_SUBREDDITS: List[str] = [
     "GalaxyTab",
     "oneui",
     "samsunggalaxy",
+    # Apple iPhone — 경쟁사 시리즈별 결함·불만 커버리지.
+    "iphone",
+    "apple",
+    "iphonehelp",
+    "ios",
 ]
 
 

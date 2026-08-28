@@ -49,16 +49,21 @@ ANSWERS_PAGE = "https://www.ifixit.com/Answers/View/{qid}"
 # Answers 검색 키워드 fan-out — 결함·증상 지향(구체적 불량 신호 극대화).
 # 너무 좁은 모델명(예: 'Galaxy S25')은 0건이라 제외, 증상 키워드를 조합.
 ANSWERS_TERMS = [
+    # Samsung Galaxy
     "Samsung Galaxy", "Galaxy battery", "Galaxy screen", "Galaxy charging",
     "Galaxy won't turn on", "Galaxy overheating", "Galaxy Fold", "Galaxy Flip",
     "Galaxy Note", "Galaxy Buds", "Galaxy Watch", "Galaxy Tab", "Galaxy camera",
     "Galaxy water damage", "Galaxy black screen",
+    # Apple iPhone — 경쟁사 비교·시리즈별 결함 커버리지(수리 Q&A = 구체적 불량 정본).
+    "iPhone battery", "iPhone screen", "iPhone charging", "iPhone won't turn on",
+    "iPhone overheating", "iPhone water damage", "iPhone black screen",
+    "iPhone 16", "iPhone 15", "iPhone camera",
 ]
 ANSWERS_PER_TERM = 50      # limit 파라미터 (검색결과에 본문 text 포함 → 상세 fetch 불필요)
 ANSWERS_MAX_PAGES = 3      # moreResults 시 offset 페이지네이션 상한
-MAX_POSTS = 500
+MAX_POSTS = 700
 
-# Galaxy/Samsung 키워드 필터 (영문)
+# 타깃 브랜드 키워드 필터(영문) — Samsung Galaxy + Apple iPhone.
 GALAXY_KEYWORD_RE = re.compile(
     r"\b("
     r"samsung|galaxy"
@@ -67,6 +72,7 @@ GALAXY_KEYWORD_RE = re.compile(
     r"|galaxy ?z ?fold|galaxy ?z ?flip|galaxy ?fold|galaxy ?flip"
     r"|galaxy ?(?:m|a|f|note)\d{1,2}"
     r"|galaxy ?buds|galaxy ?watch|galaxy ?tab|galaxy ?ring"
+    r"|apple|iphone|ipad|airpods|ios"
     r")\b",
     re.I,
 )

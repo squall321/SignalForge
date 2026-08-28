@@ -35,7 +35,8 @@ logger = logging.getLogger(__name__)
 _GN = "https://news.google.com/rss/search?q={q}&hl={hl}&gl={gl}&ceid={ceid}"
 _TITLE_SUFFIX = re.compile(r"\s+-\s+[^-]+$")  # "제목 - 매체명" 의 매체 접미 제거
 _GALAXY = re.compile(
-    r"삼성|갤럭시|samsung|galaxy|z\s?fold|z\s?flip|갤워치|버즈|galaxy\s?watch|galaxy\s?buds",
+    r"삼성|갤럭시|samsung|galaxy|z\s?fold|z\s?flip|갤워치|버즈|galaxy\s?watch|galaxy\s?buds"
+    r"|아이폰|iphone|apple|ipad|airpods",
     re.IGNORECASE,
 )
 
@@ -53,6 +54,12 @@ _QUERIES = [
     ("Samsung Galaxy defect", "en-US", "US", "US:en", "US"),
     ("Samsung Galaxy battery issue", "en-US", "US", "US:en", "US"),
     ("Samsung Galaxy overheating", "en-GB", "GB", "GB:en", "GB"),
+    # Apple iPhone — 경쟁사 결함·리콜 보도 커버리지(시리즈별 비교분석용).
+    ("아이폰 결함", "ko-KR", "KR", "KR:ko", "KR"),
+    ("iPhone defect", "en-US", "US", "US:en", "US"),
+    ("iPhone recall", "en-US", "US", "US:en", "US"),
+    ("iPhone battery issue", "en-US", "US", "US:en", "US"),
+    ("iPhone overheating", "en-US", "US", "US:en", "US"),
 ]
 
 

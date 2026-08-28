@@ -67,6 +67,12 @@ _DEFAULT_QUERIES: List[str] = [
     "Samsung Galaxy FE review",
     "Samsung Galaxy unboxing",
     "Samsung Galaxy comparison",
+    # Apple iPhone — 경쟁사 시리즈별 리뷰·비교(댓글 = 시청자 실사용 불만).
+    "iPhone 16 review",
+    "iPhone 16 Pro review",
+    "iPhone 15 review",
+    "iPhone problems",
+    "iPhone vs Samsung Galaxy",
     "삼성 갤럭시 리뷰",
     "갤럭시 S 리뷰",
     "갤럭시 폴드 리뷰",
