@@ -23,6 +23,11 @@ app.conf.update(
     task_reject_on_worker_lost=True,
     # 워커 동시성
     worker_prefetch_multiplier=1,
+    # 태스크 time limit — 어떤 태스크도 슬롯을 무한 점유 못 하게(핵심).
+    #   translation_reprocess 가 Google 무료번역 rate-limit 에 무한 대기 → 3슬롯 영구 점유,
+    #   googlenews 등 crawl 이 16일간 굶던 근본 원인. soft 10분(예외)·hard 13분(child kill).
+    task_soft_time_limit=600,
+    task_time_limit=780,
 )
 
 # 주기적 스케줄 (Celery Beat)
