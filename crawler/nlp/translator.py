@@ -84,16 +84,31 @@ async def translate_to_english(text: str, source_lang: str = "auto") -> str:
                 None,
                 lambda: GoogleTranslator(source=src, target="en").translate(text),
             )
-            if result:
+            if result and result != text:
                 return result
-            break  # 빈 결과('No translation found' 등) → MyMemory fallback
+            # 원문 그대로 반환 = 언어 오탐으로 Google 이 번역 안 함(예: 한국어를 tr 로 감지).
+            # 성공으로 치면 안 됨 → auto 재감지로 넘어감.
+            break  # 빈/무변경 결과 → auto/MyMemory fallback
         except Exception as e:
             if attempt < _MAX_RETRIES and _is_rate_limit(e):
                 backoff = min(2 ** attempt + random.uniform(0, 1), 30)
                 await asyncio.sleep(backoff)
                 continue
-            logger.debug(f"Google 번역 실패 ({source_lang}): {e} → MyMemory fallback")
+            logger.debug(f"Google 번역 실패 ({source_lang}): {e} → auto/MyMemory fallback")
             break
+
+    # 1.5차: source='auto' 재시도 — 언어 오탐(한국어가 tr/pt 로 감지 등) 대응.
+    if src != "auto":
+        try:
+            await _throttle()
+            result = await loop.run_in_executor(
+                None,
+                lambda: GoogleTranslator(source="auto", target="en").translate(text),
+            )
+            if result and result != text:
+                return result
+        except Exception:
+            pass
 
     # 2차 fallback: MyMemory (무료·무키). Google 이 간헐 'No translation found' 낼 때 대응.
     mm = MYMEMORY_MAP.get(source_lang) or MYMEMORY_MAP.get(src)

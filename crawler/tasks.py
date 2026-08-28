@@ -276,13 +276,12 @@ def run_translation_reprocess(limit: int = 500) -> dict:
     nlp.reprocess 를 LIMIT 단위로 반복 호출해 잔여분을 자동 복구한다 (멱등).
     """
     import asyncio as _asyncio
-    os.environ["REPROCESS_LIMIT"] = str(limit)
     from nlp import reprocess as _rp
-    # 모듈 상수가 import 시 고정되므로 갱신
-    _rp.LIMIT = limit
-    _asyncio.run(_rp.main())
-    logger.info(f"[translation_reprocess] limit={limit} 완료")
-    return {"status": "done", "limit": limit}
+    # main() 은 Phase A(전체 한국어 감성)·C(전체 재태깅)를 먼저 돌려 시간을 다 써서
+    # 번역(B)에 도달 못 하고 time limit 에 죽었다(16일 slot 점유의 근본). 번역 전용 함수로 교체.
+    res = _asyncio.run(_rp.translate_backlog(limit))
+    logger.info(f"[translation_reprocess] {res}")
+    return {"status": "done", **res}
 
 
 # ---------------------------------------------------------------------------

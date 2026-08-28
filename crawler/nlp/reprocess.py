@@ -177,6 +177,48 @@ async def _reprocess_row(db: AsyncSession, row) -> bool:
     return True
 
 
+async def translate_backlog(limit: int = 1000) -> dict:
+    """Phase B(번역)만 실행 — 미번역 백로그 치유.
+    main() 은 Phase A(전체 한국어 감성)·C(전체 재태깅)를 먼저 돌려 시간을 다 써서
+    번역(B)에 도달 못 하고 time limit 에 죽었다. 이 함수는 번역만 바로 처리한다.
+    run_translation_reprocess 가 이걸 호출한다."""
+    if not DATABASE_URL:
+        log.error("DATABASE_URL 미설정")
+        return {"fixed": 0, "seen": 0}
+    engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+    Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    fixed = skipped = seen = 0
+    try:
+        # 번역 성공한 행은 다음 조회의 WHERE 에서 빠지므로 offset 없이 항상 앞에서 15건씩.
+        while True:
+            async with Session() as db:
+                rows = (await db.execute(SELECT_SQL, {"batch": 15, "offset": 0})).all()
+                if not rows:
+                    break
+                progressed = False
+                for r in rows:
+                    seen += 1
+                    try:
+                        if await _reprocess_row(db, r):
+                            fixed += 1
+                            progressed = True
+                        else:
+                            skipped += 1
+                        await db.commit()   # 행 단위 커밋 — time limit 에 잘려도 진행 보존
+                    except Exception as e:
+                        skipped += 1
+                        await db.rollback()
+                        log.warning(f"행 {r.id} 번역 실패: {e}")
+                    if limit and seen >= limit:
+                        break
+            if (limit and seen >= limit) or not progressed:
+                break   # 이 배치에서 하나도 번역 못했으면(전부 skip) 무한루프 방지
+    finally:
+        await engine.dispose()
+    log.info(f"[translate_backlog] 복구 {fixed} / 시도 {seen} (건너뜀 {skipped})")
+    return {"fixed": fixed, "seen": seen}
+
+
 async def main():
     if not DATABASE_URL:
         log.error("DATABASE_URL 미설정")
