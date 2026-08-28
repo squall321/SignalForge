@@ -194,6 +194,14 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"\b아15" + _E]),
     ("AP14",  [r"\biphone\s*14" + _E, r"아이폰\s*14" + _E, r"아이폰14" + _E,
                r"\b아14" + _E]),
+    # 구형 iPhone — 제품은 등록돼 있으나 패턴이 없어 미태깅이던 것 보강(단독 글만 태깅).
+    ("AP13",  [r"\biphone\s*13" + _E, r"아이폰\s*13" + _E, r"아이폰13" + _E]),
+    ("AP12",  [r"\biphone\s*12" + _E, r"아이폰\s*12" + _E, r"아이폰12" + _E]),
+    ("AP11",  [r"\biphone\s*11" + _E, r"아이폰\s*11" + _E, r"아이폰11" + _E]),
+    ("AP10",  [r"\biphone\s*x" + _E, r"아이폰\s*x" + _E, r"아이폰\s*텐" + _E]),
+    ("AP8",   [r"\biphone\s*8" + _E, r"아이폰\s*8" + _E, r"아이폰8" + _E]),
+    ("AP7",   [r"\biphone\s*7" + _E, r"아이폰\s*7" + _E, r"아이폰7" + _E]),
+    ("AP6",   [r"\biphone\s*6" + _E, r"아이폰\s*6" + _E, r"아이폰6" + _E]),
 
     # ═══════════ 경쟁사 (Google Pixel) ═══════════
     ("PX9P",  [r"pixel\s*9\s*pro\s*xl", r"pixel\s*9\s*pro" + _E, r"픽셀\s*9\s*프로",
