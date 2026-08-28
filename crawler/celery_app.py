@@ -290,8 +290,9 @@ app.conf.beat_schedule = {
     # 백필 burst 후 번역 실패 fallback (원문 보존) 행을 자동 복구. 멱등.
     "translation-reprocess-2h": {
         "task": "tasks.run_translation_reprocess",
-        "schedule": 7200.0,
-        "kwargs": {"limit": 2000},
+        "schedule": 43200.0,   # 2h→12h: worker 4슬롯 중 2개를 오래 점유하던 최대 병목 완화
+        "kwargs": {"limit": 1000},
+        "options": {"expires": 3600},  # 멱등 — 미처리 시 폐기
     },
     # 2026-06-01 Track E: CSV/Excel Export — 매주 월요일 01:00 UTC
     "csv-export-weekly": {
@@ -346,10 +347,10 @@ app.conf.beat_schedule = {
         "options": {"expires": 540},  # 멱등 — 큐 폭증 방지
     },
     # P2 신규 (2026-06-01)
-    "ingest-keywords-30m":  {"task":"tasks.run_ingest_keywords","schedule": 1800.0, "args":(1000,20)},
-    "refresh-cat-daily-30m":{"task":"tasks.run_refresh_p2_mvs","schedule": 1800.0},
+    "ingest-keywords-30m":  {"task":"tasks.run_ingest_keywords","schedule": 1800.0, "args":(1000,20), "options":{"expires":1500}},
+    "refresh-cat-daily-30m":{"task":"tasks.run_refresh_p2_mvs","schedule": 1800.0, "options":{"expires":1500}},
     # P3 신규 (2026-06-02): platform_health + country_daily 30분 refresh
-    "refresh-p3-mvs-30m":   {"task":"tasks.run_refresh_p3_mvs","schedule": crontab(minute="*/30")},
+    "refresh-p3-mvs-30m":   {"task":"tasks.run_refresh_p3_mvs","schedule": crontab(minute="*/30"), "options":{"expires":1500}},
     # 2026-06-02 Track E: 운영 품질 일일 보고 — 매일 09:30 KST (= 00:30 UTC)
     # daily_insight (00:30 UTC) 와 동일 슬롯이라 워커 풀에서 병렬 실행되지만
     # quality_report 의 grounding 점수 수집은 어제(target-1) insight 파일을 읽으므로 의존성 없음.
