@@ -65,15 +65,58 @@ async def _throttle():
         await asyncio.sleep(wait)
 
 
+# Google 무료 엔드포인트는 ~3000자 초과 단일 요청에서 RequestError 로 실패한다
+# (4456자 한국어 기사 실측). 그 예외 메시지에 'connection' 이 들어가 rate-limit 로
+# 오인 재시도까지 유발 → 긴 기사가 backlog 최전방을 영구 봉쇄했다. 청크 분할로 해소.
+_CHUNK = 2000          # 안정 처리 상한(2000·3000 성공, 4999 실패 실측)
+_MAX_CHARS = 6000      # 분석(감성·토픽)엔 앞부분으로 충분 — 노이즈 기사 과다 호출 방지
+
+
+def _split_chunks(text: str, size: int):
+    """경계(개행·문장·공백) 근처에서 잘라 size 이하 청크 리스트로 분할."""
+    chunks = []
+    i, n = 0, len(text)
+    while i < n:
+        end = min(i + size, n)
+        if end < n:
+            b = max(text.rfind("\n", i, end), text.rfind(". ", i, end),
+                    text.rfind(" ", i, end))
+            if b > i:
+                end = b + 1
+        chunks.append(text[i:end])
+        i = end
+    return chunks
+
+
 # @lat: translate_to_english — [[nlp#Translation]] 참조.
 async def translate_to_english(text: str, source_lang: str = "auto") -> str:
-    """텍스트를 영어로 번역. 실패 시 원문 반환(데이터 보존)."""
+    """텍스트를 영어로 번역. 실패 시 원문 반환(데이터 보존).
+
+    긴 텍스트는 _CHUNK 단위로 나눠 각각 번역해 이어붙인다(Google 무료 한도 회피)."""
     if source_lang in SKIP_LANGS:
         return text
 
-    # 텍스트 길이 제한 (Google Translator 무료 한도)
-    text = text[:4999]
+    text = text[:_MAX_CHARS]
     src = LANG_MAP.get(source_lang, source_lang)
+
+    if len(text) <= _CHUNK:
+        return await _translate_chunk(text, source_lang, src)
+
+    parts = _split_chunks(text, _CHUNK)
+    outs, any_ok = [], False
+    for p in parts:
+        r = await _translate_chunk(p, source_lang, src)
+        if r and r != p:
+            any_ok, r_out = True, r
+        else:
+            r_out = p  # 실패 청크는 원문 유지
+        outs.append(r_out)
+    joined = "\n".join(outs)
+    return joined if any_ok else text
+
+
+async def _translate_chunk(text: str, source_lang: str, src: str) -> str:
+    """단일 청크(_CHUNK 이하)를 Google→auto→MyMemory 순으로 번역."""
     loop = asyncio.get_event_loop()
 
     # 1차: Google (rate-limit 시 지수 백오프 재시도)
