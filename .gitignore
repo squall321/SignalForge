@@ -44,3 +44,8 @@ celerybeat-schedule*
 
 # Drive sync state
 .sf_last_sync.json
+
+# /data 이관 브리지(심링크) 이름 — dir/ 패턴은 심링크를 무시하지 않아 git stash -u 가 치운다(data-migration D0)
+/data
+/backups
+/logs
