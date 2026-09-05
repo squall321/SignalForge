@@ -89,12 +89,18 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"z\s*플립\s*7", r"플립7", r"플립\s*7" + _E, r"\b플7" + _E,
                r"갤럭시\s*z\s*플립\s*7"]),
 
-    # ── Galaxy A ──
+    # ── Galaxy A / F ── (신모델 2026: A57/A37/A27, F25 — 카탈로그엔 있었으나 패턴 누락)
+    ("GA57",  [r"galaxy\s*a57" + _E, r"\ba57" + _E, r"갤럭시\s*a57"]),
     ("GA56",  [r"galaxy\s*a56" + _E, r"\ba56" + _E, r"갤럭시\s*a56"]),
+    ("GA37",  [r"galaxy\s*a37" + _E, r"\ba37" + _E, r"갤럭시\s*a37"]),
+    ("GA27",  [r"galaxy\s*a27" + _E, r"\ba27" + _E, r"갤럭시\s*a27"]),
+    ("GF25",  [r"galaxy\s*f25" + _E, r"갤럭시\s*f25"]),
 
-    # ── Galaxy Watch (Ultra → 8) ──
+    # ── Galaxy Watch (Ultra → 9 → 8) ──
     ("GWU",   [r"watch\s*ultra", r"galaxy\s*watch\s*ultra", r"워치\s*울트라",
                r"워치울트라", r"\b워치울" + _E]),
+    ("GW9",   [r"\bwatch\s*9" + _E, r"\bwatch9" + _E, r"galaxy\s*watch\s*9",
+               r"워치\s*9" + _E, r"워치9", r"갤워치\s*9", r"갤워치9"]),
     ("GW8",   [r"\bwatch\s*8" + _E, r"\bwatch8" + _E, r"galaxy\s*watch\s*8",
                r"워치\s*8" + _E, r"워치8", r"갤워치\s*8", r"갤워치8"]),
 
