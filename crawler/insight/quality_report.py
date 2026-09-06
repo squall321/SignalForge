@@ -288,52 +288,63 @@ def collect_alert_monitor(
 
 
 def collect_mv_stats(mvs: Tuple[str, ...] = WATCHED_MVS) -> List[MVStats]:
-    """pg_stat_all_tables 의 last_vacuum/last_analyze 대신 pg_stat_user_tables 사용.
+    """MV 신선도(마지막 refresh 근사 시각·경과 분)를 조회한다.
 
-    MV refresh 시각 자체는 표준 카탈로그에 직접 노출되지 않으므로
-    pg_stat_user_tables.last_analyze (REFRESH 직후 갱신) 와 stats_reset 을 사용한다.
-    실패 시 error 만 채우고 다른 MV 는 계속.
+    MV refresh 시각은 표준 카탈로그에 직접 노출되지 않으므로
+    pg_stat_user_tables 의 last_analyze/last_autoanalyze/last_vacuum 최댓값으로 근사한다.
+
+    **psql 외부 호출을 쓰지 않는다.** 컨테이너화(2026-07-07) 이후 sif 에 psql 이 없어
+    이 함수가 FileNotFoundError 로 즉사했고, 그 결과 MV 7종이 2026-07-06 에 동결된 것을
+    두 달 동안 아무도 알지 못했다(경보를 낼 감시 계층 자체가 죽어 있었다).
+    실패는 MV 단위로 격리해 다른 MV 수집을 막지 않는다.
     """
-    out: List[MVStats] = []
-    psql = [
-        "psql", "-h", os.getenv("POSTGRES_HOST", "127.0.0.1"),
-        "-p", os.getenv("POSTGRES_PORT", "5434"),
-        "-U", os.getenv("POSTGRES_USER", "signalforge"),
-        "-d", os.getenv("POSTGRES_DB", "signalforge"),
-        "-t", "-A", "-F", "|", "-v", "ON_ERROR_STOP=1",
-    ]
-    env = {**os.environ, "PGPASSWORD": os.getenv("PGPASSWORD", "signalforge_pass")}
-    for mv in mvs:
-        # MV last refresh — pg_stat_user_tables.last_analyze 로 근사
-        sql = (
-            "SELECT GREATEST(COALESCE(last_analyze,'epoch'),"
-            " COALESCE(last_autoanalyze,'epoch'),"
-            " COALESCE(last_vacuum,'epoch')) AS ts "
-            f"FROM pg_stat_user_tables WHERE relname='{mv}';"
-        )
+    import asyncio as _aio
+
+    from sqlalchemy import text as _sqltext
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    url = os.getenv("DATABASE_URL", "")
+    if not url:
+        pw = os.getenv("PGPASSWORD", os.getenv("POSTGRES_PASSWORD", "signalforge_pass"))
+        url = (f"postgresql+asyncpg://{os.getenv('POSTGRES_USER', 'signalforge')}:{pw}"
+               f"@{os.getenv('POSTGRES_HOST', '127.0.0.1')}:"
+               f"{os.getenv('POSTGRES_PORT', '5434')}/{os.getenv('POSTGRES_DB', 'signalforge')}")
+
+    async def _fetch() -> dict:
+        engine = create_async_engine(url, pool_pre_ping=True)
         try:
-            res = subprocess.run(
-                psql + ["-c", sql],
-                env=env, capture_output=True, text=True, timeout=10,
-            )
-        except subprocess.TimeoutExpired:
-            out.append(MVStats(name=mv, error="psql timeout"))
-            continue
-        if res.returncode != 0:
-            out.append(MVStats(name=mv, error=res.stderr.strip()[:200]))
-            continue
-        raw = res.stdout.strip()
-        if not raw:
+            async with engine.connect() as conn:
+                rows = (await conn.execute(_sqltext("""
+                    SELECT relname,
+                           GREATEST(COALESCE(last_analyze, 'epoch'::timestamptz),
+                                    COALESCE(last_autoanalyze, 'epoch'::timestamptz),
+                                    COALESCE(last_vacuum, 'epoch'::timestamptz)) AS ts
+                    FROM pg_stat_user_tables
+                    WHERE relname = ANY(:names)
+                """), {"names": list(mvs)})).all()
+            return {r[0]: r[1] for r in rows}
+        finally:
+            await engine.dispose()
+
+    try:
+        found = _aio.run(_fetch())
+    except Exception as exc:                     # DB 자체가 불가 — 전 MV 를 error 로
+        return [MVStats(name=mv, error=str(exc)[:200]) for mv in mvs]
+
+    now = datetime.now(timezone.utc)
+    out: List[MVStats] = []
+    for mv in mvs:
+        ts = found.get(mv)
+        if ts is None:
             out.append(MVStats(name=mv, error="not found"))
             continue
-        try:
-            # 예: "2026-06-02 00:30:00.123456+00"
-            ts = _parse_pg_ts(raw)
-            now = datetime.now(timezone.utc)
-            age_min = (now - ts).total_seconds() / 60.0 if ts else None
-            out.append(MVStats(name=mv, last_refresh=ts, age_minutes=age_min))
-        except Exception as e:
-            out.append(MVStats(name=mv, error=f"parse: {e}"))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        if ts.year <= 1970:                      # epoch = 통계 없음
+            out.append(MVStats(name=mv, error="no stats"))
+            continue
+        out.append(MVStats(name=mv, last_refresh=ts,
+                           age_minutes=(now - ts).total_seconds() / 60.0))
     return out
 
 
