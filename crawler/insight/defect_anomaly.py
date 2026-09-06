@@ -1,24 +1,33 @@
-# 제품×부품×증상 단위 결함 급등 탐지 — 라이프사이클 정규화 + 소스 집중도 가중
+# 제품×부품×증상 단위 결함 급등 탐지 — 라이프사이클 정규화 + 독립 제보 기반 검정
 """
 결함 이상탐지 (defect_anomaly).
 
-기존 알림은 전부 플랫폼/시스템 축이었고 **제품·결함 축의 통계적 급등 탐지가 없었다**
-(제품 축은 고정 +30%p 같은 하드 임계값뿐). 이 모듈이 그 공백을 메운다.
+기존 알림은 전부 플랫폼/시스템 축이라 제품·결함 축의 통계적 급등 탐지가 없었다.
 
-설계 근거 (2026-09-06 실측 조사)
-- **점유율(share) 비교, 절대건수 아님.** 폴드7 의 주차별 표본이 24~57건인데 폴드8 은
-  수천건이다. 코퍼스 수집 깊이가 세대마다 달라 절대건수 비교는 무효다.
-  share = 해당 결함 건수 / 같은 창의 그 제품 전체 VOC.
-- **신제품은 이전 세대의 같은 라이프사이클 구간을 baseline 으로.** 출시 직후엔 자기
-  과거가 없고, 신제품은 원래 급등한다("폴드8 +195%" 의 대부분이 출시 효과였다).
-  products.predecessor_code + released_at(0027/0031)으로 동일 주차 구간을 잡는다.
-- **소스 집중도 가드.** 진짜 증폭은 매체 복제가 아니라 단일 커뮤니티 쏠림이었다
-  (voc_defects 의 33%가 hackernews 단독, GS26U burn_in 의 79%가 dcinside).
-  유효 플랫폼 수 = 1/HHI 가 낮으면 한 커뮤니티의 잡담이므로 알리지 않는다.
-- **published_at 축.** collected_at 일별은 백필 일정이 만든 인공 스파이크다.
+**2026-09-06 적대적 검증에서 초판의 결함 7종이 확인되어 전면 수정했다.**
+1. role 무관 조인 — voc_defects 는 제품 차원이 없어 mentioned/compared 링크에도
+   결함이 붙었다. 인도 Galaxy **S26** 폭발 기사가 말미 한 줄 때문에 GS25P 의 fire
+   근거 14건 중 6건을 차지했다. → role='primary' 로만 집계.
+2. 유효 플랫폼 수(1/HHI) 가드가 정반대로 작동 — 뉴스 1건을 10개 매체가 받아쓰면
+   분포가 넓어져 가드를 8배 여유로 통과했다. 막으려던 신디케이션을 오히려 통과시켰다.
+   → platforms.kind(0034)로 **독립 제보(community/marketplace/official) 소스 수**를 본다.
+3. 같은 글의 페이지 분할 복사본이 각각 1건으로 계수(quasarzone page=1/2/5).
+   → 쿼리스트링 제거한 source_url 기준으로 dedup.
+4. baseline 최소 표본 하한 부재 — baseline 1건/58문서로 ratio 3.15 가 나왔고
+   ±1건이 발화 여부를 뒤집었다. → MIN_BASELINE_TOTAL 하한.
+5. z=(cnt-expected)/sqrt(expected) 가 baseline 추정오차를 무시해 유의성을 과대평가.
+   → **두 비율 검정**(pooled SE)으로 교체. 작은 baseline 은 SE 가 커져 자동으로 눌린다.
+6. floor_share=1/base_total 이 baseline 0 조합을 무조건 통과시켰다(ratio 가 데이터가
+   아니라 문서 수로 정해짐). → baseline 0 일 때만 rule of three(3/n) 상한 사용.
+7. 최신성 조건 부재로 3주 전 종료된 사건이 28일 내내 재발화. → 최근 구간 활동 요구.
 
-저장은 살아 있는 collection_health 패턴을 따른다 — alert_rules 에서 임계·cooldown 만
-읽고 alert_events 에 직접 INSERT. slack_notifier(5분 주기)가 자동으로 송출한다.
+설계 유지
+- **점유율(share) 비교** — 세대별 수집 깊이가 달라 절대건수 비교는 무효.
+- **신제품은 이전 세대의 같은 라이프사이클 구간**이 baseline.
+- **published_at 축** — collected_at 일별은 백필 일정이 만든 인공 스파이크다.
+
+저장은 살아 있는 collection_health 패턴(alert_rules 에서 임계·cooldown 만 읽고
+alert_events 직접 INSERT). slack_notifier 가 송출한다.
 """
 import json
 import logging
@@ -31,19 +40,33 @@ import asyncpg
 logger = logging.getLogger(__name__)
 
 ALERT_RULE_NAME = "defect_anomaly"
-DEFAULT_COOLDOWN_SEC = 21600          # 6h — 같은 결함으로 반복 알림 방지
+DEFAULT_COOLDOWN_SEC = 86400          # 24h — beat(6h)보다 길어야 억제가 실제로 동작한다
 
-# 창 크기는 실측으로 정했다. 7일/14일 창에서는 (제품×부품×증상) 조합이 min_count 를
-# 넘는 경우가 9~34개뿐이라 사실상 탐지가 불가능하다(결함행의 31%만 제품 링크를 가짐).
-# 28일 창에서 평가대상 72개가 되어 유의미해진다.
-RECENT_DAYS = 28                      # 관측 창
+RECENT_DAYS = 28                      # 관측 창 (7·14일은 표본 부족으로 탐지 불능 — 실측)
 BASELINE_DAYS = 28                    # 직전 동일 길이 창(성숙 제품 baseline)
 NEW_PRODUCT_DAYS = 120                # 이 기간 내 출시면 '신제품' → 세대 비교
-MIN_RECENT_COUNT = 12                 # Poisson z 가 의미를 갖는 최소 사건 수
-MIN_EFF_PLATFORMS = 2.0               # 유효 플랫폼 수(1/HHI) 하한 — 단일 커뮤니티 배제
-RATIO_THRESHOLD = 2.0                 # share 배수 하한
-Z_THRESHOLD = 3.0                     # Poisson 근사 z 하한
-SEVERITY_ESCALATE = {"safety", "non_functional"}   # 이 심각도면 알림 등급 상향
+TAIL_DAYS = 7                         # 최신성 — 이 구간에 활동이 있어야 한다
+MIN_RECENT_COUNT = 12                 # URL dedup 후 최소 사건 수
+MIN_TAIL_COUNT = 2                    # 최근 TAIL_DAYS 내 최소 건수(종료된 사건 배제)
+MIN_BASELINE_TOTAL = 200              # baseline 모수 하한 — 미만이면 비교 불가로 skip
+MIN_INDEP_SOURCES = 3                 # 독립 제보(비매체) 플랫폼 수 하한
+RATIO_THRESHOLD = 2.0                 # share 배수 하한(운영자가 alert_rules 로 조정)
+Z_THRESHOLD = 3.0                     # 두 비율 검정 z 하한
+SEVERITY_ESCALATE = {"safety", "non_functional"}
+# 독립 제보로 인정하는 플랫폼 종류. media/aggregator 는 한 사건의 복제일 수 있어 제외.
+_INDEP_KINDS = ("community", "marketplace", "official")
+
+
+def _two_prop_z(c1: int, n1: int, c2: int, n2: int) -> float:
+    """두 비율 검정 z. baseline(n2)이 작으면 SE 가 커져 자동으로 유의성이 낮아진다."""
+    if n1 <= 0 or n2 <= 0:
+        return 0.0
+    p1, p2 = c1 / n1, c2 / n2
+    pooled = (c1 + c2) / (n1 + n2)
+    if pooled <= 0 or pooled >= 1:
+        return 0.0
+    se = (pooled * (1 - pooled) * (1 / n1 + 1 / n2)) ** 0.5
+    return (p1 - p2) / se if se > 0 else 0.0
 
 
 def _dsn() -> str:
@@ -56,45 +79,44 @@ def _dsn() -> str:
             f"/{os.getenv('POSTGRES_DB', 'signalforge')}")
 
 
-# 최근 창의 (제품×부품×증상) 집계 + 플랫폼 분포로 유효 플랫폼 수까지 한 번에.
-# voc_product_links 기반이라 비교글 언급도 포함된다(Phase 1).
+# 최근 창의 (제품×부품×증상) 집계.
+# role='primary' 로만 센다 — mentioned/compared 를 포함하면 남의 제품 사고가 귀속된다.
+# 건수는 쿼리스트링 제거한 source_url 기준 distinct — 같은 글의 페이지 분할 복제 배제.
+# 독립 제보 소스 수와 최근 TAIL 구간 활동도 함께 산출한다.
 _RECENT_SQL = """
 WITH recent AS (
     SELECT p.code AS product_code, p.id AS product_id,
            d.component, d.symptom, d.severity,
-           v.platform_id, v.id AS voc_id
+           split_part(v.source_url, '?', 1) AS url,
+           pl.kind AS platform_kind, pl.code AS platform_code,
+           v.published_at
     FROM voc_defects d
     JOIN voc_records v       ON v.id = d.voc_id
-    JOIN voc_product_links l ON l.voc_id = d.voc_id
+    JOIN voc_product_links l ON l.voc_id = d.voc_id AND l.role = 'primary'
     JOIN products p          ON p.id = l.product_id
+    JOIN platforms pl        ON pl.id = v.platform_id
     WHERE v.archived_at IS NULL
       AND v.published_at >= now() - ($1::int || ' days')::interval
       AND v.published_at <= now()
-),
-combo AS (
-    -- pc 는 플랫폼별 distinct voc 수. voc 는 플랫폼 하나에만 속하므로 sum(pc)=총건수.
-    -- max(severity): 사전순이 cosmetic<degraded<non_functional<safety 라 가장 심각한
-    -- 등급이 선택된다(등급 이름을 바꾸면 이 성질이 깨지니 주의).
-    SELECT product_code, product_id, component, symptom,
-           max(severity) AS severity,
-           sum(pc)::int AS cnt,
-           sum(pc * pc)::float / NULLIF(power(sum(pc), 2), 0) AS hhi
-    FROM (
-        SELECT product_code, product_id, component, symptom, severity,
-               platform_id, count(DISTINCT voc_id)::float AS pc
-        FROM recent
-        GROUP BY 1,2,3,4,5,6
-    ) t
-    GROUP BY 1,2,3,4
 )
-SELECT * FROM combo WHERE cnt >= $2
+SELECT product_code, product_id, component, symptom,
+       max(severity) AS severity,
+       count(DISTINCT url)::int AS cnt,
+       count(DISTINCT platform_code) FILTER (WHERE platform_kind = ANY($3))::int
+           AS indep_sources,
+       count(DISTINCT url) FILTER (
+           WHERE published_at >= now() - ($4::int || ' days')::interval)::int AS tail_cnt
+FROM recent
+GROUP BY 1,2,3,4
+HAVING count(DISTINCT url) >= $2
 """
 
-# 제품 단위 전체 VOC(분모) — 같은 창
+# 제품 단위 전체(분모) — 분자와 동일한 role·dedup 기준이어야 share 가 의미를 갖는다.
 _PRODUCT_TOTAL_SQL = """
-SELECT p.code AS product_code, count(DISTINCT v.id) AS total
+SELECT p.code AS product_code,
+       count(DISTINCT split_part(v.source_url, '?', 1))::int AS total
 FROM voc_records v
-JOIN voc_product_links l ON l.voc_id = v.id
+JOIN voc_product_links l ON l.voc_id = v.id AND l.role = 'primary'
 JOIN products p          ON p.id = l.product_id
 WHERE v.archived_at IS NULL
   AND v.published_at >= now() - ($1::int || ' days')::interval
@@ -102,32 +124,24 @@ WHERE v.archived_at IS NULL
 GROUP BY 1
 """
 
-# 자기 과거 baseline (성숙 제품) — 최근 창 직전 BASELINE_DAYS
+# 자기 과거 baseline (성숙 제품) — 최근 창 직전 BASELINE_DAYS, 동일 기준
 _OWN_BASELINE_SQL = """
 WITH win AS (
-    SELECT v.id AS voc_id, d.component, d.symptom
-    FROM voc_defects d
-    JOIN voc_records v       ON v.id = d.voc_id
-    JOIN voc_product_links l ON l.voc_id = d.voc_id
-    WHERE l.product_id = $1
-      AND v.archived_at IS NULL
-      AND v.published_at >= now() - (($2::int + $3::int) || ' days')::interval
-      AND v.published_at <  now() - ($2::int || ' days')::interval
-),
-tot AS (
-    SELECT count(DISTINCT v.id) AS total
+    SELECT split_part(v.source_url, '?', 1) AS url, d.component, d.symptom
     FROM voc_records v
-    JOIN voc_product_links l ON l.voc_id = v.id
+    JOIN voc_product_links l ON l.voc_id = v.id AND l.role = 'primary'
+    LEFT JOIN voc_defects d  ON d.voc_id = v.id
     WHERE l.product_id = $1
       AND v.archived_at IS NULL
       AND v.published_at >= now() - (($2::int + $3::int) || ' days')::interval
       AND v.published_at <  now() - ($2::int || ' days')::interval
 )
-SELECT (SELECT count(*) FROM win WHERE component = $4 AND symptom = $5) AS cnt,
-       (SELECT total FROM tot) AS total
+SELECT count(DISTINCT url) FILTER (WHERE component = $4 AND symptom = $5)::int AS cnt,
+       count(DISTINCT url)::int AS total
+FROM win
 """
 
-# 세대 baseline (신제품) — 직전 세대의 **같은 라이프사이클 주차 구간**
+# 세대 baseline (신제품) — 직전 세대의 같은 라이프사이클 구간, 동일 기준
 _GEN_BASELINE_SQL = """
 WITH pred AS (
     SELECT pp.id, pp.released_at
@@ -136,31 +150,30 @@ WITH pred AS (
     WHERE cur.id = $1 AND pp.released_at IS NOT NULL
 ),
 win AS (
-    SELECT v.id AS voc_id, d.component, d.symptom
+    SELECT split_part(v.source_url, '?', 1) AS url, d.component, d.symptom
     FROM pred
-    JOIN voc_product_links l ON l.product_id = pred.id
+    JOIN voc_product_links l ON l.product_id = pred.id AND l.role = 'primary'
     JOIN voc_records v       ON v.id = l.voc_id
     LEFT JOIN voc_defects d  ON d.voc_id = v.id
     WHERE v.archived_at IS NULL
       AND v.published_at >= pred.released_at + ($2::int || ' days')::interval
       AND v.published_at <  pred.released_at + ($3::int || ' days')::interval
 )
-SELECT count(*) FILTER (WHERE component = $4 AND symptom = $5) AS cnt,
-       count(DISTINCT voc_id) AS total
+SELECT count(DISTINCT url) FILTER (WHERE component = $4 AND symptom = $5)::int AS cnt,
+       count(DISTINCT url)::int AS total
 FROM win
 """
 
 
 async def _fetch_baseline(conn, row, days_since_release: Optional[int]) -> Dict[str, Any]:
-    """이 조합의 baseline share 를 구한다. 신제품이면 세대 비교, 아니면 자기 과거."""
+    """baseline share 를 구한다. 신제품이면 세대 비교, 아니면 자기 과거."""
     is_new = days_since_release is not None and days_since_release <= NEW_PRODUCT_DAYS
     if is_new:
-        # 신제품의 최근 창을 출시 후 [d-RECENT, d) 구간으로 보고 이전 세대의 동일 구간과 비교
         lo = max(0, days_since_release - RECENT_DAYS)
         gen = await conn.fetchrow(_GEN_BASELINE_SQL, int(row["product_id"]),
                                   lo, int(days_since_release),
                                   row["component"], row["symptom"])
-        if gen and (gen["total"] or 0) > 0:
+        if gen and (gen["total"] or 0) >= MIN_BASELINE_TOTAL:
             return {"mode": "lifecycle", "cnt": int(gen["cnt"] or 0),
                     "total": int(gen["total"] or 0)}
     own = await conn.fetchrow(_OWN_BASELINE_SQL, int(row["product_id"]),
@@ -183,32 +196,34 @@ async def evaluate(conn, ratio_threshold: Optional[float] = None) -> List[Dict[s
         FROM products WHERE released_at IS NOT NULL
     """)}
 
-    rows = await conn.fetch(_RECENT_SQL, RECENT_DAYS, MIN_RECENT_COUNT)
+    rows = await conn.fetch(_RECENT_SQL, RECENT_DAYS, MIN_RECENT_COUNT,
+                            list(_INDEP_KINDS), TAIL_DAYS)
     out: List[Dict[str, Any]] = []
     for row in rows:
         total_recent = totals.get(row["product_code"], 0)
         if total_recent <= 0:
             continue
         cnt = int(row["cnt"])
-        recent_share = cnt / total_recent
 
-        # 단일 커뮤니티 쏠림 배제 — 유효 플랫폼 수 = 1/HHI
-        hhi = float(row["hhi"] or 1.0)
-        eff_platforms = (1.0 / hhi) if hhi > 0 else 1.0
-        if eff_platforms < MIN_EFF_PLATFORMS:
+        # 독립 제보 소스 하한 — 매체 신디케이션만으로는 알리지 않는다
+        if int(row["indep_sources"]) < MIN_INDEP_SOURCES:
+            continue
+        # 최신성 — 이미 종료된 사건이 창에 남아 반복 발화하는 것 방지
+        if int(row["tail_cnt"]) < MIN_TAIL_COUNT:
             continue
 
         base = await _fetch_baseline(conn, row, rel.get(row["product_id"]))
-        if base["total"] <= 0:
+        if base["total"] < MIN_BASELINE_TOTAL:
             continue
-        base_share = base["cnt"] / base["total"]
-        # baseline 이 0 이면 '한 건도 없던 것이 나타남' — 바닥값으로 대체해 배수를 유한하게
-        floor_share = 1.0 / max(base["total"], 1)
-        eff_base_share = max(base_share, floor_share)
 
-        ratio = recent_share / eff_base_share
-        expected = eff_base_share * total_recent
-        z = (cnt - expected) / (expected ** 0.5) if expected > 0 else 0.0
+        recent_share = cnt / total_recent
+        base_share = base["cnt"] / base["total"]
+        # baseline 0 이면 rule of three(3/n) 상한을 쓴다. 1/n floor 는 배수가 데이터가
+        # 아니라 baseline 문서 수로 정해지는 인공물이었다.
+        eff_base_share = base_share if base["cnt"] > 0 else 3.0 / base["total"]
+
+        ratio = recent_share / eff_base_share if eff_base_share > 0 else 0.0
+        z = _two_prop_z(cnt, total_recent, base["cnt"], base["total"])
         if ratio < thr or z < Z_THRESHOLD:
             continue
 
@@ -221,19 +236,23 @@ async def evaluate(conn, ratio_threshold: Optional[float] = None) -> List[Dict[s
             "defect_severity": row["severity"],
             "severity": severity,
             "recent_count": cnt,
+            "recent_total": total_recent,
             "recent_share": round(recent_share, 5),
+            "baseline_count": base["cnt"],
+            "baseline_total": base["total"],
             "baseline_share": round(base_share, 5),
             "baseline_mode": base["mode"],
-            "baseline_total": base["total"],
+            "indep_sources": int(row["indep_sources"]),
+            "tail_count": int(row["tail_cnt"]),
             "ratio": round(ratio, 2),
             "z": round(z, 2),
-            "eff_platforms": round(eff_platforms, 2),
             "value": round(ratio, 2),
             "threshold": thr,
             "reason": (f"{row['product_code']} {row['component']}/{row['symptom']} "
-                       f"최근 {RECENT_DAYS}일 점유율 {recent_share:.2%} "
-                       f"(baseline {base_share:.2%}, {base['mode']}) "
-                       f"{ratio:.1f}배·z={z:.1f}·유효플랫폼 {eff_platforms:.1f}"),
+                       f"최근 {RECENT_DAYS}일 {cnt}/{total_recent}건({recent_share:.2%}) "
+                       f"vs baseline {base['cnt']}/{base['total']}({base_share:.2%}, "
+                       f"{base['mode']}) — {ratio:.1f}배·z={z:.1f}·"
+                       f"독립소스 {int(row['indep_sources'])}곳"),
         })
     out.sort(key=lambda v: v["ratio"], reverse=True)
     return out
@@ -276,9 +295,10 @@ async def insert_alert_events(conn, violations: List[Dict[str, Any]]) -> Dict[st
                 json.dumps({"type": "defect_anomaly", **{
                     k: v[k] for k in (
                         "metric", "product_code", "component", "symptom",
-                        "defect_severity", "recent_count", "recent_share",
-                        "baseline_share", "baseline_mode", "ratio", "z",
-                        "eff_platforms", "reason")
+                        "defect_severity", "recent_count", "recent_total",
+                        "recent_share", "baseline_count", "baseline_total",
+                        "baseline_share", "baseline_mode", "indep_sources",
+                        "tail_count", "ratio", "z", "reason")
                 }}, ensure_ascii=False),
             )
             inserted += 1
