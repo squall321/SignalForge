@@ -1,0 +1,93 @@
+# 결함 구조화 추출(extract_defects) 단위 테스트 — 근접 페어링·심각도·한영 혼용
+import os
+import sys
+
+import pytest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from nlp.defect_extract import extract_defects  # noqa: E402
+
+
+def pairs(text):
+    return {(c, s) for c, s, _ in extract_defects(text)}
+
+
+def sev(text, component, symptom):
+    for c, s, v in extract_defects(text):
+        if (c, s) == (component, symptom):
+            return v
+    return None
+
+
+# ── 근접 페어링 — 이 추출기의 핵심 위험(교차곱 노이즈) ────────────────
+def test_pairs_symptom_with_nearest_component():
+    # 힌지-먼지 / 카메라-흐림 이 서로 섞이면 안 된다
+    t = "The hinge collected dust after a month. Also the camera is blurry in low light."
+    p = pairs(t)
+    assert ("hinge", "dust_ingress") in p
+    assert ("camera", "blurry") in p
+    assert ("camera", "dust_ingress") not in p
+    assert ("hinge", "blurry") not in p
+
+
+def test_korean_hinge_dust():
+    p = pairs("폴드8 힌지 틈으로 먼지가 들어갑니다")
+    assert ("hinge", "dust_ingress") in p
+
+
+def test_far_component_not_paired():
+    # 부품이 window 밖이면 증상이 함의하는 기본 부품으로 귀속
+    t = "hinge" + " " * 300 + "the battery drains fast"
+    p = pairs(t)
+    assert ("battery", "drain") in p
+    assert ("hinge", "drain") not in p
+
+
+# ── 부품 언급 없는 증상 → 함의 부품 / device ──────────────────────────
+def test_implied_component():
+    assert ("thermal", "overheat") in pairs("It overheats constantly")
+    assert ("software", "boot_loop") in pairs("stuck in a bootloop")
+
+
+def test_device_fallback():
+    p = pairs("침수됐어요")
+    assert ("device", "water_damage") in p
+
+
+# ── 심각도 ───────────────────────────────────────────────────────────
+@pytest.mark.parametrize("text,comp,symp,expected", [
+    ("the battery started swelling", "battery", "swelling", "safety"),
+    ("phone won't turn on at all", "device", "no_power", "non_functional"),
+    ("screen flickers sometimes", "display", "flicker", "degraded"),
+    ("there is a scratch on the frame", "frame", "scratch", "cosmetic"),
+])
+def test_severity(text, comp, symp, expected):
+    assert sev(text, comp, symp) == expected
+
+
+def test_safety_outranks_in_taxonomy():
+    got = extract_defects("battery swelling and the case has a scratch")
+    sevs = {s: v for _, s, v in got}
+    assert sevs["swelling"] == "safety"
+    assert sevs["scratch"] == "cosmetic"
+
+
+# ── 실제 코퍼스에서 관측된 폴드8 결함 문구 ───────────────────────────
+def test_real_fold8_phrases():
+    p = pairs("Unsatisfied with the fold8 build quality, there is a gap in the hinge "
+              "and a green line appeared on the screen")
+    assert ("hinge", "gap") in p
+    assert ("display", "green_line") in p
+
+
+# ── 회귀 — 빈 입력·무관 텍스트 ───────────────────────────────────────
+@pytest.mark.parametrize("text", ["", None, "오늘 날씨가 좋네요", "I love this phone"])
+def test_no_defect(text):
+    assert extract_defects(text) == []
+
+
+def test_dedup_and_cap():
+    got = extract_defects("crack crack crack " * 30)
+    assert len(got) == len(set(got))
+    assert len(got) <= 12

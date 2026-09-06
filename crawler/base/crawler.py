@@ -262,6 +262,11 @@ class BaseCrawler(ABC):
                             db, inserted[0], voc.content_original,
                             product_id, _resolve_product_id,
                         )
+                        # 구조화 결함(부품·증상·심각도) — 번역본 우선(렉시콘이 영어 중심)
+                        await self._save_defects(
+                            db, inserted[0],
+                            voc.content_translated or voc.content_original,
+                        )
                 except Exception as e:
                     self.logger.warning(f"VOC 저장 실패 ({voc.external_id}): {e}")
 
@@ -296,6 +301,21 @@ class BaseCrawler(ABC):
                 VALUES (:v, :p, :r)
                 ON CONFLICT (voc_id, product_id) DO NOTHING
             """), {"v": voc_id, "p": pid, "r": role})
+
+    @staticmethod
+    async def _save_defects(db, voc_id, body) -> None:
+        """voc_defects 채움 — 본문에서 (부품·증상·심각도) 삼중항 추출.
+
+        단어 카운트가 아니라 "힌지에 이물 유입(기능저하)" 수준으로 집계하기 위한 것."""
+        from sqlalchemy import text
+        from nlp.defect_extract import extract_defects
+
+        for comp, symp, sev in extract_defects(body):
+            await db.execute(text("""
+                INSERT INTO voc_defects (voc_id, component, symptom, severity)
+                VALUES (:v, :c, :s, :sev)
+                ON CONFLICT (voc_id, component, symptom) DO NOTHING
+            """), {"v": voc_id, "c": comp, "s": symp, "sev": sev})
 
     async def run(self) -> dict:
         """전체 크롤링 파이프라인 실행"""
