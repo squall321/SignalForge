@@ -10,6 +10,7 @@ from deep_translator import GoogleTranslator, MyMemoryTranslator
 import asyncio
 import logging
 import random
+import re
 import threading
 import time
 
@@ -48,6 +49,21 @@ _last_call = 0.0
 def _is_rate_limit(err: Exception) -> bool:
     m = str(err).lower()
     return "too many requests" in m or "server error" in m or "connection" in m
+
+
+# 번역기가 **에러 페이지 HTML 을 번역 결과로 반환**하는 경우가 있다. 실측으로
+# "Error 500 (Server Error)!!1500.That's an error..." 가 content_translated 에
+# 3,887행 저장돼 있었고, 원문은 정상 한국어 결함 제보였다. 이 값이 그대로 저장되면
+# 감성·카테고리·결함 추출이 전부 에러 텍스트 기준으로 계산돼 오염된다.
+_ERROR_PAGE_RE = re.compile(
+    r"^\s*Error\s+\d{3}\b|That['’]s an error|Server Error\)!!|"
+    r"^\s*<!DOCTYPE|^\s*<html",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_error_page(s: str) -> bool:
+    return bool(s) and bool(_ERROR_PAGE_RE.search(s[:200]))
 
 
 async def _throttle():
@@ -127,7 +143,7 @@ async def _translate_chunk(text: str, source_lang: str, src: str) -> str:
                 None,
                 lambda: GoogleTranslator(source=src, target="en").translate(text),
             )
-            if result and result != text:
+            if result and result != text and not _looks_like_error_page(result):
                 return result
             # 원문 그대로 반환 = 언어 오탐으로 Google 이 번역 안 함(예: 한국어를 tr 로 감지).
             # 성공으로 치면 안 됨 → auto 재감지로 넘어감.
@@ -148,7 +164,7 @@ async def _translate_chunk(text: str, source_lang: str, src: str) -> str:
                 None,
                 lambda: GoogleTranslator(source="auto", target="en").translate(text),
             )
-            if result and result != text:
+            if result and result != text and not _looks_like_error_page(result):
                 return result
         except Exception:
             pass
@@ -162,7 +178,7 @@ async def _translate_chunk(text: str, source_lang: str, src: str) -> str:
                 None,
                 lambda: MyMemoryTranslator(source=mm, target="en-US").translate(text),
             )
-            if result:
+            if result and not _looks_like_error_page(result):
                 return result
         except Exception as e:
             logger.warning(f"번역 실패 (MyMemory {source_lang}): {e}")
