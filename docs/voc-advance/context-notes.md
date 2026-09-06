@@ -35,3 +35,42 @@ product_id 와 중복 저장이지만, 조인 한 번으로 끝나 쿼리가 단
 - `compared` — 비교 마커(vs, 대비, 비교, versus 등)가 본문에 있을 때의 non-primary
 - `mentioned`— 그 외 non-primary
 비교 마커는 문서 단위로 판정한다(문장 단위 파싱은 과잉 — 정확도 대비 복잡도가 큼).
+
+## Phase 2 설계 결정
+
+### D5. 렉시콘 + 근접 페어링 (LLM 아님)
+40만행을 일관되게 처리해야 하고 비용/재현성이 중요하다. 부품·증상을 각각 매칭한 뒤
+**증상마다 가장 가까운 부품**과 짝짓는다. 단순 교차곱은 노이즈가 폭발한다.
+
+### D6. 부착(attachment) > 최근접
+"gap in the hinge and a green line on the screen" 에서 최근접만 쓰면 green_line 이
+더 가까운 hinge 에 붙는다. 영어는 증상 뒤 전치사로 부품이 붙으므로(_ATTACH_WINDOW=40)
+**증상 직후 부품을 우선**한다. 단 문장 경계를 넘으면 안 된다
+("hinge collected dust. Also the camera..." → dust 가 camera 에 붙던 오류).
+
+### D7. 단어경계는 선택이 아니라 필수
+경계 없이 두면 'os' 가 cost/most/position/closed 안에서, 'heat' 가 wheat,
+'frame' 이 timeframe, 'dust' 가 industry 안에서 매칭된다. 실측으로 software 가
+crease/dust 를 3,400여건씩 잘못 흡수했고, 경계 적용 후 43,451 건으로 허위 19,425 건이
+제거됐다. 새 패턴 추가 시 반드시 경계를 확인할 것.
+
+## Phase 3 설계 결정
+
+### D8. 세대 매핑은 코드 규칙에서 유도
+products.code 가 PREFIX+숫자+SUFFIX 규칙이라 숫자를 1 내려 카탈로그에 실재하면 연결한다
+(GZF8→GZF7, GS26U→GS25U, AP16P→AP15P). 175/389 종이 연결됐고 나머지는 최초 세대이거나
+단발 모델이라 정상이다. 예외가 생기면 predecessor_code 를 직접 수정하면 된다.
+
+### D9. 뷰는 product_id 가 아니라 링크 기반
+v_voc_lifecycle 을 voc_product_links 위에 세워 비교글 언급까지 포함시켰다(Phase 1 활용).
+role 컬럼이 있으므로 primary 만 보고 싶으면 필터하면 된다.
+
+### 한계 — 과거 세대 표본
+폴드7 의 주차별 표본이 24~57건으로 매우 작다. 과거 시점 수집 깊이가 얕기 때문이며,
+**주차별 비교는 신뢰도가 낮고 누적(0~8주) 비교를 봐야 한다**. 이 한계는 과거 backfill
+깊이가 개선돼야 해소된다.
+
+### 첫 성과
+"폴드8 부정 +195% 급등" 은 상당 부분 **출시 효과**였다. 세대 정규화 시 폴드8 12.9% vs
+폴드7 13.3%(-0.3pt)로 사실상 동일. 반면 **GS26 은 GS25 대비 +2.6pt 실제 악화**로,
+정규화가 없었으면 폴드8 에 가려 놓쳤을 신호다.
