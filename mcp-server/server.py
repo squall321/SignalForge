@@ -26,6 +26,11 @@ from tools.insights import (
     site_health_tool,
     top_emerging_keywords_tool,
 )
+from tools.defects import (
+    defect_profile_tool,
+    defect_anomalies_tool,
+    lifecycle_compare_tool,
+)
 from tools.breakdowns import (
     get_platform_breakdown_tool,
     get_engagement_leaders_tool,
@@ -419,6 +424,72 @@ class _BearerGate:
                 await send({"type": "http.response.body", "body": b'{"error":"unauthorized"}'})
                 return
         await self.app(scope, receive, send)
+
+
+
+# ── 결함 분석 (voc_defects / voc_product_links / v_voc_lifecycle) ──────────
+@mcp.tool()
+async def defect_profile(
+    product_code: Optional[str] = None,
+    component: Optional[str] = None,
+    severity: Optional[str] = None,
+    period_days: int = 90,
+    limit: int = 20,
+) -> dict:
+    """
+    제품·부품·증상별 **구조화 결함 프로파일**을 반환합니다.
+
+    단순 키워드 카운트가 아니라 (부품, 증상, 심각도) 삼중항 집계입니다.
+    예: 갤럭시 Z 폴드8 → display/crease, hinge/dust_ingress, battery/drain.
+
+    Args:
+        product_code: 제품 코드 (예: GZF8, GS26U, AP16P). 생략 시 전체.
+        component: 부품 필터 (hinge, display, battery, camera, charging_port,
+                   speaker, button, back_glass, frame, fingerprint, software,
+                   connectivity, sim, thermal, s_pen)
+        severity: safety | non_functional | degraded | cosmetic
+        period_days: 조회 기간 (기본 90일)
+        limit: 상위 N개
+
+    반환에 effective_platforms(유효 플랫폼 수 = 1/HHI)가 포함됩니다.
+    2 미만이면 한 커뮤니티의 반향이라 신뢰도가 낮습니다.
+    """
+    return await defect_profile_tool(product_code, component, severity,
+                                     period_days, limit)
+
+
+@mcp.tool()
+async def defect_anomalies(limit: int = 20, severity: Optional[str] = None) -> dict:
+    """
+    최근 탐지된 **결함 급등**(제품×부품×증상) 목록을 반환합니다.
+
+    신제품은 이전 세대의 동일 출시후 구간과 비교(baseline_mode=lifecycle)해
+    출시 효과를 제거한 값입니다. 단일 커뮤니티 쏠림은 탐지 단계에서 배제됩니다.
+
+    Args:
+        limit: 상위 N개
+        severity: critical | warning 필터
+    """
+    return await defect_anomalies_tool(limit, severity)
+
+
+@mcp.tool()
+async def lifecycle_compare(
+    product_code: str, max_week: int = 12, defect_only: bool = False,
+) -> dict:
+    """
+    제품을 **직전 세대와 동일 라이프사이클 주차로 비교**합니다.
+
+    신제품은 출시 직후 원래 부정 언급이 급증하므로, 자기 과거가 아니라 이전 세대의
+    같은 주차와 비교해야 진짜 이상인지 알 수 있습니다.
+    예: GZF8(폴드8) vs GZF7(폴드7) 출시 0~12주차 부정률·결함률.
+
+    Args:
+        product_code: 제품 코드 (예: GZF8, GS26U)
+        max_week: 비교할 최대 주차 (기본 12)
+        defect_only: True 면 결함이 있는 주차만
+    """
+    return await lifecycle_compare_tool(product_code, max_week, defect_only)
 
 
 if __name__ == "__main__":
