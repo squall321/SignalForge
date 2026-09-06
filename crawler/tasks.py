@@ -679,9 +679,20 @@ def _refresh_mv(view: str, timeout: int = 300) -> dict:
     전부 FileNotFoundError 로 실패했고, MV 7종이 2026-07-06 에 동결됐다(활성 VOC 의
     65%가 어느 MV 에도 없는 상태였다). 그래서 외부 프로세스 의존을 제거한다.
 
-    - REFRESH ... CONCURRENTLY 는 트랜잭션 블록에서 못 돌아 AUTOCOMMIT 으로 연결한다.
+    - AUTOCOMMIT 을 쓰는 이유는 **커밋**이다. SQLAlchemy 2.0 의 engine.connect() 은
+      close 시 ROLLBACK 하므로 AUTOCOMMIT 이 없으면 refresh 가 조용히 롤백돼 MV 는
+      낡은 채 남고 태스크는 status=ok 를 반환한다 — 이 함수가 고치려던 '동결이 성공으로
+      보고되는' 버그가 그대로 재생산된다.
+      (초판 주석은 'CONCURRENTLY 는 트랜잭션 블록에서 못 돈다' 고 적었으나 사실이 아니다.
+       트랜잭션 안에서도 돈다. 그 제약은 CREATE INDEX CONCURRENTLY 쪽이다.)
     - category_daily 처럼 UNIQUE 인덱스가 표현식(COALESCE) 기반이면 CONCURRENTLY 가
       거부되므로 일반 REFRESH 로 폴백한다(짧은 ACCESS EXCLUSIVE lock 감수).
+      **폴백 조건은 정확해야 한다.** 초판은 `"concurrently" in str(exc)` 로 판별했는데
+      SQLAlchemy 가 예외 메시지에 `[SQL: ... CONCURRENTLY ...]` 를 덧붙이므로 사실상
+      모든 statement 오류가 폴백을 탔다(실측: 존재하지 않는 MV 오류도 True). 그러면
+      일시적 연결 오류 한 번에 읽기를 막는 blocking REFRESH 로 떨어지고 status=ok 로
+      보고된다. → PG 가 실제로 내는 sqlstate 55000 + 'cannot refresh materialized view'
+      로만 판별한다.
     """
     import asyncio as _aio
     import time
@@ -707,18 +718,28 @@ def _refresh_mv(view: str, timeout: int = 300) -> dict:
         finally:
             await engine.dispose()
 
+    def _is_concurrently_unsupported(exc: BaseException) -> bool:
+        """PG 가 'UNIQUE 인덱스가 없어 CONCURRENTLY 불가' 로 거부한 경우만 True."""
+        orig = getattr(exc, "orig", exc)
+        if getattr(orig, "sqlstate", None) == "55000":
+            return True
+        return "cannot refresh materialized view" in str(orig).lower()
+
     async def _run() -> str:
         try:
             await _aio.wait_for(
                 _exec(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view}"), timeout=timeout)
             return "concurrently"
         except Exception as exc:
-            if isinstance(exc, _aio.TimeoutError):
+            if isinstance(exc, _aio.TimeoutError) or not _is_concurrently_unsupported(exc):
                 raise
-            if "concurrently" not in str(exc).lower():
-                raise
-            await _aio.wait_for(
-                _exec(f"REFRESH MATERIALIZED VIEW {view}"), timeout=timeout)
+            try:
+                await _aio.wait_for(
+                    _exec(f"REFRESH MATERIALIZED VIEW {view}"), timeout=timeout)
+            except Exception as exc2:
+                # 폴백까지 실패하면 원인이 둘이다. 두 번째 오류만 남기면 진짜 원인을 잃는다.
+                raise RuntimeError(
+                    f"concurrently 거부({str(exc)[:120]}) 후 폴백도 실패: {exc2}") from exc2
             return "blocking"
 
     t0 = time.time()
