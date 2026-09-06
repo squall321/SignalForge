@@ -15,6 +15,7 @@ from celery_app import app
 from typing import Optional
 import asyncio
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -668,81 +669,91 @@ def run_backfill_audit_monitor() -> dict:
 # CONCURRENTLY 옵션 → 읽기 차단 없음. 단 UNIQUE INDEX(mv_voc_daily_uniq) 전제.
 # 첫 빌드 후 raw=114k → mv=2.3k, REFRESH CONCURRENTLY ≈ 80ms.
 # ---------------------------------------------------------------------------
-@app.task(name="tasks.refresh_mv_voc_daily", max_retries=2, default_retry_delay=60)
-def refresh_mv_voc_daily() -> dict:
-    """mv_voc_daily 머티리얼라이즈드 뷰를 CONCURRENTLY 재계산.
+_MV_NAME_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
 
-    psql 외부 호출(다른 export/health-check 태스크와 동일 패턴) — 비동기 엔진/세션을
-    Celery 동기 컨텍스트에서 다시 띄우지 않으려는 의도.
+
+def _refresh_mv(view: str, timeout: int = 300) -> dict:
+    """MV 를 재계산. **psql 바이너리 없이** DB 드라이버로 직접 실행한다.
+
+    컨테이너화(2026-07-07) 이후 crawler.sif 에 psql 이 없어 기존 subprocess 호출이
+    전부 FileNotFoundError 로 실패했고, MV 7종이 2026-07-06 에 동결됐다(활성 VOC 의
+    65%가 어느 MV 에도 없는 상태였다). 그래서 외부 프로세스 의존을 제거한다.
+
+    - REFRESH ... CONCURRENTLY 는 트랜잭션 블록에서 못 돌아 AUTOCOMMIT 으로 연결한다.
+    - category_daily 처럼 UNIQUE 인덱스가 표현식(COALESCE) 기반이면 CONCURRENTLY 가
+      거부되므로 일반 REFRESH 로 폴백한다(짧은 ACCESS EXCLUSIVE lock 감수).
     """
-    import subprocess
+    import asyncio as _aio
     import time
+    from sqlalchemy import text as _sqltext
+    from sqlalchemy.ext.asyncio import create_async_engine
 
-    sql = "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_voc_daily;"
+    if not _MV_NAME_RE.match(view):          # 식별자 보호(호출부는 리터럴이지만 방어)
+        return {"status": "error", "error": f"invalid view name: {view}"}
+    # 기존 psql 구현이 접속정보를 기본값으로 갖고 있어 DATABASE_URL 없이도 동작했다.
+    # 그 계약을 유지한다(테스트·수동 실행이 env 설정 없이 돌 수 있어야 함).
+    url = os.getenv("DATABASE_URL", "")
+    if not url:
+        _pw = os.getenv("PGPASSWORD", os.getenv("POSTGRES_PASSWORD", "signalforge_pass"))
+        url = (f"postgresql+asyncpg://{os.getenv('POSTGRES_USER', 'signalforge')}:{_pw}"
+               f"@{os.getenv('POSTGRES_HOST', '127.0.0.1')}:{os.getenv('POSTGRES_PORT', '5434')}"
+               f"/{os.getenv('POSTGRES_DB', 'signalforge')}")
+
+    async def _exec(sql: str) -> None:
+        engine = create_async_engine(url, isolation_level="AUTOCOMMIT")
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(_sqltext(sql))
+        finally:
+            await engine.dispose()
+
+    async def _run() -> str:
+        try:
+            await _aio.wait_for(
+                _exec(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view}"), timeout=timeout)
+            return "concurrently"
+        except Exception as exc:
+            if isinstance(exc, _aio.TimeoutError):
+                raise
+            if "concurrently" not in str(exc).lower():
+                raise
+            await _aio.wait_for(
+                _exec(f"REFRESH MATERIALIZED VIEW {view}"), timeout=timeout)
+            return "blocking"
+
     t0 = time.time()
     try:
-        out = subprocess.run(
-            ["psql", "-h", "127.0.0.1", "-p", "5434", "-U", "signalforge",
-             "-d", "signalforge", "-v", "ON_ERROR_STOP=1", "-c", sql],
-            env={**os.environ, "PGPASSWORD": os.getenv("PGPASSWORD", "signalforge_pass")},
-            capture_output=True, text=True, timeout=300,
-        )
-    except subprocess.TimeoutExpired:
-        logger.error("[refresh-mv-voc-daily] psql timeout > 300s")
-        return {"status": "error", "message": "timeout"}
+        mode = _aio.run(_run())
+    except _aio.TimeoutError:
+        logger.error("[refresh_mv] %s timeout > %ss", view, timeout)
+        return {"status": "error", "error": "timeout",
+                "elapsed_ms": int((time.time() - t0) * 1000)}
+    except Exception as exc:
+        logger.error("[refresh_mv] %s 실패: %s", view, exc)
+        return {"status": "error", "error": str(exc)[:300],
+                "elapsed_ms": int((time.time() - t0) * 1000)}
 
     elapsed_ms = int((time.time() - t0) * 1000)
-    if out.returncode != 0:
-        logger.error(f"[refresh-mv-voc-daily] 실패 rc={out.returncode} stderr={out.stderr.strip()}")
-        return {"status": "error", "rc": out.returncode, "stderr": out.stderr.strip(), "elapsed_ms": elapsed_ms}
+    logger.info("[refresh_mv] %s 완료 %sms (%s)", view, elapsed_ms, mode)
+    return {"status": "ok", "elapsed_ms": elapsed_ms, "mode": mode}
 
-    logger.info(f"[refresh-mv-voc-daily] 완료 {elapsed_ms}ms")
-    return {"status": "ok", "elapsed_ms": elapsed_ms}
+
+@app.task(name="tasks.refresh_mv_voc_daily", max_retries=2, default_retry_delay=60)
+def refresh_mv_voc_daily() -> dict:
+    """mv_voc_daily 머티리얼라이즈드 뷰 재계산."""
+    return _refresh_mv("mv_voc_daily", timeout=300)
 
 
 @app.task(name="tasks.refresh_kpi_overview", max_retries=2, default_retry_delay=60)
 def refresh_kpi_overview() -> dict:
-    """kpi_overview MV CONCURRENTLY 재계산 (R16 트랙 C, 10분 주기)."""
-    import subprocess, time
-    t0 = time.time()
-    try:
-        out = subprocess.run(
-            ["psql", "-h", "127.0.0.1", "-p", "5434", "-U", "signalforge",
-             "-d", "signalforge", "-v", "ON_ERROR_STOP=1",
-             "-c", "REFRESH MATERIALIZED VIEW CONCURRENTLY kpi_overview;"],
-            env={**os.environ, "PGPASSWORD": os.getenv("PGPASSWORD", "signalforge_pass")},
-            capture_output=True, text=True, timeout=120,
-        )
-    except subprocess.TimeoutExpired:
-        return {"status": "error", "message": "timeout"}
-    elapsed_ms = int((time.time() - t0) * 1000)
-    if out.returncode != 0:
-        return {"status": "error", "stderr": out.stderr.strip()}
-    return {"status": "ok", "elapsed_ms": elapsed_ms}
+    """kpi_overview MV 재계산 (R16 트랙 C, 10분 주기)."""
+    return _refresh_mv("kpi_overview", timeout=120)
 
 
 @app.task(name="tasks.refresh_galaxy_master_timeline", max_retries=2, default_retry_delay=60)
 def refresh_galaxy_master_timeline() -> dict:
-    """galaxy_master_timeline MV 를 CONCURRENTLY 재계산 (R11 트랙 D, 1h 주기)."""
-    import subprocess
-    import time
-
-    sql = "REFRESH MATERIALIZED VIEW CONCURRENTLY galaxy_master_timeline;"
-    t0 = time.time()
-    try:
-        out = subprocess.run(
-            ["psql", "-h", "127.0.0.1", "-p", "5434", "-U", "signalforge",
-             "-d", "signalforge", "-v", "ON_ERROR_STOP=1", "-c", sql],
-            env={**os.environ, "PGPASSWORD": os.getenv("PGPASSWORD", "signalforge_pass")},
-            capture_output=True, text=True, timeout=300,
-        )
-    except subprocess.TimeoutExpired:
-        return {"status": "error", "message": "timeout"}
-    elapsed_ms = int((time.time() - t0) * 1000)
-    if out.returncode != 0:
-        return {"status": "error", "rc": out.returncode, "stderr": out.stderr.strip(), "elapsed_ms": elapsed_ms}
-    logger.info(f"[refresh-galaxy-master-timeline] 완료 {elapsed_ms}ms")
-    return {"status": "ok", "elapsed_ms": elapsed_ms}
+    """galaxy_master_timeline MV 재계산 (R11 트랙 D, 1h 주기)."""
+    return _refresh_mv("galaxy_master_timeline", timeout=300)
 
 
 # P2-2 신규: 키워드 ingest 주기 작업 (30분, 누적)
@@ -759,57 +770,22 @@ def run_ingest_keywords(self, batch: int = 1000, top_n: int = 20):
         raise self.retry(exc=exc)
 
 
-# P2-1 신규: category_daily / kg_edges_daily refresh
-# 구현 노트 (2026-06-02): 기존 psycopg2 의존을 제거하고 refresh_mv_voc_daily /
-# run_refresh_p3_mvs 와 동일한 psql subprocess 패턴으로 통일. 크롤러 venv 에
-# psycopg2 가 없어도 동작하며, MV 별 실패 격리 + 소요시간(ms) 반환을 보장.
+# P2-1: category_daily / kg_edges_daily refresh
+# 구현 노트 (2026-09-06): psql subprocess 패턴을 _refresh_mv() 로 통일. 컨테이너화
+# 이후 sif 에 psql 이 없어 전 MV refresh 가 2개월간 실패하고 있었다. MV 별 실패
+# 격리 + 소요시간(ms) 반환은 그대로 유지.
 @app.task(bind=True, max_retries=2, name="tasks.run_refresh_p2_mvs")
 def run_refresh_p2_mvs(self):
-    """category_daily + kg_edges_daily MV refresh (CONCURRENTLY)."""
-    import subprocess
-    import time
+    """category_daily + kg_edges_daily MV refresh.
 
+    category_daily 는 UNIQUE 인덱스가 표현식(COALESCE) 기반이라 CONCURRENTLY 가
+    거부되는데 _refresh_mv 가 일반 REFRESH 로 폴백한다.
+    개별 MV 실패가 다른 MV 를 막지 않도록 격리한다.
+    """
     out: dict = {}
-    env = {**os.environ, "PGPASSWORD": os.getenv("PGPASSWORD",
-                                                os.getenv("POSTGRES_PASSWORD", "signalforge_pass"))}
-    psql_base = [
-        "psql", "-h", os.getenv("POSTGRES_HOST", "127.0.0.1"),
-        "-p", os.getenv("POSTGRES_PORT", "5434"),
-        "-U", os.getenv("POSTGRES_USER", "signalforge"),
-        "-d", os.getenv("POSTGRES_DB", "signalforge"),
-        "-v", "ON_ERROR_STOP=1",
-    ]
     for mv in ("category_daily", "kg_edges_daily"):
-        # category_daily 는 UNIQUE 인덱스가 표현식(COALESCE) 기반이라 CONCURRENTLY
-        # 거부 → 비-CONCURRENTLY fallback (짧은 ACCESS EXCLUSIVE lock 감수).
-        # kg_edges_daily 는 simple-column UNIQUE 라 CONCURRENTLY 가능.
-        sql_primary = f"REFRESH MATERIALIZED VIEW CONCURRENTLY {mv};"
-        sql_fallback = f"REFRESH MATERIALIZED VIEW {mv};"
-        t0 = time.time()
-        try:
-            res = subprocess.run(
-                psql_base + ["-c", sql_primary],
-                env=env, capture_output=True, text=True, timeout=300,
-            )
-            mode = "concurrently"
-            if res.returncode != 0 and "concurrently" in res.stderr.lower():
-                # 표현식 UNIQUE 인덱스로 CONCURRENTLY 거부 → 일반 refresh 재시도.
-                res = subprocess.run(
-                    psql_base + ["-c", sql_fallback],
-                    env=env, capture_output=True, text=True, timeout=300,
-                )
-                mode = "blocking"
-        except subprocess.TimeoutExpired:
-            out[mv] = {"status": "error", "error": "timeout",
-                       "elapsed_ms": int((time.time() - t0) * 1000)}
-            continue
-        elapsed_ms = int((time.time() - t0) * 1000)
-        if res.returncode != 0:
-            out[mv] = {"status": "error", "rc": res.returncode,
-                       "stderr": res.stderr.strip(), "elapsed_ms": elapsed_ms,
-                       "mode": mode}
-        else:
-            out[mv] = {"status": "ok", "elapsed_ms": elapsed_ms, "mode": mode}
+        out[mv] = _refresh_mv(mv, timeout=300)
+
     logger.info(f"[refresh_p2_mvs] {out}")
     return {"status": "done", **out}
 
@@ -1082,41 +1058,14 @@ def verify_backup() -> dict:
 # 시 다른 쪽도 막히므로 분리 호출.
 @app.task(bind=True, max_retries=2, name="tasks.run_refresh_p3_mvs")
 def run_refresh_p3_mvs(self):
-    """platform_health + country_daily MV refresh (CONCURRENTLY).
+    """platform_health + country_daily MV refresh.
 
     개별 MV 실패가 다른 MV refresh 를 막지 않도록 격리.
     각 MV refresh 의 소요시간(ms) 도 함께 반환 → 운영 모니터링용.
     """
-    import subprocess
-    import time
-
     out: dict = {}
-    env = {**os.environ, "PGPASSWORD": os.getenv("PGPASSWORD", "signalforge_pass")}
-    psql_base = [
-        "psql", "-h", os.getenv("POSTGRES_HOST", "127.0.0.1"),
-        "-p", os.getenv("POSTGRES_PORT", "5434"),
-        "-U", os.getenv("POSTGRES_USER", "signalforge"),
-        "-d", os.getenv("POSTGRES_DB", "signalforge"),
-        "-v", "ON_ERROR_STOP=1",
-    ]
     for mv in ("platform_health", "country_daily"):
-        sql = f"REFRESH MATERIALIZED VIEW CONCURRENTLY {mv};"
-        t0 = time.time()
-        try:
-            res = subprocess.run(
-                psql_base + ["-c", sql],
-                env=env, capture_output=True, text=True, timeout=300,
-            )
-        except subprocess.TimeoutExpired:
-            out[mv] = {"status": "error", "error": "timeout",
-                       "elapsed_ms": int((time.time() - t0) * 1000)}
-            continue
-        elapsed_ms = int((time.time() - t0) * 1000)
-        if res.returncode != 0:
-            out[mv] = {"status": "error", "rc": res.returncode,
-                       "stderr": res.stderr.strip(), "elapsed_ms": elapsed_ms}
-        else:
-            out[mv] = {"status": "ok", "elapsed_ms": elapsed_ms}
+        out[mv] = _refresh_mv(mv, timeout=300)
 
     logger.info(f"[refresh_p3_mvs] {out}")
     return {"status": "done", **out}
