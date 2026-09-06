@@ -109,31 +109,44 @@ _SYMPTOM_SRC = {
     "discolor":    r"discolor|yellowing|변색|누렇",
 }
 
-# 부착 판정 시 문장 경계를 넘지 않게 한다. 넘으면 다른 문장의 부품에 잘못 붙는다
-# (실측: "hinge collected dust. Also the camera is blurry" 에서 dust→camera 오결합).
-_SENT_BREAK = re.compile(r"[.!?\n]")
+# 절(clause) 경계. 문장부호뿐 아니라 쉼표·등위접속사도 절을 나눈다.
+# 문장 종결만 막으면 "The hinge has a gap and dust got in, battery drains fast" 에서
+# gap/dust 가 다음 절의 battery 에 붙는다(실측 오결합).
+_CLAUSE_BREAK = re.compile(r"[.!?\n,;]|\b(?:and|but|while|also|however)\b", re.IGNORECASE)
 
 _COMPONENT_RE = {k: re.compile(v, re.IGNORECASE) for k, v in _COMPONENT_SRC.items()}
 _SYMPTOM_RE = {k: re.compile(v, re.IGNORECASE) for k, v in _SYMPTOM_SRC.items()}
 
 # 증상↔부품을 같은 맥락으로 볼 최대 거리(문자). 한 문장~두 문장 범위.
 _WINDOW = 120
-# 증상 **직후** 부품이 오면(“a green line on the screen”, “dust in the hinge”)
-# 그게 문법적 부착이므로 더 가까운 앞쪽 부품보다 우선한다.
-_ATTACH_WINDOW = 40
 # 과도한 추출 방지 — 한 문서에서 뽑을 최대 결함 수
 _MAX_PER_DOC = 12
+
+
+def _clause_bounds(text: str, pos: int) -> Tuple[int, int]:
+    """pos 가 속한 절의 [시작, 끝) 범위."""
+    start = 0
+    end = len(text)
+    for m in _CLAUSE_BREAK.finditer(text):
+        if m.end() <= pos:
+            start = m.end()
+        elif m.start() >= pos:
+            end = m.start()
+            break
+    return start, end
 
 
 def extract_defects(text: str, window: int = _WINDOW) -> List[Tuple[str, str, str]]:
     """본문 → [(component, symptom, severity)] (중복 제거·정렬).
 
     페어링 규칙(순서대로).
-      1) 증상 **직후** _ATTACH_WINDOW 안의 부품 — 전치사 부착("on the screen").
-         단순 최근접만 쓰면 "gap in the hinge and a green line on the screen" 에서
-         green_line 이 더 가까운 hinge 에 잘못 붙는다(실측 실패 사례).
-      2) 없으면 window 안의 최근접 부품(앞/뒤 무관).
+      1) **같은 절 안의** 부품 중 가장 가까운 것. 절을 넘으면 다른 주어의 부품에
+         붙는다("gap and dust got in, battery drains" 에서 gap→battery 오결합).
+      2) 절 안에 없으면 window 안의 최근접 부품(절 넘어감 허용 — 대명사적 참조 대응).
       3) 그래도 없으면 증상이 함의하는 부품(_IMPLIED), 최후엔 'device'.
+
+    한계: "dust got in" 처럼 절 안에 부품이 없고 앞 절을 가리키는 조응(anaphora)은
+    최근접으로 떨어져 틀릴 수 있다. 정확히 풀려면 구문 분석이 필요해 여기선 감수한다.
     """
     if not text:
         return []
@@ -146,17 +159,18 @@ def extract_defects(text: str, window: int = _WINDOW) -> List[Tuple[str, str, st
     out = set()
     for sname, spat in _SYMPTOM_RE.items():
         for m in spat.finditer(text):
-            spos, send = m.start(), m.end()
+            spos = m.start()
+            cs, ce = _clause_bounds(text, spos)
 
-            # 1) 증상 직후 부착 우선
-            best, bestd = None, _ATTACH_WINDOW + 1
+            # 1) 같은 절 안 최근접
+            best, bestd = None, window + 1
             for cname, cpos in comps:
-                if (send <= cpos <= send + _ATTACH_WINDOW
-                        and (cpos - send) < bestd
-                        and not _SENT_BREAK.search(text[send:cpos])):
-                    best, bestd = cname, cpos - send
+                if cs <= cpos < ce:
+                    d = abs(cpos - spos)
+                    if d < bestd:
+                        best, bestd = cname, d
 
-            # 2) 부착 없으면 최근접(양방향)
+            # 2) 절 안에 없으면 전체에서 최근접
             if best is None:
                 bestd = window + 1
                 for cname, cpos in comps:
