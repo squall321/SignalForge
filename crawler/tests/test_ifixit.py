@@ -1,4 +1,5 @@
-"""IFixitCrawler 단위 테스트 — News RSS, Answers OG meta, 키워드 필터."""
+"""IFixitCrawler 단위 테스트 — News RSS, Answers 검색 API, 키워드 필터."""
+import asyncio
 import os
 import sys
 from datetime import datetime, timezone
@@ -29,9 +30,16 @@ def test_galaxy_keyword_positive_buds():
     assert c._is_galaxy_related(v)
 
 
-def test_galaxy_keyword_negative():
+def test_target_keyword_positive_iphone():
+    # iPhone 은 경쟁사 결함 커버리지 대상으로 편입됨(필터가 apple/iphone 포함)
     c = IFixitCrawler()
     v = RawVOC(external_id="x", content="iPhone 17 Pro repair guide", source_url="u")
+    assert c._is_galaxy_related(v)
+
+
+def test_galaxy_keyword_negative():
+    c = IFixitCrawler()
+    v = RawVOC(external_id="x", content="Dell XPS 15 laptop hinge replacement", source_url="u")
     assert not c._is_galaxy_related(v)
 
 
@@ -67,19 +75,6 @@ def test_parse_rss_date_invalid_returns_none():
     c = IFixitCrawler()
     assert c._parse_rss_date("") is None
     assert c._parse_rss_date(None) is None
-
-
-def test_parse_iso_with_offset():
-    c = IFixitCrawler()
-    dt = IFixitCrawler._parse_iso("2022-12-10T04:42:32-07:00")
-    assert dt is not None
-    assert dt == datetime(2022, 12, 10, 11, 42, 32, tzinfo=timezone.utc)
-
-
-def test_parse_iso_z():
-    dt = IFixitCrawler._parse_iso("2026-06-01T12:00:00Z")
-    assert dt is not None
-    assert dt == datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
 # -- 4) News RSS end-to-end -------------------------------------------------
@@ -139,44 +134,78 @@ def test_parse_news_rss_malformed_returns_empty():
 
 # -- 5) Answers OG meta 파싱 -------------------------------------------------
 
-ANSWER_HTML_SAMPLE = """<!DOCTYPE html><html><head>
-<meta property="og:title" content="Samsung Galaxy A12, Screen black but responsive. - RESOLVED - Samsung Galaxy A" />
-<meta property="og:description" content="Samsung Galaxy A12 with black screen that is responsive. Clicking power button whilst on causes back lights to come on." />
-</head><body>
-<time datetime="2022-12-10T04:42:32-07:00">Dec 10, 2022</time>
-</body></html>"""
+# -- 5) Answers 검색 API → RawVOC (상세페이지 fetch 제거 후의 정식 경로) ------
+
+SEARCH_JSON_SAMPLE = {
+    "totalResults": 2,
+    "moreResults": False,
+    "results": [
+        {
+            "dataType": "question",
+            "postid": 962295,
+            "title": "Samsung Galaxy Z Fold8 hinge gap after 3 months",
+            "raw_text": "Dust got into the hinge and the screen has a line now.",
+            "url": "https://www.ifixit.com/Answers/View/962295/Fold8-hinge",
+            "username": "tester",
+            "date": 1783044214,
+            "answer_count": 3,
+        },
+        {   # question 이 아닌 항목은 제외돼야 함
+            "dataType": "guide",
+            "postid": 111,
+            "title": "Some guide",
+            "raw_text": "x" * 50,
+            "url": "https://www.ifixit.com/Guide/111",
+            "date": 1783044214,
+        },
+    ],
+}
 
 
-def test_parse_question_extracts_content():
+class _FakeSearchResp:
+    status_code = 200
+
+    def json(self):
+        return SEARCH_JSON_SAMPLE
+
+
+class _FakeSearchClient:
+    def __init__(self):
+        self.calls = 0
+
+    async def get(self, url, **kw):
+        self.calls += 1
+        return _FakeSearchResp()
+
+
+def test_search_answers_builds_voc_from_search_result():
+    """검색 결과에 title·raw_text·date·url 이 있어 상세 fetch 없이 RawVOC 생성."""
     c = IFixitCrawler()
-    voc = c._parse_question(
-        "758924",
-        "https://www.ifixit.com/Answers/View/758924",
-        ANSWER_HTML_SAMPLE,
-    )
-    assert voc is not None
-    # title trailing 카테고리 제거
-    assert "Samsung Galaxy A" not in voc.content.split("\n")[0].split(" - ")[-1]
-    # title + desc 결합
-    assert "Screen black" in voc.content
-    assert "black screen that is responsive" in voc.content
-    assert voc.country_code == "US"
-    assert voc.meta["qid"] == "758924"
-    assert voc.meta["source"] == "ifixit_answers"
-    # published_at 파싱
-    assert voc.published_at == datetime(2022, 12, 10, 11, 42, 32, tzinfo=timezone.utc)
+    seen = set()
+    out = asyncio.run(c._search_answers(_FakeSearchClient(), "Galaxy Fold", seen))
+    assert len(out) == 1, "question 이 아닌 dataType 은 제외돼야 함"
+    v = out[0]
+    assert "hinge gap" in v.content
+    assert "Dust got into the hinge" in v.content
+    assert v.source_url.endswith("/962295/Fold8-hinge")
+    assert v.author_name == "tester"
+    assert v.comments_count == 3
+    assert v.country_code == "US"
+    assert v.meta["source"] == "ifixit_answers"
+    assert v.published_at == datetime.fromtimestamp(1783044214, tz=timezone.utc)
 
 
-def test_parse_question_short_content_returns_none():
+def test_search_answers_dedups_by_qid():
     c = IFixitCrawler()
-    # 모든 meta 누락 → content 짧음
-    voc = c._parse_question("999", "https://x", "<html></html>")
-    assert voc is None
+    seen = set()
+    first = asyncio.run(c._search_answers(_FakeSearchClient(), "Galaxy Fold", seen))
+    second = asyncio.run(c._search_answers(_FakeSearchClient(), "Galaxy Fold", seen))
+    assert len(first) == 1 and second == [], "이미 본 qid 는 재수집하지 않아야 함"
 
 
-def test_parse_question_external_id_stable():
+def test_search_answers_external_id_stable():
     c = IFixitCrawler()
-    v1 = c._parse_question("758924", "u", ANSWER_HTML_SAMPLE)
-    v2 = c._parse_question("758924", "u", ANSWER_HTML_SAMPLE)
-    assert v1.external_id == v2.external_id
-    assert len(v1.external_id) == 16
+    a = asyncio.run(c._search_answers(_FakeSearchClient(), "q", set()))[0]
+    b = asyncio.run(c._search_answers(_FakeSearchClient(), "q", set()))[0]
+    assert a.external_id == b.external_id
+    assert len(a.external_id) == 16

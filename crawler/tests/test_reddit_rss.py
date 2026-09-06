@@ -183,7 +183,10 @@ class _FakeResp:
 
 def test_crawl_integrates_rss_posts_and_comments(monkeypatch):
     # 단일 서브레딧만 사용 + 딜레이 제거
+    # crawl() 은 런타임에 _load_subreddits() 를 다시 호출하므로 모듈 상수만 바꾸면
+    # 기본 목록(경쟁사 서브 포함)이 새어 들어온다. 로더 자체를 고정해야 한다.
     monkeypatch.setattr(rrss, "SUBREDDITS", ["samsung"])
+    monkeypatch.setattr(rrss, "_load_subreddits", lambda: ["samsung"])
     monkeypatch.setattr(rrss, "MAX_POSTS_FOR_COMMENTS", 5)
 
     async def _no_delay(self):
