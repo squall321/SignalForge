@@ -112,3 +112,56 @@ UI 로 조정할 수 있게 했다.
   up.sh 의 sf-mcp 헬스체크가 포트만 보므로 인스턴스가 없어도 "정상(skip)" 로 판정된다.
   신규 MCP 도구 반영에는 사용자의 start_mcp.sh 재기동이 필요하다.
 - backend REST / 프론트 표출 미착수.
+
+## 적대적 검증 결과 (2026-09-06) — 초판 탐지기의 결함 27건 확정
+
+5개 렌즈로 반박을 시도하고 발견마다 독립 회의론자가 재검증했다(39건 중 27건 확정).
+**초판이 발화한 8건 중 다수가 오탐이었다.** 확정된 핵심 원인과 조치.
+
+### D14. voc_defects 에 제품 차원이 없다는 사실을 과소평가했다
+결함은 (voc_id, component, symptom) 키라 문서 단위다. 이걸 voc_product_links 로 role
+무관 조인하면 **문서에 언급된 모든 제품**으로 팬아웃된다. 실측으로 결함 보유 VOC 의
+29%가 2개 이상 제품에 링크(최대 8개)돼 있었고, 인도 Galaxy S26 폭발 기사가 말미
+"S25+ 사례" 한 줄 때문에 GS25P fire 근거 14건 중 6건이 됐다. → role='primary' 로만 집계.
+
+### D15. 1/HHI 독립성 가드는 신디케이션에 대해 정확히 반대로 작동한다
+뉴스 1건을 매체가 많이 받아쓸수록 플랫폼 분포가 넓어져 가드를 더 잘 통과한다.
+'칭다오 S25+ 발화' 1건이 10개 매체·5개 언어로 복제돼 eff_platforms=8.16 을 만들었고
+safety 라 critical 로 승격됐다. 실제 서로 다른 사고는 3~4건이었다.
+→ platforms.kind(0034) 신설, **독립 제보(community/marketplace/official) 소스 수**로 교체.
+   플랫폼 다양성이 아니라 '매체가 아닌 곳이 몇 군데인가'를 봐야 한다.
+
+### D16. 소표본 baseline + 순진한 Poisson z 는 유의성을 만들어낸다
+z=(cnt-expected)/sqrt(expected) 는 baseline 을 오차 없는 상수로 가정한다. 실제
+baseline 이 1건/58문서, 2건/41문서였고 Fisher 정확검정 p=0.18/0.22 로 무의미했는데
+z=7.57/5.26 을 보고했다. ±1건이 발화 여부를 뒤집었다.
+→ MIN_BASELINE_TOTAL=200 하한 + **두 비율 검정**(pooled SE). 작은 baseline 은 SE 가
+   커져 자동으로 눌린다. baseline 0 은 1/n floor 대신 rule of three(3/n).
+
+### D17. cooldown 은 beat 주기보다 길어야 한다
+cooldown 21600 == beat 21600 이라 밀리초 지터가 발화/스킵을 정하고 최대 억제율이 50%였다
+(동일 설계인 collection_health 실측: 연속 발화쌍의 56.6%가 바로 다음 tick). → 86400.
+
+### D18. 렉시콘 오탐 4종 (결함 레코드의 24.5%)
+`hang` 선행 경계 누락으로 'c-hang-ing' 매칭, drain 의 'battery life' 리터럴(리뷰 기사
+대부분에 등장하는 중립 표현), 부정 처리 부재('scratch-resistant'·'Not a scratch'·
+'less lag'), 'dead simple' 의 non_functional 승격. → 경계 수정 + _is_negated 신설.
+재추출로 43,291→32,667.
+
+### D19. MV 폴백 판별이 catch-all 이었다 (내가 도입한 위험)
+`"concurrently" in str(exc)` 는 SQLAlchemy 가 예외에 `[SQL: ...CONCURRENTLY...]` 를
+붙이므로 **모든 statement 오류**를 통과시킨다. 일시적 오류 한 번에 ACCESS EXCLUSIVE 를
+잡는 blocking REFRESH 로 떨어지고 status=ok 로 보고됐다.
+→ sqlstate 55000 + 'cannot refresh materialized view' 로만 판별.
+   AUTOCOMMIT 주석도 정정했다(트랜잭션 제약이 아니라 **커밋**이 이유다).
+
+### D20. 감시 계층이 죽은 것이 refresh 가 죽은 것보다 중대했다
+collect_mv_stats 도 psql 의존이라 즉사 → MV 동결 2개월을 아무도 몰랐다. 같은 방식으로 복구.
+
+### 남은 한계 (해결 안 됨)
+- 렉시콘은 **실제 고장과 '구매 전 우려'를 구분하지 못한다**("Hinge Concerns (Possible
+  New Owner)" 도 결함으로 계상). 의도/양상 분류가 필요하다.
+- primary 역할이 관련성이 아니라 PRODUCT_PATTERNS 목록 순서로 정해진다(구체성·최신순).
+  본문 주제와 무관하게 첫 매칭이 primary 가 되는 구조적 한계.
+- alert_events 보존/정리 정책 없음(collection_health 가 하루 ~700행 생성).
+- 다중비교 보정 없음(수십 조합 동시 검정).
