@@ -102,11 +102,27 @@ _SYMPTOM_SRC = {
     "update_fail": r"update (?:failed|broke|bricked)|업데이트\s*(?:후|이후).{0,10}(?:문제|버그|오류)",
     "disconnect":  r"disconnect|drop(?:s|ping) connection|연결\s*끊",
     "no_signal":   r"no signal|no service|신호\s*없|먹통",
-    "dust_ingress": r"\bdust(?:y)?\b|\bdebris\b|\bparticles?\b|먼지|이물",
-    "gap":         r"\bgap\b|유격|틈",
+    # 'dust' 단독은 "IP68 dust resistance"(방진 스펙)·"collecting dust"(안 쓴다는 관용구)를
+    # 전부 결함으로 셌다(표본에서 firsthand 0%). **유입 문맥**을 요구한다.
+    "dust_ingress": r"\b(?:dust|debris|lint|particles?|powder)\b[^.!?]{0,30}"
+                    r"\b(?:in|into|inside|under|behind|enter\w*|got\s+in|trapped|stuck)\b"
+                    r"|\b(?:in|into|inside|under)\b[^.!?]{0,20}\b(?:dust|debris|lint|powder)\b"
+                    r"|\b(?:collect\w*|gather\w*|accumulat\w*)\s+(?:dust|debris|lint|powder)\b"
+                    r"|먼지[^.!?]{0,10}(?:들어|끼|유입|낌)|이물[^.!?]{0,10}(?:들어|유입|낌)",
+    # 'gap' 단독은 "five-year gap"·"price gap" 을 결함으로 셌다. 물리적 유격만 잡는다.
+    "gap":         r"\bgap(?:s|ping)?\b[^.!?]{0,25}"
+                   r"\b(?:hinge|screen|display|frame|body|edge|panel|case)\b"
+                   r"|\b(?:hinge|screen|display|frame|body|edge|panel)\b[^.!?]{0,25}\bgap(?:s|ping)?\b"
+                   r"|유격|틈새|틈이\s*(?:벌|생)",
     "scratch":     r"\bscratch(?:es|ed)?\b|긁힘|기스",
     "peeling":     r"peel(?:ing|ed)?|들뜸|벗겨",
-    "crease":      r"\bcrease[ds]?\b|주름",
+    # 'crease' 는 폴더블 리뷰마다 등장하는 중립 서술이라(표본 firsthand 0%,
+    # "주름이 직사광선 아니면 거의 안 보인다" 같은 칭찬 포함) 불만 문맥을 요구한다.
+    "crease":      r"\bcrease[ds]?\b[^.!?]{0,40}"
+                   r"\b(?:worse|deeper|visible|noticeable|annoying|bother\w*|problem|issue|"
+                   r"prominent|got|getting|bad)\b"
+                   r"|\b(?:deep|bad|worse|annoying|visible|noticeable)\b[^.!?]{0,20}\bcrease[ds]?\b"
+                   r"|주름[^.!?]{0,15}(?:심|깊|거슬|불편|눈에\s*띄|생겼)",
     "noise":       r"\bcrackl\w*|\brattl\w*|\bbuzzing\b|잡음|소음",
     "blurry":      r"blurry|out of focus|흐릿|초점\s*안",
     "discolor":    r"discolor|yellowing|변색|누렇",
@@ -125,9 +141,17 @@ _SYMPTOM_RE = {k: re.compile(v, re.IGNORECASE) for k, v in _SYMPTOM_SRC.items()}
 # "less lag"(개선 언급)이 전부 결함으로 계상됐다. 증상 매치 앞/뒤 좁은 창만 본다
 # (문장 전체를 보면 다른 절의 부정까지 끌어와 위음성이 커진다).
 _NEG_WINDOW = 40
+# 주의: won't/doesn't/didn't 같은 **조동사 부정형은 넣지 않는다**. 그것들은 부정이 아니라
+# 결함 표현 자체다("hinge won't open due to powder", "doesn't work"). 넣었더니
+# 실제 고장 제보가 통째로 지워졌다(위음성).
 _NEG_BEFORE = re.compile(
-    r"\b(?:no|not|never|without|less|fewer|zero|isn'?t|doesn'?t|didn'?t|"
-    r"won'?t|hasn'?t|haven'?t)\b[^.!?]{0,20}$", re.IGNORECASE)
+    r"\b(?:no|not|never|without|less|fewer|zero|"
+    r"barely|hardly|scarcely|rarely)\b[^.!?]{0,20}$",
+    re.IGNORECASE)
+# 부정어가 매치 **안쪽**에 오는 경우 — "crease is barely visible" 처럼 다중어 패턴에서
+# 앞쪽만 보면 놓친다.
+_NEG_INSIDE = re.compile(
+    r"\b(?:barely|hardly|scarcely|rarely|not|never|no longer)\b", re.IGNORECASE)
 _NEG_AFTER = re.compile(
     r"^[^.!?]{0,15}\b(?:resistant|proof|free)\b", re.IGNORECASE)
 # 증상별 반증 관용구 — 결함이 아닌 표현이 그 증상으로 잡히는 것 차단
@@ -135,11 +159,26 @@ _ANTI = {
     "no_power": re.compile(r"dead\s+(?:simple|easy|centre|center)", re.IGNORECASE),
 }
 
+# "collecting dust" 는 두 뜻이 겹친다 — "accessories collecting dust"(방치 관용구) vs
+# "the hinge collected dust"(실제 유입). 정규식만으로는 못 가르고, **부품이 주어인지**로
+# 구분한다. 앞쪽 창에 부품 언급이 없으면 관용구로 본다.
+_COLLECT_DUST = re.compile(
+    r"\b(?:collect\w*|gather\w*|accumulat\w*)\s+(?:dust|debris|lint|powder)\b",
+    re.IGNORECASE)
+_ANY_COMPONENT = re.compile("|".join(_COMPONENT_SRC.values()), re.IGNORECASE)
+
 
 def _is_negated(text: str, start: int, end: int, symptom: str) -> bool:
     """증상 매치가 부정·반증 문맥이면 True (결함으로 세지 않음)."""
     if _NEG_BEFORE.search(text[max(0, start - _NEG_WINDOW):start]):
         return True
+    if _NEG_INSIDE.search(text[start:end]):
+        return True
+    if symptom == "dust_ingress":
+        lead = text[max(0, start - 40):start]
+        if _COLLECT_DUST.search(text[max(0, start - 40):end + 10]) \
+                and not _ANY_COMPONENT.search(lead):
+            return True
     if _NEG_AFTER.search(text[end:end + _NEG_WINDOW]):
         return True
     anti = _ANTI.get(symptom)

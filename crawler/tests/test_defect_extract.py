@@ -121,3 +121,40 @@ def test_known_false_positives_suppressed(text):
 ])
 def test_true_positives_still_detected(text, expected):
     assert expected in pairs(text), f"진짜 결함을 놓침: {text}"
+
+
+# ── 증상 정밀도 회귀 (라벨 표본에서 firsthand 0% 로 드러난 오탐군) ─────
+@pytest.mark.parametrize("text", [
+    # dust — 방진 스펙·방치 관용구
+    "IP68 dust and water resistance rating",
+    "accessories collecting dust in my drawer",
+    "my phone has been sitting collecting dust",
+    # gap — 기간·가격 격차
+    "there is a five-year gap between releases",
+    "the price gap between the two models is huge",
+    # crease — 폴더블 리뷰의 중립·긍정 서술
+    "the crease is barely visible unless in direct sunlight",
+    "주름이 직사광선 아니면 거의 안 보인다",
+    # 매체 분해 리뷰·액세서리 안내 (실제 알림 근거였던 문장들)
+    "iFixit scores Samsung Galaxy Z Fold8 4/10 for repairability",
+    "Galaxy Z Fold 8 durability put to test, and it passes with flying colors",
+    "Advantages of Fold 8 hinge protection case",
+])
+def test_symptom_precision_false_positives(text):
+    assert extract_defects(text) == []
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("dust got into the hinge after a month", ("hinge", "dust_ingress")),
+    ("The hinge collected dust after a month", ("hinge", "dust_ingress")),
+    ("힌지에 먼지가 들어갔어요", ("hinge", "dust_ingress")),
+    ("there is a visible gap in the hinge when closed", ("hinge", "gap")),
+    ("힌지 유격이 생겼습니다", ("hinge", "gap")),
+    ("the crease got worse and is now really noticeable", ("display", "crease")),
+    ("주름이 점점 심해집니다", ("display", "crease")),
+    # 조동사 부정형은 부정이 아니라 결함 표현 자체다
+    ("Galaxy Z Fold8's hinge won't open due to powder trapped inside",
+     ("hinge", "dust_ingress")),
+])
+def test_symptom_precision_true_positives(text, expected):
+    assert expected in pairs(text), f"진짜 결함을 놓침: {text}"

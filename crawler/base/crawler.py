@@ -309,13 +309,19 @@ class BaseCrawler(ABC):
         단어 카운트가 아니라 "힌지에 이물 유입(기능저하)" 수준으로 집계하기 위한 것."""
         from sqlalchemy import text
         from nlp.defect_extract import extract_defects
+        from nlp.modality import classify as classify_modality
 
-        for comp, symp, sev in extract_defects(body):
+        defects = extract_defects(body)
+        if not defects:
+            return
+        # 양상(1인칭 고장 / 우려 / 질문 / 전언 / 리뷰) — 급등 판정은 firsthand 만 센다
+        modality = classify_modality(body)["label"]
+        for comp, symp, sev in defects:
             await db.execute(text("""
-                INSERT INTO voc_defects (voc_id, component, symptom, severity)
-                VALUES (:v, :c, :s, :sev)
+                INSERT INTO voc_defects (voc_id, component, symptom, severity, modality)
+                VALUES (:v, :c, :s, :sev, :mod)
                 ON CONFLICT (voc_id, component, symptom) DO NOTHING
-            """), {"v": voc_id, "c": comp, "s": symp, "sev": sev})
+            """), {"v": voc_id, "c": comp, "s": symp, "sev": sev, "mod": modality})
 
     async def run(self) -> dict:
         """전체 크롤링 파이프라인 실행"""

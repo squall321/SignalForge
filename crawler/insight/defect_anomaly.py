@@ -20,6 +20,9 @@
 6. floor_share=1/base_total 이 baseline 0 조합을 무조건 통과시켰다(ratio 가 데이터가
    아니라 문서 수로 정해짐). → baseline 0 일 때만 rule of three(3/n) 상한 사용.
 7. 최신성 조건 부재로 3주 전 종료된 사건이 28일 내내 재발화. → 최근 구간 활동 요구.
+8. **양상 미구분** — "Hinge Concerns (Possible New Owner)" 같은 구매 전 우려와 iFixit
+   분해 기사 재게시가 결함 건수를 채웠다. 라벨 표본에서 결함 문서의 firsthand 는 49.3%뿐.
+   → voc_defects.modality(0036) 가 'firsthand' 인 것만 센다.
 
 설계 유지
 - **점유율(share) 비교** — 세대별 수집 깊이가 달라 절대건수 비교는 무효.
@@ -42,11 +45,15 @@ logger = logging.getLogger(__name__)
 ALERT_RULE_NAME = "defect_anomaly"
 DEFAULT_COOLDOWN_SEC = 86400          # 24h — beat(6h)보다 길어야 억제가 실제로 동작한다
 
-RECENT_DAYS = 28                      # 관측 창 (7·14일은 표본 부족으로 탐지 불능 — 실측)
-BASELINE_DAYS = 28                    # 직전 동일 길이 창(성숙 제품 baseline)
+# 창 크기는 실측으로 정했다. firsthand·primary·URL dedup 을 모두 적용하면 모집단이
+# 크게 줄어 28일 창에서는 평가 대상이 2조합뿐이었다(사실상 탐지 불능). 56일에서 12조합.
+# **민감도는 상류 커버리지에 종속된다** — 결함행의 31%만 제품 링크를 갖고 그중 57.5%만
+# firsthand 다. 링크 커버리지와 추출 재현율이 오르면 창을 줄일 수 있다.
+RECENT_DAYS = 56                      # 관측 창
+BASELINE_DAYS = 56                    # 직전 동일 길이 창(성숙 제품 baseline)
 NEW_PRODUCT_DAYS = 120                # 이 기간 내 출시면 '신제품' → 세대 비교
 TAIL_DAYS = 7                         # 최신성 — 이 구간에 활동이 있어야 한다
-MIN_RECENT_COUNT = 12                 # URL dedup 후 최소 사건 수
+MIN_RECENT_COUNT = 10                 # URL dedup·firsthand 후 최소 사건 수
 MIN_TAIL_COUNT = 2                    # 최근 TAIL_DAYS 내 최소 건수(종료된 사건 배제)
 MIN_BASELINE_TOTAL = 200              # baseline 모수 하한 — 미만이면 비교 불가로 skip
 MIN_INDEP_SOURCES = 3                 # 독립 제보(비매체) 플랫폼 수 하한
@@ -96,6 +103,7 @@ WITH recent AS (
     JOIN products p          ON p.id = l.product_id
     JOIN platforms pl        ON pl.id = v.platform_id
     WHERE v.archived_at IS NULL
+      AND d.modality = 'firsthand'
       AND v.published_at >= now() - ($1::int || ' days')::interval
       AND v.published_at <= now()
 )
@@ -130,7 +138,7 @@ WITH win AS (
     SELECT split_part(v.source_url, '?', 1) AS url, d.component, d.symptom
     FROM voc_records v
     JOIN voc_product_links l ON l.voc_id = v.id AND l.role = 'primary'
-    LEFT JOIN voc_defects d  ON d.voc_id = v.id
+    LEFT JOIN voc_defects d  ON d.voc_id = v.id AND d.modality = 'firsthand'
     WHERE l.product_id = $1
       AND v.archived_at IS NULL
       AND v.published_at >= now() - (($2::int + $3::int) || ' days')::interval
@@ -154,7 +162,7 @@ win AS (
     FROM pred
     JOIN voc_product_links l ON l.product_id = pred.id AND l.role = 'primary'
     JOIN voc_records v       ON v.id = l.voc_id
-    LEFT JOIN voc_defects d  ON d.voc_id = v.id
+    LEFT JOIN voc_defects d  ON d.voc_id = v.id AND d.modality = 'firsthand'
     WHERE v.archived_at IS NULL
       AND v.published_at >= pred.released_at + ($2::int || ' days')::interval
       AND v.published_at <  pred.released_at + ($3::int || ' days')::interval

@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
 )
 
 from nlp.defect_extract import extract_defects  # noqa: E402
+from nlp.modality import classify as classify_modality  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger("backfill_defects")
@@ -34,17 +35,18 @@ BATCH = int(os.getenv("DEFECT_BATCH", "2000"))
 LIMIT = int(os.getenv("DEFECT_LIMIT", "0"))
 
 SELECT_SQL = text("""
-    SELECT id, COALESCE(content_translated, content_original) AS body
-    FROM voc_records
-    WHERE archived_at IS NULL AND content_original IS NOT NULL AND id > :after
-    ORDER BY id
+    SELECT v.id, COALESCE(v.content_translated, v.content_original) AS body,
+           pl.kind AS platform_kind
+    FROM voc_records v LEFT JOIN platforms pl ON pl.id = v.platform_id
+    WHERE v.archived_at IS NULL AND v.content_original IS NOT NULL AND v.id > :after
+    ORDER BY v.id
     LIMIT :batch
 """)
 
 INSERT_SQL = text("""
-    INSERT INTO voc_defects (voc_id, component, symptom, severity)
-    VALUES (:v, :c, :s, :sev)
-    ON CONFLICT (voc_id, component, symptom) DO NOTHING
+    INSERT INTO voc_defects (voc_id, component, symptom, severity, modality)
+    VALUES (:v, :c, :s, :sev, :mod)
+    ON CONFLICT (voc_id, component, symptom) DO UPDATE SET modality = EXCLUDED.modality
 """)
 
 
@@ -75,9 +77,13 @@ async def main():
                     defects = extract_defects(r.body)
                     if defects:
                         rows_with_defect += 1
+                    # 양상은 문서 단위 — 결함이 있을 때만 1회 계산해 각 행에 붙인다
+                    mod = (classify_modality(r.body, r.platform_kind)["label"]
+                           if defects else None)
                     for comp, symp, sev in defects:
                         await db.execute(INSERT_SQL,
-                                         {"v": r.id, "c": comp, "s": symp, "sev": sev})
+                                         {"v": r.id, "c": comp, "s": symp,
+                                          "sev": sev, "mod": mod})
                         written += 1
                 await db.commit()
             if seen % 50000 < BATCH:
