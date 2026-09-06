@@ -91,3 +91,33 @@ def test_dedup_and_cap():
     got = extract_defects("crack crack crack " * 30)
     assert len(got) == len(set(got))
     assert len(got) <= 12
+
+
+# ── 부정·반증 회귀 (적대적 검증에서 확인된 실제 오탐) ─────────────────
+@pytest.mark.parametrize("text", [
+    # 'hang' 이 changing 안에서 매칭되던 것 (선행 \b 누락)
+    "Apple is said to be changing its OLED display panel procurement method",
+    # 'battery life' 는 중립·마케팅 문구 — drain 리터럴에서 제거
+    "tuned specifically for all-day battery life",
+    "nor is a battery life of only 36-48 hours a problem",
+    # 부정·반증 표현
+    "protected by Gorilla Glass Ceramic 3, scratch-resistant",
+    "Absolute mint condition Not a scratch or Mark",
+    "AirPlay 2 speakers work more stable and with less lag",
+    # 관용구가 non_functional 로 승격되던 것
+    "The battery is dead simple to replace",
+])
+def test_known_false_positives_suppressed(text):
+    assert extract_defects(text) == []
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("the battery drains fast", ("battery", "drain")),
+    ("battery dies within 3 hours", ("battery", "drain")),
+    ("my phone freezes constantly", ("software", "freeze")),
+    ("the app hangs when I open it", ("software", "freeze")),
+    ("the screen has a scratch on it", ("display", "scratch")),
+    ("phone is dead, won't turn on", ("device", "no_power")),
+])
+def test_true_positives_still_detected(text, expected):
+    assert expected in pairs(text), f"진짜 결함을 놓침: {text}"

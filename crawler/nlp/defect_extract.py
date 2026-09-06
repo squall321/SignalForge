@@ -79,7 +79,7 @@ _SYMPTOM_SRC = {
     "swelling":    r"swell|bulg|배부름|부풀",
     "burn":        r"burn(?:ed|t)?\s+(?:my|the|his|her)?\s*(?:hand|finger|skin)|화상",
     "shock":       r"electric shock|감전",
-    "no_power":    r"won'?t turn on|not turning on|dead\b|안\s*켜지|전원이\s*안",
+    "no_power":    r"won'?t turn on|not turning on|\bdead\b|안\s*켜지|전원이\s*안",
     "boot_loop":   r"boot ?loop|bootloop|무한\s*부팅|부팅\s*반복|"
                    r"random(?:ly)? reboot|reboot(?:s|ing)\s+(?:every|randomly|constantly)|재부팅",
     "not_working": r"not working|doesn'?t work|stopped working|작동\s*(?:하지\s*)?않|안\s*됨|안\s*돼",
@@ -92,9 +92,12 @@ _SYMPTOM_SRC = {
     "burn_in":     r"burn-?in|번인",
     "flicker":     r"flicker|깜빡|점멸",
     "overheat":    r"overheat|too hot|발열|뜨거워",
-    "drain":       r"\bdrain(?:s|ed|ing)?\b|battery life|배터리\s*(?:가)?\s*빨리|방전",
+    # 'battery life' 리터럴은 뺐다. 리뷰 기사 대부분에 등장하는 중립 표현이라
+    #  ("tuned for all-day battery life") 커버리지가 늘면 자동으로 '방전 급등'이 났다.
+    "drain":       r"\bdrain(?:s|ed|ing)?\b|battery\s+(?:drain|dies|dying)|"
+                   r"배터리\s*(?:가)?\s*(?:빨리|빨리\s*닳)|방전",
     "lag":         r"\blag(?:s|gy|ging)?\b|stutter|버벅|렉\b",
-    "freeze":      r"freez(?:e|es|ing)|hang(?:s|ing)?\b|멈춤|먹통",
+    "freeze":      r"\bfreez(?:e|es|ing)\b|\bhang(?:s|ing)?\b|멈춤|먹통",
     "crash":       r"crash(?:es|ing)?\b|force close|튕김|강제\s*종료",
     "update_fail": r"update (?:failed|broke|bricked)|업데이트\s*(?:후|이후).{0,10}(?:문제|버그|오류)",
     "disconnect":  r"disconnect|drop(?:s|ping) connection|연결\s*끊",
@@ -116,6 +119,31 @@ _CLAUSE_BREAK = re.compile(r"[.!?\n,;]|\b(?:and|but|while|also|however)\b", re.I
 
 _COMPONENT_RE = {k: re.compile(v, re.IGNORECASE) for k, v in _COMPONENT_SRC.items()}
 _SYMPTOM_RE = {k: re.compile(v, re.IGNORECASE) for k, v in _SYMPTOM_SRC.items()}
+
+# ── 부정·반증 처리 ────────────────────────────────────────────────────────
+# 부정 처리가 없어 "scratch-resistant"(내구성 칭찬)·"Not a scratch"(중고 판매글)·
+# "less lag"(개선 언급)이 전부 결함으로 계상됐다. 증상 매치 앞/뒤 좁은 창만 본다
+# (문장 전체를 보면 다른 절의 부정까지 끌어와 위음성이 커진다).
+_NEG_WINDOW = 40
+_NEG_BEFORE = re.compile(
+    r"\b(?:no|not|never|without|less|fewer|zero|isn'?t|doesn'?t|didn'?t|"
+    r"won'?t|hasn'?t|haven'?t)\b[^.!?]{0,20}$", re.IGNORECASE)
+_NEG_AFTER = re.compile(
+    r"^[^.!?]{0,15}\b(?:resistant|proof|free)\b", re.IGNORECASE)
+# 증상별 반증 관용구 — 결함이 아닌 표현이 그 증상으로 잡히는 것 차단
+_ANTI = {
+    "no_power": re.compile(r"dead\s+(?:simple|easy|centre|center)", re.IGNORECASE),
+}
+
+
+def _is_negated(text: str, start: int, end: int, symptom: str) -> bool:
+    """증상 매치가 부정·반증 문맥이면 True (결함으로 세지 않음)."""
+    if _NEG_BEFORE.search(text[max(0, start - _NEG_WINDOW):start]):
+        return True
+    if _NEG_AFTER.search(text[end:end + _NEG_WINDOW]):
+        return True
+    anti = _ANTI.get(symptom)
+    return bool(anti and anti.search(text[max(0, start - 10):end + 20]))
 
 # 증상↔부품을 같은 맥락으로 볼 최대 거리(문자). 한 문장~두 문장 범위.
 _WINDOW = 120
@@ -160,6 +188,8 @@ def extract_defects(text: str, window: int = _WINDOW) -> List[Tuple[str, str, st
     for sname, spat in _SYMPTOM_RE.items():
         for m in spat.finditer(text):
             spos = m.start()
+            if _is_negated(text, spos, m.end(), sname):
+                continue
             cs, ce = _clause_bounds(text, spos)
 
             # 1) 같은 절 안 최근접
