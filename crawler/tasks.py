@@ -914,6 +914,24 @@ def evaluate_alert_rules(self):
 
 
 # ---------------------------------------------------------------------------
+# 제품×결함 급등 탐지 (defect_anomaly) — 6h 주기
+# 기존 알림은 전부 플랫폼/시스템 축이라 제품·결함 축 통계 탐지가 없었다.
+# collection_health 와 동일하게 alert_events 에 직접 INSERT → slack_notifier 가 송출.
+# ---------------------------------------------------------------------------
+@app.task(name="tasks.run_defect_anomaly", max_retries=0)
+def run_defect_anomaly() -> dict:
+    """제품×부품×증상 결함 점유율 급등 탐지 1회 실행."""
+    from insight.defect_anomaly import run as _run
+    try:
+        res = asyncio.run(_run())
+        logger.info("[defect_anomaly] %s", {k: v for k, v in res.items() if k != "top"})
+        return res
+    except Exception as exc:
+        logger.exception("[defect_anomaly] 실패: %s", exc)
+        return {"status": "error", "error": str(exc)[:300]}
+
+
+# ---------------------------------------------------------------------------
 # Track E — Drive 백업 검증 (verify_backup)
 # beat 스케줄: 매일 20:00 UTC (= 05:00 KST 다음날) — backup-to-drive 사이클 직후.
 #
