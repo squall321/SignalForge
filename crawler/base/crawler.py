@@ -231,6 +231,7 @@ class BaseCrawler(ABC):
                             :published_at, NOW()
                         )
                         ON CONFLICT (platform_id, external_id) DO NOTHING
+                        RETURNING id
                     """)
                     result = await db.execute(stmt, {
                         "product_id": product_id,
@@ -252,14 +253,49 @@ class BaseCrawler(ABC):
                         "engagement_score": voc.engagement_score,
                         "published_at": voc.published_at,
                     })
-                    if result.rowcount:
+                    inserted = result.first()
+                    if inserted:
                         saved += 1
+                        # 다대다 제품 링크 — 비교글("S26U vs Fold8")에서 두 제품 모두 보존.
+                        # product_id 는 primary 하나만 담으므로 여기서 나머지를 링크한다.
+                        await self._save_product_links(
+                            db, inserted[0], voc.content_original,
+                            product_id, _resolve_product_id,
+                        )
                 except Exception as e:
                     self.logger.warning(f"VOC 저장 실패 ({voc.external_id}): {e}")
 
             await db.commit()
         await engine.dispose()
         return saved
+
+    @staticmethod
+    async def _save_product_links(db, voc_id, content, primary_pid, resolve) -> None:
+        """voc_product_links 채움 — 저장된 product_id 를 primary 로, 본문에서 추론된
+        나머지 제품을 compared/mentioned 로 링크한다.
+
+        product_id 는 1행 1제품이라 비교글에서 한쪽만 남는다. 이 링크가 있어야
+        "Fold8 vs S26U" 글이 Fold8 신호로도 집계된다."""
+        from sqlalchemy import text
+        from base.product_match import infer_all_product_codes
+
+        links: dict = {}
+        if primary_pid is not None:
+            links[primary_pid] = "primary"
+        for code, role in infer_all_product_codes(content):
+            pid = await resolve(code)
+            if pid is None or pid in links:
+                continue
+            # 저장된 primary 가 이미 있으면 추론된 primary 는 mentioned 로 강등
+            links[pid] = role if primary_pid is None else (
+                "mentioned" if role == "primary" else role
+            )
+        for pid, role in links.items():
+            await db.execute(text("""
+                INSERT INTO voc_product_links (voc_id, product_id, role)
+                VALUES (:v, :p, :r)
+                ON CONFLICT (voc_id, product_id) DO NOTHING
+            """), {"v": voc_id, "p": pid, "r": role})
 
     async def run(self) -> dict:
         """전체 크롤링 파이프라인 실행"""

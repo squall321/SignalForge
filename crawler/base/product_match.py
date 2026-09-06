@@ -236,3 +236,49 @@ def infer_product_code(text: Optional[str]) -> Optional[str]:
             if pat.search(text):
                 return code
     return None
+
+
+# 비교 문맥 마커 — non-primary 링크를 mentioned 대신 compared 로 분류.
+_COMPARE_RE = re.compile(
+    r"\bvs\.?\b|versus|\bcompar(?:e|ed|ison)|대비|비교|어느\s*(?:게|것이)\s*나|"
+    r"which\s+is\s+better",
+    re.IGNORECASE,
+)
+
+
+def infer_all_product_codes(text: Optional[str]) -> List[Tuple[str, str]]:
+    """본문에서 언급된 **모든** 제품을 (code, role) 로 추출.
+
+    role — primary(우선순위 최상위) / compared(비교 마커 있음) / mentioned.
+
+    span 겹침 억제가 핵심이다. `_E` 는 뒤 문자가 공백이면 통과하므로
+    'Galaxy S26 Ultra' 가 GS26U(7,16) 와 GS26(0,10) 을 **동시에** 매칭한다.
+    우선순위 순으로 훑으며 이미 채택된 구간과 겹치는 매칭을 버려야
+    가장 구체적인 모델만 남는다. 'S26 Ultra vs Fold8' 처럼 구간이 안 겹치면
+    둘 다 보존된다(비교글 신호 확보 = 이 함수의 존재 이유).
+
+    첫 채택 코드는 infer_product_code() 결과와 항상 일치한다
+    (voc_records.product_id 와 링크 테이블의 primary 정합 보장).
+    """
+    if not text:
+        return []
+
+    kept: List[Tuple[str, Tuple[int, int]]] = []
+    for code, patterns in _COMPILED:
+        span = None
+        for pat in patterns:
+            m = pat.search(text)
+            if m:
+                span = m.span()
+                break
+        if span is None:
+            continue
+        # 이미 채택된(더 우선순위 높은=구체적인) 매칭과 구간이 겹치면 버림
+        if any(span[0] < e and s < span[1] for _, (s, e) in kept):
+            continue
+        kept.append((code, span))
+
+    if not kept:
+        return []
+    role = "compared" if _COMPARE_RE.search(text) else "mentioned"
+    return [(kept[0][0], "primary")] + [(c, role) for c, _ in kept[1:]]

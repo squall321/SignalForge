@@ -136,17 +136,22 @@ async def retag_products(Session) -> int:
     log.info(f"[Phase C] 제품 재태깅 대상(미태깅): {total}건 (사전 {len(pmap)}종)")
 
     fixed = 0
-    offset = 0
+    after = 0
+    scanned = 0
     BATCH = 2000
+    # keyset 커서(id > after). OFFSET 방식은 태깅된 행이 WHERE(product_id IS NULL)에서
+    # 빠지며 결과셋이 줄어 창이 밀리고 행을 건너뛴다(실측 9건 누락 → 신모델 태깅 실패).
     while True:
         async with Session() as db:
             rows = (await db.execute(text("""
                 SELECT id, content_original FROM voc_records
                 WHERE product_id IS NULL AND content_original IS NOT NULL
-                ORDER BY id LIMIT :b OFFSET :o
-            """), {"b": BATCH, "o": offset})).all()
+                  AND id > :after
+                ORDER BY id LIMIT :b
+            """), {"b": BATCH, "after": after})).all()
             if not rows:
                 break
+            after = rows[-1].id
             ups = []
             for r in rows:
                 code = infer_product_code(r.content_original)
@@ -161,9 +166,9 @@ async def retag_products(Session) -> int:
                 ), ups)
                 fixed += len(ups)
                 await db.commit()
-        offset += BATCH
-        if offset % 10000 == 0:
-            log.info(f"  [Phase C] 진행 offset={offset} 누적 태깅 {fixed}")
+        scanned += len(rows)
+        if scanned % 100000 < BATCH:
+            log.info(f"  [Phase C] 진행 {scanned}건 스캔 · 누적 태깅 {fixed}")
     log.info(f"=== [Phase C] 제품 재태깅 완료: {fixed}건 ===")
     return fixed
 
