@@ -27,6 +27,9 @@ _IMPLIED = {
     "freeze": "software",
     "lag": "software",
     "crash": "software",
+    # 'can\'t update' 단독은 사용자 선택·일반론이 섞여 오탐 50%였다(실측 14건 중 7건:
+    # "종교적 이유로 업데이트 안 함", "보안 패치를 못 올리면", 카드 만료 안내 등).
+    # **실패했다는 서술**을 요구한다.
     "update_fail": "software",
     "disconnect": "connectivity",
     "no_signal": "connectivity",
@@ -80,7 +83,7 @@ _SYMPTOM_SRC = {
     "fire":        r"caught fire|exploded|발화|폭발|불이\s*났",
     # 어간만 두면 'swollen'(가장 흔한 형태)을 놓친다 — 실측 FN(배터리 스웰링, safety 급).
     # 반대로 맨 'swell' 은 칭찬 속어("that's swell")라 굴절형만 받는다.
-    "swelling":    r"\bswell(?:s|ed|ing)\b|\bswollen\b|\bbulg\w*|배부름|부풀|부어\s*올",
+    "swelling":    r"\bswell(?:s|ed|ing)\b|\bswollen\b|\bbulg(?:e|es|ed|ing|y)\b|배부름|부풀|부어\s*올",
     "burn":        r"burn(?:ed|t)?\s+(?:my|the|his|her)?\s*(?:hand|finger|skin)|화상",
     "shock":       r"electric shock|감전",
     # "didn't turn back on"·"failed to power on" 계열이 통째로 빠져 있었다(실측 FN).
@@ -119,7 +122,7 @@ _SYMPTOM_SRC = {
                    r"(?:screen|display|panel)\b|"
                    r"초록\s*줄|녹색\s*줄|세로\s*줄|가로\s*줄|분홍\s*줄|핑크\s*줄|보라\s*줄|"
                    r"화면(?:에)?\s*줄(?:이|을)?\s*(?:생|가)",
-    "burn_in":     r"burn-?in|번인",
+    "burn_in":     r"\bburn[- ]in\b|번인",
     "flicker":     r"flicker|깜빡|점멸",
     # "noticeably hot"·"heats up" 같은 완곡 표현이 빠져 있었다. 맨 'hot' 은 받지 않고
     # 정도부사/동사가 붙은 형태만 받는다("hot deal" 오탐 방지).
@@ -150,15 +153,17 @@ _SYMPTOM_SRC = {
     # "won't update"·"update stuck" 이 없어 업데이트 실패 제보가 lag/freeze 로만 잡혔다.
     # 선행 \b 필수 — 없으면 "signifi|cant upgrade" 가 매치된다(실측 오탐 5건).
     # 'won't upgrade' 는 구매 의사라 빼고, update 쪽에만 허용한다.
-    "update_fail": r"update (?:failed|broke|bricked)|"
-                   r"\b(?:won'?t|wont|does\s?n'?t|can'?t|cannot|unable to|"
-                   r"fail(?:s|ed|ing)? to)\s+(?:update|install the update)\b|"
-                   r"\b(?:can'?t|cannot|unable to|fail(?:s|ed|ing)? to)\s+upgrade\b|"
-                   r"\bupdate\b[^.!?]{0,20}\b(?:stuck|fail(?:s|ed|ing)?|won'?t install|"
-                   r"keeps? failing)\b|"
-                   r"stuck\s+(?:on|at)\s+(?:the\s+)?update\b|"
-                   r"업데이트\s*(?:후|이후).{0,10}(?:문제|버그|오류)|"
-                   r"업데이트(?:가)?\s*(?:안\s*(?:되|됨|돼)|실패|멈춤)",
+    # 'can\'t update' 단독은 사용자 선택·일반론이 섞여 오탐 50%였다(실측 14건 중 7건:
+    # "종교적 이유로 업데이트 안 함", "보안 패치를 못 올리면", 카드 만료 안내 등).
+    # **실패했다는 서술**을 요구한다.
+    # won't/wouldn't update = 기기가 거부(결함). can't/cannot update = 사용자 사정(비결함).
+    "update_fail": r"update[^.!?]{0,20}\b(?:failed|fails|failing|broke|bricked|"
+                   r"stuck|won'?t install|keeps? failing|error)\b"
+                   r"|\b(?:won'?t|wouldn'?t)\s+(?:update|upgrade|install)\b"
+                   r"|\b(?:failed|failing|unable)\s+to\s+(?:update|upgrade)\b"
+                   r"|stuck\s+(?:on|at)\s+(?:the\s+)?update"
+                   r"|업데이트(?:가)?\s*(?:실패|멈춤|안\s*(?:되|됨|돼))"
+                   r"|업데이트\s*(?:후|이후).{0,10}(?:문제|버그|오류)",
     "disconnect":  r"disconnect|drop(?:s|ping) connection|연결\s*끊",
     "no_signal":   r"no signal|no service|신호\s*없|먹통",
     # 'dust' 단독은 "IP68 dust resistance"(방진 스펙)·"collecting dust"(안 쓴다는 관용구)를
@@ -229,7 +234,10 @@ _NEG_INSIDE_HARD = re.compile(
 _SELF_NEGATING = {"not_working", "no_power", "no_charge", "update_fail",
                   "no_signal", "drain", "dead_pixel"}
 _NEG_AFTER = re.compile(
-    r"^[^.!?]{0,15}\b(?:resistant|proof|free)\b", re.IGNORECASE)
+    # "heats up less"·"gets hot less often"·"drains slower" 처럼 증상 **뒤**에 비교급이
+    # 오면 개선 서술이다(실측: overheat 신규 40건에 이 유형이 섞였다).
+    r"^[^.!?]{0,15}\b(?:resistant|proof|free)\b"
+    r"|^[^.!?]{0,20}\b(?:less|fewer|slower|cooler|better|improved)\b", re.IGNORECASE)
 # 증상별 반증 관용구 — 결함이 아닌 표현이 그 증상으로 잡히는 것 차단
 _ANTI = {
     "no_power": re.compile(r"dead\s+(?:simple|easy|centre|center)", re.IGNORECASE),

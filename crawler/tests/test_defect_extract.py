@@ -230,3 +230,33 @@ def test_recall_patch_false_positives_suppressed(text):
 ])
 def test_symptom_precision_true_positives(text, expected):
     assert expected in pairs(text), f"진짜 결함을 놓침: {text}"
+
+
+# ── 경계·문맥 회귀 (적대적 검증이 실측한 대량 오탐) ───────────────────
+@pytest.mark.parametrize("text", [
+    # \bbulg\w* 가 Bulgaria/Bulgari 를 safety 등급 swelling 으로 (실측 92행)
+    "Bulgaria and Bulgarian companies",
+    "a Bulgari watch",
+    # burn-?in 의 선택적 구분자가 'burning'/'burnin'' 을 흡수 (실측 541행 = burn_in 의 47%)
+    "the screen is burning bright",
+    "burnin the midnight oil",
+    # can't update 단독은 사용자 선택·일반론 (신규 패턴 오탐 50%)
+    "I can't update OneUI for religious reasons",
+    "necessary if you cannot upgrade",
+    # 증상 뒤 비교급은 개선 서술
+    "the A27 holds a charge better and heats up less",
+])
+def test_boundary_and_context_false_positives(text):
+    assert extract_defects(text) == []
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("the battery is swollen and bulging", ("battery", "swelling")),
+    ("screen burn-in after 2 years", ("display", "burn_in")),
+    ("screen burn in issue", ("display", "burn_in")),
+    ("the update failed and now it is stuck", ("software", "update_fail")),
+    ("업데이트가 실패했습니다", ("software", "update_fail")),
+    ("my phone gets really hot", ("thermal", "overheat")),
+])
+def test_boundary_and_context_true_positives(text, expected):
+    assert expected in pairs(text), f"진짜 결함을 놓침: {text}"
