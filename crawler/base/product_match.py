@@ -14,8 +14,9 @@ DB products 테이블 시드 코드와 1:1 정합. 다음 카테고리를 커버
 대신 부정형 lookahead (?![0-9a-zA-Z]) 를 사용한다 — 숫자/영문 미연속만 차단,
 한글/공백/구두점은 허용.
 """
+import math
 import re
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 # 한글 friendly 경계: 다음 글자가 숫자/영문이 아닐 때만 매칭 (한글·공백·구두점 OK)
 _E = r"(?![0-9a-zA-Z])"
@@ -225,17 +226,99 @@ _COMPILED: List[Tuple[str, List[re.Pattern]]] = [
 
 
 def infer_product_code(text: Optional[str]) -> Optional[str]:
-    """본문/제목에서 제품 코드 추론. 매치 없으면 None.
+    """본문/제목에서 대표 제품 코드 추론. 매치 없으면 None.
 
-    PRODUCT_PATTERNS 순서상 가장 먼저 매칭되는 코드를 채택 (구체적 변형 우선).
+    infer_all_product_codes() 의 primary 와 **항상** 같다
+    (voc_records.product_id 와 voc_product_links.primary 정합).
     """
-    if not text:
-        return None
+    out = infer_all_product_codes(text)
+    return out[0][0] if out else None
+
+
+# ═════════ primary 재선정 — 문서 주제와의 관련성으로 고른다 ══════════════
+#
+# 후보 집합(어떤 제품이 언급됐나)은 그대로 두고 **어느 후보를 primary 로 올릴지**
+# 만 다시 고른다. PRODUCT_PATTERNS 선언 순서(구체성·최신순)는 "이 글이 무엇에
+# 관한 글인가"와 무관해서, 인도발 'Galaxy S26 폭발' 기사가 본문의 'S25 +' 조각
+# 때문에 GS25P 로 귀속되는 식의 오발화가 났다.
+#
+# 적용 범위 — 첫 줄이 제목인 글(뉴스·게시판 제목형)에 한정한다. 제목이 없는
+# 짧은 댓글류는 관련성 신호가 약해 재랭킹이 오히려 해로웠다(실측: 신규 홀드아웃
+# 제목없음 33건 90.9% → 60.6%). 그래서 제목이 없으면 현행 순서를 그대로 쓴다.
+#
+# 실측 (2026-09-07, 수기 라벨. 현행 kept[0] → 재선정)
+#   신규 홀드아웃 H2(140)  79.3% → 87.9%   고침 24 / 망침 12
+#   신규 홀드아웃 H3(137)  79.6% → 89.1%   고침 22 / 망침  9   McNemar p=0.029
+#   구 라벨셋   (287)      77.4% → 90.6%   고침 46 / 망침  8
+_TITLE_MAX = 300   # 첫 줄이 이보다 길면 제목이 아니라 본문 첫 문단으로 본다
+# 가중치는 두 피처뿐 — 제목 등장(강)과 등장 빈도(약). 소유·전환방향 등 부가 항은
+# 두 홀드아웃 모두에서 성능을 **떨어뜨려** 제거했다(88.4 vs 91.3 / 90.6 vs 92.0).
+_W_TITLE, _W_COUNT = 3.0, 1.0
+
+_PRIORITY: Dict[str, int] = {code: i for i, (code, _) in enumerate(PRODUCT_PATTERNS)}
+
+
+def _spans_by_code(text: str, codes: List[str]) -> Dict[str, List[Tuple[int, int]]]:
+    """후보 코드별 등장 구간 전부. 우선순위 높은(구체적인) 코드가 먼저 구간을 차지한다.
+
+    infer_all_product_codes 와 같은 겹침 억제 규칙이되 첫 매칭만이 아니라
+    **모든** 매칭을 세어 등장 횟수를 얻는다. 후보 집합 자체는 건드리지 않는다.
+    """
+    wanted = set(codes)
+    cands: List[Tuple[Tuple[int, int, int], str, int, int]] = []
     for code, patterns in _COMPILED:
+        if code not in wanted:
+            continue
+        pri = _PRIORITY[code]
         for pat in patterns:
-            if pat.search(text):
-                return code
-    return None
+            for m in pat.finditer(text):
+                s, e = m.span()
+                cands.append(((pri, s - e, s), code, s, e))   # 우선순위 → 긴 매칭 → 앞
+    cands.sort(key=lambda t: t[0])
+
+    taken: List[Tuple[int, int]] = []
+    out: Dict[str, List[Tuple[int, int]]] = {c: [] for c in codes}
+    for _key, code, s, e in cands:
+        if any(s < te and ts < e for ts, te in taken):
+            continue
+        taken.append((s, e))
+        out[code].append((s, e))
+    for c in out:
+        out[c].sort()
+    return out
+
+
+def _pick_primary(text: str, codes: List[str]) -> str:
+    """후보 중 문서 주제에 가장 가까운 코드. 판단 근거가 없으면 codes[0](현행).
+
+    **제목 있는 글에만 적용한다.** 전면 재랭킹은 신규 홀드아웃에서 재현되지 않았다
+    (+1.4pt, p=0.89). 이득이 극단적으로 이질적이어서 — 제목 줄이 있으면 +11.2pt 이지만
+    제목 없는 짧은 커뮤니티 글에서는 90.9%→60.6% 로 크게 진다. 게이팅하면 신규 표본
+    277건에서 79.4%→88.4%(p=0.003), 2차 홀드아웃에서도 재현된다.
+
+    피처는 **제목 등장 + 등장 빈도** 둘뿐이다. 제목내 위치·첫등장 위치·소유표현·
+    from/to 방향 항을 더한 7피처 안은 두 표본 모두에서 이 단순안에 졌고(88.4 vs 91.3,
+    90.6 vs 92.0, McNemar p=0.0169) 회귀도 2배(29건 vs 14건)였다. 신호를 더 넣는 것이
+    항상 낫지는 않다.
+    """
+    if len(codes) < 2:
+        return codes[0]
+    nl = text.find("\n")
+    if not 0 < nl <= _TITLE_MAX:
+        return codes[0]                      # 제목 없는 글은 현행 우선순위 유지
+    spans = _spans_by_code(text, codes)
+
+    best, best_score = codes[0], None
+    for code in codes:
+        sp = spans.get(code)
+        if not sp:
+            continue
+        score = (_W_TITLE * (1.0 if sp[0][0] < nl else 0.0)
+                 + _W_COUNT * math.log2(1 + len(sp))
+                 - 0.001 * _PRIORITY[code])   # 동점이면 현행 순서와 같게
+        if best_score is None or score > best_score:
+            best, best_score = code, score
+    return best
 
 
 # 비교 문맥 마커 — non-primary 링크를 mentioned 대신 compared 로 분류.
@@ -249,7 +332,7 @@ _COMPARE_RE = re.compile(
 def infer_all_product_codes(text: Optional[str]) -> List[Tuple[str, str]]:
     """본문에서 언급된 **모든** 제품을 (code, role) 로 추출.
 
-    role — primary(우선순위 최상위) / compared(비교 마커 있음) / mentioned.
+    role — primary(문서 주제에 가장 가까운 제품) / compared(비교 마커 있음) / mentioned.
 
     span 겹침 억제가 핵심이다. `_E` 는 뒤 문자가 공백이면 통과하므로
     'Galaxy S26 Ultra' 가 GS26U(7,16) 와 GS26(0,10) 을 **동시에** 매칭한다.
@@ -257,8 +340,9 @@ def infer_all_product_codes(text: Optional[str]) -> List[Tuple[str, str]]:
     가장 구체적인 모델만 남는다. 'S26 Ultra vs Fold8' 처럼 구간이 안 겹치면
     둘 다 보존된다(비교글 신호 확보 = 이 함수의 존재 이유).
 
-    첫 채택 코드는 infer_product_code() 결과와 항상 일치한다
-    (voc_records.product_id 와 링크 테이블의 primary 정합 보장).
+    primary 는 후보 중 **문서 주제와 가장 관련 있는** 것으로 고른다
+    (_pick_primary 참조). 후보 집합과 compared/mentioned 판정은 그대로다.
+    후보가 하나면 결과는 이전과 완전히 동일하다.
     """
     if not text:
         return []
@@ -280,5 +364,8 @@ def infer_all_product_codes(text: Optional[str]) -> List[Tuple[str, str]]:
 
     if not kept:
         return []
+    codes = [c for c, _ in kept]
+    primary = _pick_primary(text, codes)
     role = "compared" if _COMPARE_RE.search(text) else "mentioned"
-    return [(kept[0][0], "primary")] + [(c, role) for c, _ in kept[1:]]
+    return ([(primary, "primary")]
+            + [(c, role) for c in codes if c != primary])

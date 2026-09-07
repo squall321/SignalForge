@@ -89,3 +89,36 @@ def test_no_match(text):
 def test_no_duplicate_codes():
     got = codes("Galaxy S26 Ultra 좋다. S26 Ultra 정말 좋다. Fold8 도 괜찮다.")
     assert len(got) == len(set(got))
+
+
+# ── primary 는 선언 순서가 아니라 문서 주제로 고른다 ───────────────────
+def test_primary_follows_title_not_pattern_order():
+    """제목이 S25+ 화재인 기사가 본문의 S26 언급 때문에 GS26U 로 가면 안 된다."""
+    text = ("Another Galaxy S25+ caught fire while charging\n"
+            "Samsung denies compensation. The Galaxy S26 Ultra launch is unaffected.")
+    out = infer_all_product_codes(text)
+    assert out[0] == ("GS25P", "primary")
+    assert dict(out)["GS26U"] != "primary"
+
+
+def test_primary_unchanged_without_title():
+    """제목 줄이 없는 짧은 글은 재랭킹하지 않고 현행 순서를 유지한다."""
+    text = "S26 Ultra 좋다는데 Fold8 도 궁금"
+    assert infer_all_product_codes(text)[0] == ("GS26U", "primary")
+
+
+def test_single_candidate_identical():
+    """후보가 하나면 제목 유무와 무관하게 결과가 이전과 같다."""
+    for t in ("Galaxy S26 Ultra 카메라 문제\n어제부터 초점이 안 맞는다",
+              "Galaxy S26 Ultra 카메라 문제"):
+        assert infer_all_product_codes(t) == [("GS26U", "primary")]
+
+
+def test_candidate_set_and_roles_preserved():
+    """재선정은 후보 집합과 compared/mentioned 판정을 바꾸지 않는다."""
+    text = ("Galaxy Z Fold 8 vs Galaxy S26 Ultra 비교\n"
+            "Fold 8 이 더 낫다. Fold 8 배터리도 좋다.")
+    out = infer_all_product_codes(text)
+    assert {c for c, _ in out} == {"GZF8", "GS26U"}
+    assert out[0] == ("GZF8", "primary")
+    assert dict(out)["GS26U"] == "compared"
