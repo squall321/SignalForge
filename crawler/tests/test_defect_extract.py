@@ -144,6 +144,78 @@ def test_symptom_precision_false_positives(text):
     assert extract_defects(text) == []
 
 
+# ── 재현율 표본(200건)에서 드러난 위음성군 — 실제 놓쳤던 문장 ────────────
+@pytest.mark.parametrize("text,expected", [
+    # 증상 패턴이 부정어를 품어 자기 자신을 지우던 버그
+    ("not working", ("device", "not_working")),
+    ("the phone is not turning on", ("device", "no_power")),
+    ("Galaxy Tab S9 not charging but recognising power", ("charging_port", "no_charge")),
+    # 어휘 굴절 — swollen (safety 급 결함이 통째로 누락됐다)
+    ("the rear battery was swollen", ("battery", "swelling")),
+    # 부정+동사 조합
+    ("home up not opening in 8.5 one ui", ("software", "not_working")),
+    ("the watch turned off but didn't turn back on", ("device", "no_power")),
+    ("your Galaxy Watch may not turn back on automatically", ("device", "no_power")),
+    ("the UI update won't update", ("software", "update_fail")),
+    ("Samsung smart switch update stuck on 0%", ("software", "update_fail")),
+    # 완곡·구어 표현
+    ("The battery runs out fast", ("battery", "drain")),
+    ("the battery doesn't last a day", ("battery", "drain")),
+    ("my phone suddenly wasn't holding a charge", ("battery", "drain")),
+    ("my phone was noticeably hot the moment I opened it", ("thermal", "overheat")),
+    ("Fold 8 heats up really bad", ("thermal", "overheat")),
+    # 색상 변형 — green 만 있고 pink/magenta 는 없었다
+    ("Magenta/Pink Line on my Samsung Flip 5", ("device", "green_line")),
+    ("HELP! Line on Screen. Fixes ??", ("display", "green_line")),
+    # 증상 클래스 자체가 없던 것
+    ("it came with some bubbling on the interior screen protector", ("display", "bubble")),
+    ("the film on my 6th fold began to bubble", ("display", "bubble")),
+    # 한국어 변형
+    ("전원이 켜지지 않아요", ("device", "no_power")),
+    ("앱이 안 열려요", ("device", "not_working")),
+    ("업데이트가 안 됩니다", ("software", "not_working")),
+    ("배터리 광탈이에요", ("battery", "drain")),
+    ("화면에 분홍 줄이 생겼어요", ("display", "green_line")),
+    ("필름에 기포가 생겼어요", ("display", "bubble")),
+])
+def test_recall_gaps_now_detected(text, expected):
+    assert expected in pairs(text), f"재현율 표본에서 확인된 결함을 놓침: {text}"
+
+
+# ── 재현율 보강과 함께 막은 오탐 (표본·코퍼스 실측) ──────────────────────
+@pytest.mark.parametrize("text", [
+    # 은유적 broke/broken — 표본 오탐 3건의 원인
+    "we were apparently almost broke",
+    "a scrub bar broken into melody / chime / ambience",
+    "Sue Storm describing him as a broken person",
+    "blogger @digitalchatstation broke the news today",
+    # 'dead' 가 제목·인명에서 전원사망으로 잡히던 것
+    "Pixel brawler The Walking Dead: Streets of Survival arrives September 18",
+    # 날씨·경기 얘기가 발열로
+    "The weather is really hot these days. I hope everyone is taking good care",
+    "Samsung's memory business is at a very hot point",
+    "The wireless headset that gets hot-swappable batteries right",
+    # 'signifi|cant upgrade' 가 업데이트 실패로 (선행 \b 누락)
+    "a significant upgrade is expected on the performance side of the device",
+    # 사람이 근무 중이 아님 / 출시 계획 / 사람 무반응
+    "I use my phone when I'm not working",
+    "Samsung will not launch the Galaxy Watch9 Classic version this year",
+    "emergency detection to call for help if the user becomes unresponsive",
+    # 'turn up'(나타나다)
+    "it gets you an independent check that they were aware they didn't turn up",
+    # 설정 토글 — 전원 사망이 아니다
+    "I was so irritated that I didn't turn on the vibrating sound",
+    # bubble 오탐군
+    "new ways to multitask with Bubbles, Screen Reactions for creators",
+    "simple bubble level, magnifying glass",
+    "Visually, the display looks perfect: no bubbles",
+    # 'aswell' 오타가 swelling 으로 (\b 누락)
+    "the left one is starting to flake on the charging aswell",
+])
+def test_recall_patch_false_positives_suppressed(text):
+    assert extract_defects(text) == [], f"오탐이 되살아남: {text}"
+
+
 @pytest.mark.parametrize("text,expected", [
     ("dust got into the hinge after a month", ("hinge", "dust_ingress")),
     ("The hinge collected dust after a month", ("hinge", "dust_ingress")),
