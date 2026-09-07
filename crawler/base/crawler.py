@@ -302,8 +302,11 @@ class BaseCrawler(ABC):
                 ON CONFLICT (voc_id, product_id) DO NOTHING
             """), {"v": voc_id, "p": pid, "r": role})
 
-    @staticmethod
-    async def _save_defects(db, voc_id, body) -> None:
+    # 일반 기술 토론 커뮤니티 — 기기 앵커를 요구해야 SW/인프라 얘기가 결함으로 안 샌다
+    # (실측: hackernews 결함 추출 정밀도 8%).
+    ANCHOR_PLATFORMS = {"hackernews"}
+
+    async def _save_defects(self, db, voc_id, body) -> None:
         """voc_defects 채움 — 본문에서 (부품·증상·심각도) 삼중항 추출.
 
         단어 카운트가 아니라 "힌지에 이물 유입(기능저하)" 수준으로 집계하기 위한 것."""
@@ -311,7 +314,8 @@ class BaseCrawler(ABC):
         from nlp.defect_extract import extract_defects
         from nlp.modality import classify as classify_modality
 
-        defects = extract_defects(body)
+        defects = extract_defects(
+            body, require_anchor=(self.platform_code in self.ANCHOR_PLATFORMS))
         if not defects:
             return
         # 양상(1인칭 고장 / 우려 / 질문 / 전언 / 리뷰) — 급등 판정은 firsthand 만 센다

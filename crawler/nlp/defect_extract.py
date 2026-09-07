@@ -310,6 +310,28 @@ _DEVICE_CTX = re.compile(
 _CTX_WINDOW = 120
 
 
+# ── 기기 앵커 게이트 ──────────────────────────────────────────────────────
+# HackerNews 같은 일반 기술 토론 커뮤니티에서는 crash/lag/dead/freeze 가 소프트웨어·
+# 인프라 맥락으로 대량 등장한다. 실측(무작위 100건 통독)으로 HN 층의 결함 추출 정밀도는
+# **8%** 였고, HN 이 voc_defects 의 35.7% 를 차지해 테이블 전체의 약 33% 가 HN 발 오탐이었다.
+# 양상(modality) 게이트로는 안 걸러진다 — HN firsthand 58.3% vs 비HN 57.1% 로 차이가 없다.
+# 그래서 증상 주변에 **기기 앵커**가 있을 것을 요구한다.
+# 단, 전역 적용은 금물이다 — 비HN 결함 문서의 19.9% 가 통째로 사라진다(실측).
+# 호출부가 플랫폼을 보고 켠다.
+_ANCHOR_WINDOW = 150
+_DEVICE_ANCHOR = re.compile(
+    r"\b(?:samsung|galaxy|iphone|ipad|apple|pixel|oneplus|xiaomi|huawei|"
+    r"note\s?\d{1,2}|fold\s?\d?|flip\s?\d?|s\d{1,2}\s*(?:ultra|plus|fe)?|"
+    r"buds|smartwatch|handset|smartphone|phone|tablet)\b"
+    r"|삼성|갤럭시|아이폰|아이패드|갤워치|버즈|스마트폰|휴대폰|폰\b|태블릿",
+    re.IGNORECASE)
+
+
+def _has_device_anchor(text: str, start: int, end: int) -> bool:
+    lo, hi = max(0, start - _ANCHOR_WINDOW), end + _ANCHOR_WINDOW
+    return bool(_DEVICE_ANCHOR.search(text[lo:hi]))
+
+
 def _is_negated(text: str, start: int, end: int, symptom: str) -> bool:
     """증상 매치가 부정·반증 문맥이면 True (결함으로 세지 않음)."""
     if _NEG_BEFORE.search(text[max(0, start - _NEG_WINDOW):start]):
@@ -356,7 +378,8 @@ def _clause_bounds(text: str, pos: int) -> Tuple[int, int]:
     return start, end
 
 
-def extract_defects(text: str, window: int = _WINDOW) -> List[Tuple[str, str, str]]:
+def extract_defects(text: str, window: int = _WINDOW,
+                    require_anchor: bool = False) -> List[Tuple[str, str, str]]:
     """본문 → [(component, symptom, severity)] (중복 제거·정렬).
 
     페어링 규칙(순서대로).
@@ -381,6 +404,10 @@ def extract_defects(text: str, window: int = _WINDOW) -> List[Tuple[str, str, st
         for m in spat.finditer(text):
             spos = m.start()
             if _is_negated(text, spos, m.end(), sname):
+                continue
+            # 일반 기술 토론 플랫폼에서만 켠다(호출부 결정) — 기기 언급이 주변에 없으면
+            # SW/인프라 얘기이거나 은유다
+            if require_anchor and not _has_device_anchor(text, spos, m.end()):
                 continue
             cs, ce = _clause_bounds(text, spos)
 

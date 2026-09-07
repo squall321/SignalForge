@@ -27,6 +27,11 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
 from nlp.defect_extract import extract_defects  # noqa: E402
 from nlp.modality import classify as classify_modality  # noqa: E402
 
+# 일반 기술 토론 커뮤니티 — crash/lag/dead 가 SW·인프라 맥락으로 대량 등장한다.
+# 실측: hackernews 층 결함 추출 정밀도 8%(무작위 100건 통독), 테이블의 35.7% 차지.
+# 이 플랫폼만 기기 앵커를 요구한다(전역 적용 시 비HN 결함의 19.9% 소실).
+ANCHOR_PLATFORMS = {"hackernews"}
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger("backfill_defects")
 
@@ -36,7 +41,7 @@ LIMIT = int(os.getenv("DEFECT_LIMIT", "0"))
 
 SELECT_SQL = text("""
     SELECT v.id, COALESCE(v.content_translated, v.content_original) AS body,
-           pl.kind AS platform_kind
+           pl.kind AS platform_kind, pl.code AS platform_code
     FROM voc_records v LEFT JOIN platforms pl ON pl.id = v.platform_id
     WHERE v.archived_at IS NULL AND v.content_original IS NOT NULL AND v.id > :after
     ORDER BY v.id
@@ -74,7 +79,9 @@ async def main():
                 for r in rows:
                     seen += 1
                     after = r.id
-                    defects = extract_defects(r.body)
+                    defects = extract_defects(
+                        r.body,
+                        require_anchor=(r.platform_code in ANCHOR_PLATFORMS))
                     if defects:
                         rows_with_defect += 1
                     # 양상은 문서 단위 — 결함이 있을 때만 1회 계산해 각 행에 붙인다
