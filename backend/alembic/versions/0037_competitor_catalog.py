@@ -20,6 +20,7 @@ predecessor_code:
   규칙이 성립하지 않는 세대(iPhone XS→11 Pro, Fitbit Sense→Sense 2 등)는 명시했다.
 """
 import re
+from datetime import date
 
 import sqlalchemy as sa
 from alembic import op
@@ -424,10 +425,12 @@ def upgrade():
                 INSERT INTO products
                     (code, series_code, name_en, name_ko, released_at,
                      predecessor_code, is_active, created_at)
-                VALUES (:c, :s, :en, :ko, CAST(:rel AS date), :pred, true, now())
+                VALUES (:c, :s, :en, :ko, :rel, :pred, true, now())
                 ON CONFLICT (code) DO NOTHING
             """),
-            {"c": code, "s": series, "en": en, "ko": ko, "rel": rel, "pred": pred},
+            # asyncpg 는 date 컬럼에 문자열 바인딩을 거부한다(CAST 로도 안 된다)
+            {"c": code, "s": series, "en": en, "ko": ko,
+             "rel": date.fromisoformat(rel), "pred": pred},
         )
 
     # 코드규칙으로 직전 세대 유도 — 명시값이 있는 행은 건드리지 않는다

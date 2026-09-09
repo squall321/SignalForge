@@ -40,6 +40,8 @@ from typing import Any, Dict, List, Optional
 
 import asyncpg
 
+from base.product_match import _brand_of
+
 logger = logging.getLogger(__name__)
 
 ALERT_RULE_NAME = "defect_anomaly"
@@ -239,6 +241,9 @@ async def evaluate(conn, ratio_threshold: Optional[float] = None) -> List[Dict[s
         out.append({
             "metric": f"defect:{row['product_code']}:{row['component']}:{row['symptom']}",
             "product_code": row["product_code"],
+            # 카탈로그에 경쟁사 380종이 들어와 타사 급등도 평가 대상이다.
+            # 브랜드를 payload 에 실어 운영자가 자사/타사 알림을 구분하게 한다.
+            "brand": _brand_of(row["product_code"]),
             "component": row["component"],
             "symptom": row["symptom"],
             "defect_severity": row["severity"],
@@ -256,7 +261,8 @@ async def evaluate(conn, ratio_threshold: Optional[float] = None) -> List[Dict[s
             "z": round(z, 2),
             "value": round(ratio, 2),
             "threshold": thr,
-            "reason": (f"{row['product_code']} {row['component']}/{row['symptom']} "
+            "reason": (f"[{_brand_of(row['product_code'])}] "
+                       f"{row['product_code']} {row['component']}/{row['symptom']} "
                        f"최근 {RECENT_DAYS}일 {cnt}/{total_recent}건({recent_share:.2%}) "
                        f"vs baseline {base['cnt']}/{base['total']}({base_share:.2%}, "
                        f"{base['mode']}) — {ratio:.1f}배·z={z:.1f}·"
@@ -302,7 +308,7 @@ async def insert_alert_events(conn, violations: List[Dict[str, Any]]) -> Dict[st
                 float(v["threshold"]),
                 json.dumps({"type": "defect_anomaly", **{
                     k: v[k] for k in (
-                        "metric", "product_code", "component", "symptom",
+                        "metric", "product_code", "brand", "component", "symptom",
                         "defect_severity", "recent_count", "recent_total",
                         "recent_share", "baseline_count", "baseline_total",
                         "baseline_share", "baseline_mode", "indep_sources",
