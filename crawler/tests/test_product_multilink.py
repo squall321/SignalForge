@@ -157,3 +157,53 @@ def test_candidate_set_and_roles_preserved():
     assert {c for c, _ in out} == {"GZF8", "GS26U"}
     assert out[0] == ("GZF8", "primary")
     assert dict(out)["GS26U"] == "compared"
+
+
+# ── 경쟁사 카탈로그 (폰·웨어러블 380종) ───────────────────────────────
+@pytest.mark.parametrize("text,want", [
+    ("Apple Watch Ultra 3 battery drains overnight", "AWU3"),
+    ("iPhone 17 Pro Max 발열이 심해요", "AP17PM"),
+    ("Pixel 10 Pro XL screen flicker after update", "PX10PXL"),
+    ("Vivo X Fold6 hinge creaking", "VVXF6"),
+    ("Redmi Note 14 Pro 충전 안 됨", "RMN14P"),
+    ("OnePlus 13 alert slider broken", "OP13"),
+    ("Huawei Mate 60 Pro signal drop", "HWM60"),
+    ("Garmin fenix 8 GPS drift", "GMNFX8"),
+    ("Sony WH-1000XM6 left cup rattling", "SNAWH6"),
+    ("Nothing Phone (3) glyph dead", "NTP3"),
+    ("Motorola Edge 70 curved display crack", "MTEDGE70"),
+    ("AirPods Pro 3 case not charging", "ABP3"),
+])
+def test_competitor_catalog_tagged(text, want):
+    got = infer_all_product_codes(text)
+    assert got and got[0][0] == want, got
+
+
+def test_competitor_does_not_steal_samsung():
+    """경쟁사 추가가 삼성 매칭을 가로채면 안 된다."""
+    for t, want in [("갤럭시 Z 폴드8 힌지 먼지", "GZF8"),
+                    ("Galaxy Watch Ultra 2 스트랩", "GWU"),
+                    ("Galaxy Buds 4 Pro ANC", "GB4P")]:
+        assert infer_all_product_codes(t)[0][0] == want
+
+
+def test_multi_brand_comparison_all_kept():
+    got = codes("Best smartwatch 2026: Galaxy Watch 9 vs Apple Watch Series 12 "
+                "vs Pixel Watch 5 vs Garmin fenix 8")
+    assert {"GW9", "AWS12", "PW5", "GMNFX8"} <= set(got)
+
+
+def test_buds_pro_reversed_alias():
+    """'buds pro 4' 어순 역전형 — 없으면 타사 코드로 넘어갔다."""
+    assert infer_all_product_codes("I got the buds pro 4s last month")[0][0] == "GB4P"
+    assert infer_all_product_codes("OnePlus Buds Pro 3 review")[0][0] == "OPBP3"
+
+
+def test_new_codes_resolve_to_own_brand():
+    """_CODE_BRAND_PREFIX 누락 시 가드가 자기 브랜드 매칭을 삼킨다."""
+    from base.product_match import PRODUCT_PATTERNS, _brand_of
+    samsung_like = [c for c, _ in PRODUCT_PATTERNS
+                    if _brand_of(c) == "samsung" and not c.startswith(
+                        ("GS", "GA", "GW", "GB", "GZ", "GN", "GM", "GJ", "GF",
+                         "GR", "GO", "GX", "TAB", "WIDE", "JUMP"))]
+    assert samsung_like == []

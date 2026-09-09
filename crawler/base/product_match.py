@@ -106,7 +106,10 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"워치\s*8" + _E, r"워치8", r"갤워치\s*8", r"갤워치8"]),
 
     # ── Galaxy Buds 4 (루머/얼리) ──
-    ("GB4P",  [r"buds\s*4\s*pro", r"buds4\s*pro", r"버즈\s*4\s*프로",
+    # 'buds pro 4' 어순 역전형 — 한글엔 있었으나 영문에 없어 GB4P 가 저평가됐다
+    # (실측: "the buds pro 4s" 로 쓴 갤버즈4프로 불만글이 Bose QC Ultra 로 넘어감).
+    # 타사 'OnePlus Buds Pro 3' 는 브랜드 인접 가드가 막는다.
+    ("GB4P",  [r"buds\s*4\s*pro", r"buds4\s*pro", r"buds\s*pro\s*4", r"버즈\s*4\s*프로",
                r"버즈4\s*프로", r"버즈4프로", r"버즈프로\s*4", r"버즈프로4",
                r"\b버4프" + _E, r"버4\s*프로", r"버4프로"]),
     ("GB4",   [r"\bbuds\s*4" + _E, r"\bbuds4" + _E, r"galaxy\s*buds\s*4",
@@ -114,7 +117,7 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"\b버4" + _E]),
 
     # ── Galaxy Buds 3 ──
-    ("GB3P",  [r"buds\s*3\s*pro", r"buds3\s*pro", r"버즈\s*3\s*프로",
+    ("GB3P",  [r"buds\s*3\s*pro", r"buds3\s*pro", r"buds\s*pro\s*3", r"버즈\s*3\s*프로",
                r"버즈3\s*프로", r"버즈3프로", r"버즈프로\s*3", r"버즈프로3",
                r"\b버3프" + _E, r"\bb3p" + _E]),
     ("GB3",   [r"\bbuds\s*3" + _E, r"\bbuds3" + _E, r"galaxy\s*buds\s*3",
@@ -181,41 +184,750 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"워치6", r"갤워치\s*6", r"갤워치6"]),
 
     # ── Buds 2 Pro ──
-    ("GB2P",  [r"buds\s*2\s*pro", r"buds2\s*pro", r"버즈\s*2\s*프로",
+    ("GB2P",  [r"buds\s*2\s*pro", r"buds2\s*pro", r"buds\s*pro\s*2", r"버즈\s*2\s*프로",
                r"버즈2프로", r"\b버2프" + _E]),
     ("GB2",   [r"\bbuds\s*2" + _E, r"\bbuds2" + _E, r"버즈\s*2" + _E, r"버즈2",
                r"\b버2" + _E]),
 
-    # ═══════════ 경쟁사 (iPhone) ═══════════
-    # 더 큰 번호 우선, Pro Max → Pro → 기본
-    ("AP16PM",[r"iphone\s*16\s*pro\s*max", r"아이폰\s*16\s*프로\s*맥스",
-               r"\b16\s*프맥" + _E, r"아이폰16프맥", r"16프맥"]),
-    ("AP16P", [r"iphone\s*16\s*pro" + _E, r"아이폰\s*16\s*프로" + _E, r"아이폰16프로",
-               r"\b아16프" + _E]),
-    ("AP16",  [r"\biphone\s*16" + _E, r"아이폰\s*16" + _E, r"아이폰16" + _E,
-               r"\b아16" + _E]),
-    ("AP15PM",[r"iphone\s*15\s*pro\s*max", r"아이폰\s*15\s*프로\s*맥스",
-               r"\b15\s*프맥" + _E, r"15프맥"]),
-    ("AP15P", [r"iphone\s*15\s*pro" + _E, r"아이폰\s*15\s*프로" + _E, r"아이폰15프로"]),
-    ("AP15",  [r"\biphone\s*15" + _E, r"아이폰\s*15" + _E, r"아이폰15" + _E,
-               r"\b아15" + _E]),
-    ("AP14",  [r"\biphone\s*14" + _E, r"아이폰\s*14" + _E, r"아이폰14" + _E,
-               r"\b아14" + _E]),
-    # 구형 iPhone — 제품은 등록돼 있으나 패턴이 없어 미태깅이던 것 보강(단독 글만 태깅).
-    ("AP13",  [r"\biphone\s*13" + _E, r"아이폰\s*13" + _E, r"아이폰13" + _E]),
-    ("AP12",  [r"\biphone\s*12" + _E, r"아이폰\s*12" + _E, r"아이폰12" + _E]),
-    ("AP11",  [r"\biphone\s*11" + _E, r"아이폰\s*11" + _E, r"아이폰11" + _E]),
-    ("AP10",  [r"\biphone\s*x" + _E, r"아이폰\s*x" + _E, r"아이폰\s*텐" + _E]),
-    ("AP8",   [r"\biphone\s*8" + _E, r"아이폰\s*8" + _E, r"아이폰8" + _E]),
-    ("AP7",   [r"\biphone\s*7" + _E, r"아이폰\s*7" + _E, r"아이폰7" + _E]),
-    ("AP6",   [r"\biphone\s*6" + _E, r"아이폰\s*6" + _E, r"아이폰6" + _E]),
 
-    # ═══════════ 경쟁사 (Google Pixel) ═══════════
-    ("PX9P",  [r"pixel\s*9\s*pro\s*xl", r"pixel\s*9\s*pro" + _E, r"픽셀\s*9\s*프로",
-               r"\bpx9p" + _E, r"\bpx\s*9p" + _E]),
-    ("PX9",   [r"\bpixel\s*9" + _E, r"픽셀\s*9" + _E, r"\bpx9" + _E]),
-    ("PX8P",  [r"pixel\s*8\s*pro" + _E, r"픽셀\s*8\s*프로", r"\bpx8p" + _E]),
-    ("PX8",   [r"\bpixel\s*8" + _E, r"픽셀\s*8" + _E, r"\bpx8" + _E]),
+    # ═══════════ 경쟁사 · Apple iPhone — Pro Max → Pro → Plus/mini/e → 기본 순.
+    # APAIR 가 맨 앞인 이유는 'iPhone 17 Air' 를 AP17 이 가로채지 않게 하기 위해서다. ═══════════
+    ("APAIR", [
+        'iphone\\s*17\\s*air(?![0-9a-zA-Z])', '\\biphone\\s*air(?![0-9a-zA-Z])',
+        '아이폰\\s*17\\s*에어(?![0-9a-zA-Z])', '아이폰\\s*에어(?!팟|드랍|드롭|태그|플레이|프린트)(?![0-9a-zA-Z])'
+    ]),
+    ("AP17PM", [
+        'iphone\\s*17\\s*pro\\s*max', '아이폰\\s*17\\s*프로\\s*맥스', '\\b17\\s*프맥(?![0-9a-zA-Z])',
+        '17프맥'
+    ]),
+    ("AP17P", ['iphone\\s*17\\s*pro(?![0-9a-zA-Z])', '아이폰\\s*17\\s*프로(?![0-9a-zA-Z])']),
+    ("AP17E", ['\\biphone\\s*17\\s*e(?![0-9a-zA-Z])', '아이폰\\s*17\\s*e(?![0-9a-zA-Z])']),
+    ("AP17", [
+        '\\biphone\\s*17(?![0-9a-zA-Z])', '아이폰\\s*17(?![0-9a-zA-Z])', '아이폰17(?![0-9a-zA-Z])'
+    ]),
+    ("AP16PM", [
+        'iphone\\s*16\\s*pro\\s*max', '아이폰\\s*16\\s*프로\\s*맥스', '\\b16\\s*프맥(?![0-9a-zA-Z])',
+        '아이폰16프맥', '16프맥'
+    ]),
+    ("AP16P", [
+        'iphone\\s*16\\s*pro(?![0-9a-zA-Z])', '아이폰\\s*16\\s*프로(?![0-9a-zA-Z])', '아이폰16프로',
+        '\\b아16프(?![0-9a-zA-Z])'
+    ]),
+    ("AP16PL", [
+        'iphone\\s*16\\s*plus(?![0-9a-zA-Z])', '아이폰\\s*16\\s*플(?![0-9a-zA-Z])',
+        'iphone\\s*16\\+(?!\\s*mac)'
+    ]),
+    ("AP16E", ['\\biphone\\s*16\\s*e(?![0-9a-zA-Z])', '아이폰\\s*16\\s*e(?![0-9a-zA-Z])']),
+    ("AP16", [
+        '\\biphone\\s*16(?![0-9a-zA-Z])', '아이폰\\s*16(?![0-9a-zA-Z])', '아이폰16(?![0-9a-zA-Z])',
+        '\\b아16(?![0-9a-zA-Z])'
+    ]),
+    ("AP15PM", [
+        'iphone\\s*15\\s*pro\\s*max', '아이폰\\s*15\\s*프로\\s*맥스', '\\b15\\s*프맥(?![0-9a-zA-Z])',
+        '15프맥'
+    ]),
+    ("AP15P", [
+        'iphone\\s*15\\s*pro(?![0-9a-zA-Z])', '아이폰\\s*15\\s*프로(?![0-9a-zA-Z])', '아이폰15프로'
+    ]),
+    ("AP15PL", [
+        'iphone\\s*15\\s*plus(?![0-9a-zA-Z])', '아이폰\\s*15\\s*플(?![0-9a-zA-Z])',
+        'iphone\\s*15\\+(?!\\s*mac)'
+    ]),
+    ("AP15", [
+        '\\biphone\\s*15(?![0-9a-zA-Z])', '아이폰\\s*15(?![0-9a-zA-Z])', '아이폰15(?![0-9a-zA-Z])',
+        '\\b아15(?![0-9a-zA-Z])'
+    ]),
+    ("AP14PM", [
+        'iphone\\s*14\\s*pro\\s*max', '아이폰\\s*14\\s*프로\\s*맥스', '\\b14\\s*프맥(?![0-9a-zA-Z])',
+        '14프맥'
+    ]),
+    ("AP14P", ['iphone\\s*14\\s*pro(?![0-9a-zA-Z])', '아이폰\\s*14\\s*프로(?![0-9a-zA-Z])']),
+    ("AP14PL", [
+        'iphone\\s*14\\s*plus(?![0-9a-zA-Z])', '아이폰\\s*14\\s*플(?![0-9a-zA-Z])',
+        'iphone\\s*14\\+(?!\\s*mac)'
+    ]),
+    ("AP14", [
+        '\\biphone\\s*14(?![0-9a-zA-Z])', '아이폰\\s*14(?![0-9a-zA-Z])', '아이폰14(?![0-9a-zA-Z])',
+        '\\b아14(?![0-9a-zA-Z])'
+    ]),
+    ("AP13PM", [
+        'iphone\\s*13\\s*pro\\s*max', '아이폰\\s*13\\s*프로\\s*맥스', '\\b13\\s*프맥(?![0-9a-zA-Z])',
+        '13프맥'
+    ]),
+    ("AP13P", ['iphone\\s*13\\s*pro(?![0-9a-zA-Z])', '아이폰\\s*13\\s*프로(?![0-9a-zA-Z])']),
+    ("AP13MI", ['iphone\\s*13\\s*mini(?![0-9a-zA-Z])', '아이폰\\s*13\\s*미니', '13미니']),
+    ("AP13", [
+        '\\biphone\\s*13(?![0-9a-zA-Z])', '아이폰\\s*13(?![0-9a-zA-Z])', '아이폰13(?![0-9a-zA-Z])'
+    ]),
+    ("AP12PM", [
+        'iphone\\s*12\\s*pro\\s*max', '아이폰\\s*12\\s*프로\\s*맥스', '\\b12\\s*프맥(?![0-9a-zA-Z])',
+        '12프맥'
+    ]),
+    ("AP12P", ['iphone\\s*12\\s*pro(?![0-9a-zA-Z])', '아이폰\\s*12\\s*프로(?![0-9a-zA-Z])']),
+    ("AP12MI", ['iphone\\s*12\\s*mini(?![0-9a-zA-Z])', '아이폰\\s*12\\s*미니', '12미니']),
+    ("AP12", [
+        '\\biphone\\s*12(?![0-9a-zA-Z])', '아이폰\\s*12(?![0-9a-zA-Z])', '아이폰12(?![0-9a-zA-Z])'
+    ]),
+    ("AP11PM", [
+        'iphone\\s*11\\s*pro\\s*max', '아이폰\\s*11\\s*프로\\s*맥스', '\\b11\\s*프맥(?![0-9a-zA-Z])',
+        '11프맥'
+    ]),
+    ("AP11P", ['iphone\\s*11\\s*pro(?![0-9a-zA-Z])', '아이폰\\s*11\\s*프로(?![0-9a-zA-Z])']),
+    ("AP11", [
+        '\\biphone\\s*11(?![0-9a-zA-Z])', '아이폰\\s*11(?![0-9a-zA-Z])', '아이폰11(?![0-9a-zA-Z])'
+    ]),
+    ("AP10SM", ['iphone\\s*xs\\s*max', '아이폰\\s*xs\\s*(?:max|맥스)']),
+    ("AP10S", ['\\biphone\\s*xs(?![0-9a-zA-Z])', '아이폰\\s*xs(?![0-9a-zA-Z])']),
+    ("AP10R", ['\\biphone\\s*xr(?![0-9a-zA-Z])', '아이폰\\s*xr(?![0-9a-zA-Z])']),
+    ("AP10", [
+        '\\biphone\\s*x(?![0-9a-zA-Z])', '아이폰\\s*x(?![0-9a-zA-Z])', '아이폰\\s*텐(?![0-9a-zA-Z])'
+    ]),
+    ("APSE3", [
+        'iphone\\s*se\\s*\\(?\\s*3(?![0-9a-zA-Z])', '아이폰\\s*se\\s*\\(?\\s*3(?![0-9a-zA-Z])',
+        'iphone\\s*se\\s*\\(?\\s*(?:3rd|third)', 'iphone\\s*se\\s*2022'
+    ]),
+    ("APSE2", [
+        'iphone\\s*se\\s*\\(?\\s*2(?![0-9a-zA-Z])', '아이폰\\s*se\\s*\\(?\\s*2(?![0-9a-zA-Z])',
+        'iphone\\s*se\\s*\\(?\\s*(?:2nd|second)', 'iphone\\s*se\\s*2020'
+    ]),
+    ("APSE1", [
+        'iphone\\s*se\\s*\\(?\\s*1\\s*(?:st|세대)', '아이폰\\s*se\\s*\\(?\\s*1\\s*세대',
+        'iphone\\s*se\\s*\\(?\\s*first', 'iphone\\s*se\\s*2016'
+    ]),
+    ("AP8", [
+        '\\biphone\\s*8(?![0-9a-zA-Z])', '아이폰\\s*8(?![0-9a-zA-Z])', '아이폰8(?![0-9a-zA-Z])'
+    ]),
+    ("AP7", [
+        '\\biphone\\s*7(?![0-9a-zA-Z])', '아이폰\\s*7(?![0-9a-zA-Z])', '아이폰7(?![0-9a-zA-Z])'
+    ]),
+    ("AP6", [
+        '\\biphone\\s*6(?![0-9a-zA-Z])', '아이폰\\s*6(?![0-9a-zA-Z])', '아이폰6(?![0-9a-zA-Z])'
+    ]),
+
+    # ═══════════ 경쟁사 · Google Pixel — N Pro Fold → Pro XL → Pro → a → 기본 순.
+    # PXFOLD(무세대 Pixel Fold)는 반드시 세대별 Fold 뒤에 둔다. ═══════════
+    ("PX11PF", [
+        'pixel\\s*11\\s*pro\\s*folds?(?![0-9a-zA-Z])', 'pixel\\s*11\\s*folds?(?![0-9a-zA-Z])',
+        'pixel\\s*folds?\\s*11(?![0-9a-zA-Z])', '픽셀\\s*11\\s*프로\\s*폴드', '픽셀\\s*11\\s*폴드'
+    ]),
+    ("PX11PXL", [
+        'pixel\\s*11\\s*pro\\s*xl(?![0-9a-zA-Z])', 'pixel\\s*11\\s*xl(?![0-9a-zA-Z])',
+        '픽셀\\s*11\\s*프로\\s*xl(?![0-9a-zA-Z])'
+    ]),
+    ("PX11P", ['pixel\\s*11\\s*pros?(?![0-9a-zA-Z])', '픽셀\\s*11\\s*프로(?![0-9a-zA-Z])']),
+    ("PX11", ['(?<!mega)pixel\\s*11(?![0-9a-zA-Z%])', '픽셀\\s*11(?![0-9a-zA-Z%])']),
+    ("PX10PF", [
+        'pixel\\s*10\\s*pro\\s*folds?(?![0-9a-zA-Z])', 'pixel\\s*10\\s*folds?(?![0-9a-zA-Z])',
+        'pixel\\s*folds?\\s*10(?![0-9a-zA-Z])', '픽셀\\s*10\\s*프로\\s*폴드', '픽셀\\s*10\\s*폴드'
+    ]),
+    ("PX10PXL", [
+        'pixel\\s*10\\s*pro\\s*xl(?![0-9a-zA-Z])', 'pixel\\s*10\\s*xl(?![0-9a-zA-Z])',
+        '픽셀\\s*10\\s*프로\\s*xl(?![0-9a-zA-Z])'
+    ]),
+    ("PX10P", ['pixel\\s*10\\s*pros?(?![0-9a-zA-Z])', '픽셀\\s*10\\s*프로(?![0-9a-zA-Z])']),
+    ("PX10A", ['pixel\\s*10a(?![0-9a-zA-Z])', '픽셀\\s*10a(?![0-9a-zA-Z])']),
+    ("PX10", ['(?<!mega)pixel\\s*10(?![0-9a-zA-Z%])', '픽셀\\s*10(?![0-9a-zA-Z%])']),
+    ("PX9PF", [
+        'pixel\\s*9\\s*pro\\s*folds?(?![0-9a-zA-Z])', 'pixel\\s*9\\s*folds?(?![0-9a-zA-Z])',
+        'pixel\\s*folds?\\s*9(?![0-9a-zA-Z])', '픽셀\\s*9\\s*프로\\s*폴드', '픽셀\\s*9\\s*폴드'
+    ]),
+    ("PX9PXL", [
+        'pixel\\s*9\\s*pro\\s*xl(?![0-9a-zA-Z])', 'pixel\\s*9\\s*xl(?![0-9a-zA-Z])',
+        '픽셀\\s*9\\s*프로\\s*xl(?![0-9a-zA-Z])'
+    ]),
+    ("PX9P", [
+        'pixel\\s*9\\s*pro(?![0-9a-zA-Z])', '픽셀\\s*9\\s*프로', '\\bpx9p(?![0-9a-zA-Z])',
+        '\\bpx\\s*9p(?![0-9a-zA-Z])'
+    ]),
+    ("PX9A", ['pixel\\s*9a(?![0-9a-zA-Z])', '픽셀\\s*9a(?![0-9a-zA-Z])']),
+    ("PX9", [
+        '\\bpixel\\s*9(?![0-9a-zA-Z])', '픽셀\\s*9(?![0-9a-zA-Z])', '\\bpx9(?![0-9a-zA-Z])'
+    ]),
+    ("PXFOLD", ['pixel\\s*folds?(?![0-9a-zA-Z])', '픽셀\\s*폴드(?![0-9a-zA-Z])']),
+    ("PX8A", ['pixel\\s*8a(?![0-9a-zA-Z])', '픽셀\\s*8a(?![0-9a-zA-Z])']),
+    ("PX8P", ['pixel\\s*8\\s*pro(?![0-9a-zA-Z])', '픽셀\\s*8\\s*프로', '\\bpx8p(?![0-9a-zA-Z])']),
+    ("PX8", [
+        '\\bpixel\\s*8(?![0-9a-zA-Z])', '픽셀\\s*8(?![0-9a-zA-Z])', '\\bpx8(?![0-9a-zA-Z])'
+    ]),
+    ("PX7P", ['pixel\\s*7\\s*pros?(?![0-9a-zA-Z])', '픽셀\\s*7\\s*프로']),
+    ("PX7A", ['pixel\\s*7a(?![0-9a-zA-Z])', '픽셀\\s*7a(?![0-9a-zA-Z])']),
+    ("PX6P", ['pixel\\s*6\\s*pros?(?![0-9a-zA-Z])', '픽셀\\s*6\\s*프로']),
+    ("PX6A", ['pixel\\s*6a(?![0-9a-zA-Z])', '픽셀\\s*6a(?![0-9a-zA-Z])']),
+    ("PX5A", ['pixel\\s*5a(?![0-9a-zA-Z])', '픽셀\\s*5a(?![0-9a-zA-Z])']),
+    ("PX4A", ['pixel\\s*4a(?![0-9a-zA-Z])', '픽셀\\s*4a(?![0-9a-zA-Z])']),
+    ("PX3A", ['pixel\\s*3a(?![0-9a-zA-Z])', '픽셀\\s*3a(?![0-9a-zA-Z])']),
+
+    # ═══════════ 경쟁사 · Apple 웨어러블 (Apple Watch / AirPods) ═══════════
+    ("AWU4", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*ultra\\s*4(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*울트라\\s*4(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?<![0-9a-z])ultra\\s*4(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWU3", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*ultra\\s*3(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*울트라\\s*3(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?<![0-9a-z])ultra\\s*3(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWU2", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*ultra\\s*(?:2|ii)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*울트라\\s*2(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?<![0-9a-z])ultra\\s*2(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWU1", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*ultra(?![0-9a-z])(?!\\s*[2-9])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*울트라(?!\\s*[2-9])'
+    ]),
+    ("AWSE3", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*se\\s*(?:3|3rd|third)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?<![0-9a-z])se\\s*(?:3|3rd)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWSE2", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*se\\s*(?:2|ii|2nd|second)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?<![0-9a-z])se\\s*(?:2|2nd)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWSE", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*se(?![0-9a-z])(?!\\s*[2-9])'
+    ]),
+    ("AWS12", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*12(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*12(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*12(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWS11", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*11(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*11(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*11(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWS10", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*10(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*10(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*10(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWS9", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*9(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*9(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*9(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWS8", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*8(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*8(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*8(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWS7", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*7(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*7(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*7(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWS6", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*6(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*6(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*6(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWS5", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*5(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*5(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*5(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWS4", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*4(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*4(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*4(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWS3", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*3(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*3(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*3(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWS2", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*2(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*2(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*2(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("AWS1", [
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:series|시리즈)\\s*1(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*1(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        'apple\\s*watch(?:(?!galaxy|samsung|삼성|갤럭|pixel|픽셀|garmin|amazfit|xiaomi|huawei|oneplus|fitbit|nothing|oura|whoop|mi\\s*band).){0,30}?(?:series|시리즈)\\s*1(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:apple\\s*watch|애플\\s*워치|아이워치|iwatch)\\s*\\(?\\s*(?:1st|first)\\s*gen'
+    ]),
+    ("ABMAX2", [
+        '(?:air\\s*pods?|에어\\s*팟)\\s*max\\s*2(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:air\\s*pods?|에어\\s*팟)\\s*맥스\\s*2(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("ABMAX", [
+        '(?:air\\s*pods?|에어\\s*팟)\\s*max(?![0-9a-z])(?!\\s*[2-9])',
+        '(?:air\\s*pods?|에어\\s*팟)\\s*맥스(?!\\s*[2-9])'
+    ]),
+    ("ABP3", [
+        '(?:air\\s*pods?|에어\\s*팟)\\s*pro\\s*(?:3|3rd|third)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:air\\s*pods?|에어\\s*팟)\\s*3\\s*pro(?![0-9a-z])',
+        '(?:air\\s*pods?|에어\\s*팟)\\s*프로\\s*3(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("ABP2", [
+        '(?:air\\s*pods?|에어\\s*팟)\\s*pro\\s*(?:2|ii|2nd|second)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:air\\s*pods?|에어\\s*팟)\\s*2\\s*pro(?![0-9a-z])',
+        '(?:air\\s*pods?|에어\\s*팟)\\s*프로\\s*2(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])'
+    ]),
+    ("ABP1", [
+        '(?:air\\s*pods?|에어\\s*팟)\\s*pro\\s*(?:1|1st|first)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])',
+        '(?:air\\s*pods?|에어\\s*팟)\\s*pro(?![0-9a-z])(?!\\s*[2-9])',
+        '(?:air\\s*pods?|에어\\s*팟)\\s*프로(?!\\s*[2-9])'
+    ]),
+    ("AB5", [
+        '(?:air\\s*pods?|에어\\s*팟)\\s*5(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])(?!\\s*(?:pro|max|프로|맥스))'
+    ]),
+    ("AB4", [
+        '(?:air\\s*pods?|에어\\s*팟)\\s*(?:4|4th|fourth)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])(?!\\s*(?:pro|max|프로|맥스))'
+    ]),
+    ("AB3", [
+        '(?:air\\s*pods?|에어\\s*팟)\\s*(?:3|3rd|third)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])(?!\\s*(?:pro|max|프로|맥스))'
+    ]),
+    ("AB2", [
+        '(?:air\\s*pods?|에어\\s*팟)\\s*(?:2|2nd|second)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])(?!\\s*(?:pro|max|프로|맥스))'
+    ]),
+    ("AB1", [
+        '(?:air\\s*pods?|에어\\s*팟)\\s*(?:1|1st|first)(?![0-9])(?![:,][0-9])(?!\\.[0-9a-z])(?!\\s*(?:pro|max|프로|맥스))'
+    ]),
+
+    # ═══════════ 경쟁사 · Google 웨어러블 (Pixel Watch / Pixel Buds) ═══════════
+    ("PW5", ['pixel\\s*watch\\s*5(?![0-9a-zA-Z])', '픽셀\\s*워치\\s*5(?![0-9a-zA-Z])']),
+    ("PW4", ['pixel\\s*watch\\s*4(?![0-9a-zA-Z])', '픽셀\\s*워치\\s*4(?![0-9a-zA-Z])']),
+    ("PW3", ['pixel\\s*watch\\s*3(?![0-9a-zA-Z])', '픽셀\\s*워치\\s*3(?![0-9a-zA-Z])']),
+    ("PW2", ['pixel\\s*watch\\s*2(?![0-9a-zA-Z])', '픽셀\\s*워치\\s*2(?![0-9a-zA-Z])']),
+    ("PW1", [
+        'pixel\\s*watch\\s*1(?![0-9a-zA-Z])', 'pixel\\s*watch\\s*\\(?1(?:st)?\\s*gen',
+        'pixel\\s*watch(?![0-9a-zA-Z])', '픽셀\\s*워치(?![0-9a-zA-Z])'
+    ]),
+    ("PBP2", ['pixel\\s*buds\\s*pro\\s*2(?![0-9a-zA-Z])']),
+    ("PB2A", ['pixel\\s*buds\\s*2a(?![0-9a-zA-Z])']),
+    ("PBP", ['pixel\\s*buds\\s*pro(?![0-9a-zA-Z])', '픽셀\\s*버즈\\s*프로(?![0-9a-zA-Z])']),
+
+    # ═══════════ 경쟁사 · Xiaomi 계열 폰 (Xiaomi/Mi · Redmi · POCO) ═══════════
+    ("XM18F", ['xiaomi\\s*18\\s*fold(?![0-9a-zA-Z])', '샤오미\\s*18\\s*폴드']),
+    ("XM18P", ['xiaomi\\s*18\\s*pro(?![0-9a-zA-Z])', '샤오미\\s*18\\s*프로']),
+    ("XM18", ['xiaomi\\s*18(?![0-9a-zA-Z])', '샤오미\\s*18(?![0-9a-zA-Z])']),
+    ("XM17U", ['xiaomi\\s*17\\s*ultra(?![0-9a-zA-Z])', '샤오미\\s*17\\s*울트라']),
+    ("XM17PM", ['xiaomi\\s*17\\s*pro\\s*max(?![0-9a-zA-Z])']),
+    ("XM17P", ['xiaomi\\s*17\\s*pro(?![0-9a-zA-Z])', '샤오미\\s*17\\s*프로']),
+    ("XM17TP", ['xiaomi\\s*17t\\s*pro(?![0-9a-zA-Z])']),
+    ("XM17T", ['xiaomi\\s*17t(?![0-9a-zA-Z])', '샤오미\\s*17t(?![0-9a-zA-Z])']),
+    ("XM17", ['xiaomi\\s*17(?![0-9a-zA-Z])', '샤오미\\s*17(?![0-9a-zA-Z])']),
+    ("XM15U", ['xiaomi\\s*15\\s*ultra(?![0-9a-zA-Z])', '샤오미\\s*15\\s*울트라']),
+    ("XM15TP", ['xiaomi\\s*15t\\s*pro(?![0-9a-zA-Z])']),
+    ("XM15T", ['xiaomi\\s*15t(?![0-9a-zA-Z])', '샤오미\\s*15t(?![0-9a-zA-Z])']),
+    ("XM15", ['xiaomi\\s*15(?![0-9a-zA-Z])', '샤오미\\s*15(?![0-9a-zA-Z])']),
+    ("XM14T", ['xiaomi\\s*14t(?![0-9a-zA-Z])', '샤오미\\s*14t(?![0-9a-zA-Z])']),
+    ("XM14", ['xiaomi\\s*14(?![0-9a-zA-Z])', '샤오미\\s*14(?![0-9a-zA-Z])']),
+    ("XM13", ['xiaomi\\s*13(?![0-9a-zA-Z])', '샤오미\\s*13(?![0-9a-zA-Z])']),
+    ("XM12", ['xiaomi\\s*12(?![0-9a-zA-Z])', '샤오미\\s*12(?![0-9a-zA-Z])']),
+    ("XM11", [
+        'xiaomi\\s*mi\\s*11(?![0-9a-zA-Z])', 'xiaomi\\s*11(?![0-9a-zA-Z])',
+        '샤오미\\s*11(?![0-9a-zA-Z])', '\\bmi\\s*11\\s*(?:ultra|pro|lite|le|i|t)(?![0-9a-zA-Z])'
+    ]),
+    ("RMN17PM", ['redmi\\s*note\\s*17\\s*pro\\s*max(?![0-9a-zA-Z])']),
+    ("RMN17P", ['redmi\\s*note\\s*17\\s*pro(?![0-9a-zA-Z])']),
+    ("RMN17", ['redmi\\s*note\\s*17(?![0-9a-zA-Z])', '홍미\\s*노트\\s*17', '레드미\\s*노트\\s*17']),
+    ("RMN15P", ['redmi\\s*note\\s*15\\s*pro(?![0-9a-zA-Z])']),
+    ("RMN15", ['redmi\\s*note\\s*15(?![0-9a-zA-Z])', '홍미\\s*노트\\s*15', '레드미\\s*노트\\s*15']),
+    ("RMN14P", ['redmi\\s*note\\s*14\\s*pro(?![0-9a-zA-Z])']),
+    ("RMN14", ['redmi\\s*note\\s*14(?![0-9a-zA-Z])', '홍미\\s*노트\\s*14', '레드미\\s*노트\\s*14']),
+    ("RMN13", ['redmi\\s*note\\s*13(?![0-9a-zA-Z])', '홍미\\s*노트\\s*13', '레드미\\s*노트\\s*13']),
+    ("RMN12", ['redmi\\s*note\\s*12(?![0-9a-zA-Z])', '홍미\\s*노트\\s*12', '레드미\\s*노트\\s*12']),
+    ("RMN11", ['redmi\\s*note\\s*11(?![0-9a-zA-Z])', '홍미\\s*노트\\s*11', '레드미\\s*노트\\s*11']),
+    ("RMN10", ['redmi\\s*note\\s*10(?![0-9a-zA-Z])', '홍미\\s*노트\\s*10', '레드미\\s*노트\\s*10']),
+    ("RMN9", ['redmi\\s*note\\s*9(?![0-9a-zA-Z])', '홍미\\s*노트\\s*9', '레드미\\s*노트\\s*9']),
+    ("RMN8", ['redmi\\s*note\\s*8(?![0-9a-zA-Z])', '홍미\\s*노트\\s*8', '레드미\\s*노트\\s*8']),
+    ("RMK100P", ['redmi\\s*k100\\s*pro(?![0-9a-zA-Z])']),
+    ("RMK100", ['redmi\\s*k100(?![0-9a-zA-Z])', '\\bk100\\s*(?:pro|ultra|max)(?![0-9a-zA-Z])']),
+    ("RMK90U", ['redmi\\s*k90\\s*ultra(?![0-9a-zA-Z])']),
+    ("RMK90", ['redmi\\s*k90(?![0-9a-zA-Z])', '\\bk90\\s*(?:pro|ultra|max)(?![0-9a-zA-Z])']),
+    ("RMT5", ['redmi\\s*turbo\\s*5(?![0-9a-zA-Z])']),
+    ("RM15C", ['redmi\\s*15c(?![0-9a-zA-Z])']),
+    ("PCF9U", ['poco\\s*f9\\s*ultra(?![0-9a-zA-Z])']),
+    ("PCF9P", ['poco\\s*f9\\s*pro(?![0-9a-zA-Z])']),
+    ("PCF9", ['poco\\s*f9(?![0-9a-zA-Z])']),
+    ("PCF8U", ['poco\\s*f8\\s*ultra(?![0-9a-zA-Z])']),
+    ("PCF8P", ['poco\\s*f8\\s*pro(?![0-9a-zA-Z])']),
+    ("PCF8", ['poco\\s*f8(?![0-9a-zA-Z])']),
+    ("PCF7", ['poco\\s*f7(?![0-9a-zA-Z])']),
+    ("PCF6", ['poco\\s*f6(?![0-9a-zA-Z])']),
+    ("PCX8PM", ['poco\\s*x8\\s*pro\\s*max(?![0-9a-zA-Z])']),
+    ("PCX8P", ['poco\\s*x8\\s*pro(?![0-9a-zA-Z])']),
+    ("PCX8", ['poco\\s*x8(?![0-9a-zA-Z])']),
+    ("PCX7P", ['poco\\s*x7\\s*pro(?![0-9a-zA-Z])']),
+    ("PCX7", ['poco\\s*x7(?![0-9a-zA-Z])']),
+    ("PCX6", ['poco\\s*x6(?![0-9a-zA-Z])']),
+    ("PCX3", ['poco\\s*x3(?![0-9a-zA-Z])']),
+    ("PCM8", ['poco\\s*m8(?![0-9a-zA-Z])']),
+
+    # ═══════════ 경쟁사 · 중국 2군 폰 (vivo · Oppo · OnePlus · realme · Honor · Huawei) ═══════════
+    ("VVXF6", [
+        "(?:vivo|비보)[\\s\\-'’]{0,3}x\\s*fold\\s*6(?![0-9a-zA-Z])",
+        "(?:vivo|비보)[\\s\\-'’]{0,3}x\\s*폴드\\s*6(?![0-9a-zA-Z])"
+    ]),
+    ("VVXF5", [
+        "(?:vivo|비보)[\\s\\-'’]{0,3}x\\s*fold\\s*5(?![0-9a-zA-Z])",
+        "(?:vivo|비보)[\\s\\-'’]{0,3}x\\s*폴드\\s*5(?![0-9a-zA-Z])"
+    ]),
+    ("VVXF", [
+        "(?:vivo|비보)[\\s\\-'’]{0,3}x\\s*fold(?![0-9a-zA-Z])",
+        "(?:vivo|비보)[\\s\\-'’]{0,3}x\\s*폴드(?![0-9a-zA-Z])"
+    ]),
+    ("OOFN7", ['\\bfind\\s*n\\s*7(?![0-9a-zA-Z])', '파인드\\s*n\\s*7(?![0-9a-zA-Z])']),
+    ("OOFN6", ['\\bfind\\s*n\\s*6(?![0-9a-zA-Z])', '파인드\\s*n\\s*6(?![0-9a-zA-Z])']),
+    ("OOFN5", ['\\bfind\\s*n\\s*5(?![0-9a-zA-Z])', '파인드\\s*n\\s*5(?![0-9a-zA-Z])']),
+    ("OOFN3", ['\\bfind\\s*n\\s*3(?![0-9a-zA-Z])']),
+    ("OOFN2", ['\\bfind\\s*n\\s*2(?![0-9a-zA-Z])']),
+    ("OOFX10", ['\\bfind\\s*x\\s*10(?![0-9a-zA-Z])', '파인드\\s*x\\s*10(?![0-9a-zA-Z])']),
+    ("OOFX9", [
+        '\\bfind\\s*x\\s*9\\s*s(?![0-9a-zA-Z])', '\\bfind\\s*x\\s*9(?![0-9a-zA-Z])',
+        '파인드\\s*x\\s*9(?![0-9a-zA-Z])'
+    ]),
+    ("OOFX8", [
+        '\\bfind\\s*x\\s*8\\s*s(?![0-9a-zA-Z])', '\\bfind\\s*x\\s*8(?![0-9a-zA-Z])',
+        '파인드\\s*x\\s*8(?![0-9a-zA-Z])'
+    ]),
+    ("OOFX7", ['\\bfind\\s*x\\s*7(?![0-9a-zA-Z])']),
+    ("OOFX6", ['\\bfind\\s*x\\s*6(?![0-9a-zA-Z])']),
+    ("OOFX5", ['\\bfind\\s*x\\s*5(?![0-9a-zA-Z])']),
+    ("OOFX3", ['\\bfind\\s*x\\s*3(?![0-9a-zA-Z])']),
+    ("OOFX2", ['\\bfind\\s*x\\s*2(?![0-9a-zA-Z])']),
+    ("OORN16", ['(?<![\\w\\-])reno\\s*16(?![0-9a-zA-Z])', '레노\\s*16(?![0-9a-zA-Z])']),
+    ("OORN15", ['(?<![\\w\\-])reno\\s*15(?![0-9a-zA-Z])', '레노\\s*15(?![0-9a-zA-Z])']),
+    ("OORN14", ['(?<![\\w\\-])reno\\s*14(?![0-9a-zA-Z])', '레노\\s*14(?![0-9a-zA-Z])']),
+    ("OORN13", ['(?<![\\w\\-])reno\\s*13(?![0-9a-zA-Z])']),
+    ("VVX500", ["(?:vivo|비보)[\\s\\-'’]{0,3}x\\s*500(?![0-9a-zA-Z])"]),
+    ("VVX300", ["(?:vivo|비보)[\\s\\-'’]{0,3}x\\s*300(?![0-9a-zA-Z])"]),
+    ("VVX200", ["(?:vivo|비보)[\\s\\-'’]{0,3}x\\s*200(?![0-9a-zA-Z])"]),
+    ("VVX100", ["(?:vivo|비보)[\\s\\-'’]{0,3}x\\s*100(?![0-9a-zA-Z])"]),
+    ("VVV70", ["(?:vivo|비보)[\\s\\-'’]{0,3}v\\s*70(?![0-9a-zA-Z])"]),
+    ("VVIQ16", ['\\biqoo\\s*16(?![0-9a-zA-Z])']),
+    ("VVIQ15", ['\\biqoo\\s*15(?![0-9a-zA-Z])']),
+    ("VVIQ13", ['\\biqoo\\s*13(?![0-9a-zA-Z])']),
+    ("OPOPEN", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}open(?![0-9a-zA-Z])"]),
+    ("OPNORD", [
+        "(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}nord(?![0-9a-zA-Z])",
+        '(?<![\\w\\-])nord\\s*ce\\s*\\d?(?![0-9a-zA-Z])',
+        '(?<![\\w\\-])nord\\s*[2-6](?![0-9a-zA-Z])'
+    ]),
+    ("OP16", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}16r?(?![0-9a-zA-Z])"]),
+    ("OP15", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}15[rst]?(?![0-9a-zA-Z])"]),
+    ("OP13", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}13[rst]?(?![0-9a-zA-Z])"]),
+    ("OP12", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}12[rst]?(?![0-9a-zA-Z])"]),
+    ("OP11", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}11[rst]?(?![0-9a-zA-Z])"]),
+    ("OP10", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}10[rt]?(?![0-9a-zA-Z])"]),
+    ("OP9", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}9r?t?(?![0-9a-zA-Z])"]),
+    ("OP8", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}8t?(?![0-9a-zA-Z])"]),
+    ("OP7", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}7t?(?![0-9a-zA-Z])"]),
+    ("OP6", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}6t?(?![0-9a-zA-Z])"]),
+    ("OP5", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}5t?(?![0-9a-zA-Z])"]),
+    ("OP3", ["(?:one\\s?plus|원\\s?플러스|원플|一加)[\\s\\-'’]{0,3}3t?(?![0-9a-zA-Z])"]),
+    ("RLGT8", ["(?:realme|리얼미|真我)[\\s\\-'’]{0,3}gt\\s*8t?(?![0-9a-zA-Z])"]),
+    ("RLGT7", ["(?:realme|리얼미|真我)[\\s\\-'’]{0,3}gt\\s*7t?(?![0-9a-zA-Z])"]),
+    ("RLGT6", ["(?:realme|리얼미|真我)[\\s\\-'’]{0,3}gt\\s*6t?(?![0-9a-zA-Z])"]),
+    ("RLP4", ["(?:realme|리얼미|真我)[\\s\\-'’]{0,3}p\\s*4[a-z]?(?![0-9a-zA-Z])"]),
+    ("RL16", ["(?:realme|리얼미|真我)[\\s\\-'’]{0,3}16t?(?![0-9a-zA-Z])"]),
+    ("RL15", ["(?:realme|리얼미|真我)[\\s\\-'’]{0,3}15(?![0-9a-zA-Z])"]),
+    ("RL14", ["(?:realme|리얼미|真我)[\\s\\-'’]{0,3}14(?![0-9a-zA-Z])"]),
+    ("RL12", ["(?:realme|리얼미|真我)[\\s\\-'’]{0,3}12(?![0-9a-zA-Z])"]),
+    ("HOMV6", [
+        '(?<!red\\s)(?<!red-)\\bmagic\\s*v\\s*6(?![0-9a-zA-Z])', '매직\\s*v\\s*6(?![0-9a-zA-Z])'
+    ]),
+    ("HOMV5", [
+        '(?<!red\\s)(?<!red-)\\bmagic\\s*v\\s*5(?![0-9a-zA-Z])', '매직\\s*v\\s*5(?![0-9a-zA-Z])'
+    ]),
+    ("HOMV3", ['(?<!red\\s)(?<!red-)\\bmagic\\s*v\\s*3(?![0-9a-zA-Z])']),
+    ("HOMV2", ['(?<!red\\s)(?<!red-)\\bmagic\\s*v\\s*2(?![0-9a-zA-Z])']),
+    ("HOM9", ['(?<!red\\s)(?<!red-)\\bmagic\\s*9(?![0-9a-zA-Z])', '매직\\s*9(?![0-9a-zA-Z])']),
+    ("HOM8", [
+        '(?<!red\\s)(?<!red-)\\bmagic\\s*8(?!\\s*ball)(?![0-9a-zA-Z])',
+        '매직\\s*8(?![0-9a-zA-Z])'
+    ]),
+    ("HOM7", ['(?<!red\\s)(?<!red-)\\bmagic\\s*7(?![0-9a-zA-Z])']),
+    ("HOM6", ['(?<!red\\s)(?<!red-)\\bmagic\\s*6(?![0-9a-zA-Z])']),
+    ("HOM5", ['(?<!red\\s)(?<!red-)\\bmagic\\s*5(?![0-9a-zA-Z])']),
+    ("HO600", ["(?:honou?r|아너|荣耀)[\\s\\-'’]{0,3}600(?![0-9a-zA-Z])"]),
+    ("HO500", ["(?:honou?r|아너|荣耀)[\\s\\-'’]{0,3}500(?![0-9a-zA-Z])"]),
+    ("HO400", ["(?:honou?r|아너|荣耀)[\\s\\-'’]{0,3}400(?![0-9a-zA-Z])"]),
+    ("HO300", ["(?:honou?r|아너|荣耀)[\\s\\-'’]{0,3}300(?![0-9a-zA-Z])"]),
+    ("HO200", ["(?:honou?r|아너|荣耀)[\\s\\-'’]{0,3}200(?![0-9a-zA-Z])"]),
+    ("HWPUX", ['\\bpura\\s*x(?![0-9a-zA-Z])', '퓨라\\s*x(?![0-9a-zA-Z])']),
+    ("HWPU90", ['\\bpura\\s*90s?(?![0-9a-zA-Z])', '퓨라\\s*90(?![0-9a-zA-Z])']),
+    ("HWPU80", ['\\bpura\\s*80(?![0-9a-zA-Z])', '퓨라\\s*80(?![0-9a-zA-Z])']),
+    ("HWPU70", ['\\bpura\\s*70(?![0-9a-zA-Z])', '퓨라\\s*70(?![0-9a-zA-Z])']),
+    ("HWMXT2", ['\\bmate\\s*xt\\s*2(?![0-9a-zA-Z])', '메이트\\s*xt\\s*2(?![0-9a-zA-Z])']),
+    ("HWMXT", ['\\bmate\\s*xt(?![0-9a-zA-Z])', '메이트\\s*xt(?![0-9a-zA-Z])']),
+    ("HWMX7", ['\\bmate\\s*x\\s*7(?![0-9a-zA-Z])']),
+    ("HWMX6", ['\\bmate\\s*x\\s*6(?![0-9a-zA-Z])']),
+    ("HWMX5", ['\\bmate\\s*x\\s*5(?![0-9a-zA-Z])']),
+    ("HWMX2", ['\\bmate\\s*x\\s*2(?![0-9a-zA-Z])', '메이트\\s*x\\s*2(?![0-9a-zA-Z])']),
+    ("HWM90", ['\\bmate\\s*90(?![0-9a-zA-Z])']),
+    ("HWM80", ['\\bmate\\s*80(?![0-9a-zA-Z])']),
+    ("HWM70", ['\\bmate\\s*70(?![0-9a-zA-Z])']),
+    ("HWM60", ['\\bmate\\s*60(?![0-9a-zA-Z])']),
+    ("HWM50", ['\\bmate\\s*50(?![0-9a-zA-Z])']),
+    ("HWM40", ['\\bmate\\s*40(?![0-9a-zA-Z])']),
+    ("HWM30", ['\\bmate\\s*30(?![0-9a-zA-Z])']),
+    ("HWM20", ['\\bmate\\s*20(?![0-9a-zA-Z])']),
+    ("HWNV16", ['\\bnova\\s*16s?(?![0-9a-zA-Z])']),
+    ("HWNV15", ['\\bnova\\s*15(?![0-9a-zA-Z])']),
+    ("HWP50", [
+        "(?:huawei|huwai|hauwei|화웨이|华为)[\\s\\-'’]{0,4}(?:s\\s*)?p\\s*50(?![0-9a-zA-Z])"
+    ]),
+    ("HWP40", [
+        "(?:huawei|huwai|hauwei|화웨이|华为)[\\s\\-'’]{0,4}(?:s\\s*)?p\\s*40(?![0-9a-zA-Z])"
+    ]),
+    ("HWP30", [
+        "(?:huawei|huwai|hauwei|화웨이|华为)[\\s\\-'’]{0,4}(?:s\\s*)?p\\s*30(?![0-9a-zA-Z])"
+    ]),
+    ("HWP20", [
+        "(?:huawei|huwai|hauwei|화웨이|华为)[\\s\\-'’]{0,4}(?:s\\s*)?p\\s*20(?![0-9a-zA-Z])"
+    ]),
+
+    # ═══════════ 경쟁사 · 중화권 웨어러블 (Huawei · OnePlus · Nothing · Xiaomi/Amazfit) ═══════════
+    ("HWGT7P", ['(?:huawei\\s*)?watch\\s*gt\\s*7\\s*pro(?![0-9a-zA-Z])']),
+    ("HWGT7", ['(?:huawei\\s*)?watch\\s*gt\\s*7(?![0-9a-zA-Z])']),
+    ("HWGT6P", ['(?:huawei\\s*)?watch\\s*gt\\s*6\\s*pro(?![0-9a-zA-Z])']),
+    ("HWGT6", ['(?:huawei\\s*)?watch\\s*gt\\s*6(?![0-9a-zA-Z])']),
+    ("HWGTR2", ['(?:huawei\\s*)?watch\\s*gt\\s*runner(?![0-9a-zA-Z])']),
+    ("HWFIT5P", ['(?<!galaxy\\s)(?:huawei\\s*)?watch\\s*fit\\s*5\\s*pro(?![0-9a-zA-Z])']),
+    ("HWFIT5", ['(?<!galaxy\\s)(?:huawei\\s*)?watch\\s*fit\\s*5(?![0-9a-zA-Z])']),
+    ("HWFIT4P", ['(?<!galaxy\\s)(?:huawei\\s*)?watch\\s*fit\\s*4\\s*pro(?![0-9a-zA-Z])']),
+    ("HWFIT4", ['(?<!galaxy\\s)(?:huawei\\s*)?watch\\s*fit\\s*4(?![0-9a-zA-Z])']),
+    ("HWD3", ['(?:huawei\\s*)?watch\\s*d3(?![0-9a-zA-Z])']),
+    ("HWD2", ['(?:huawei\\s*)?watch\\s*d2(?![0-9a-zA-Z])']),
+    ("HWULT", ['(?:huawei\\s*)?watch\\s*ultimate(?![0-9a-zA-Z])']),
+    ("HW6", ['huawei\\s*watch\\s*6(?![0-9a-zA-Z])', '화웨이\\s*워치\\s*6(?![0-9a-zA-Z])']),
+    ("HW5", ['huawei\\s*watch\\s*5(?![0-9a-zA-Z])', '화웨이\\s*워치\\s*5(?![0-9a-zA-Z])']),
+    ("HWB11", ['huawei\\s*band\\s*11(?![0-9a-zA-Z])', '화웨이\\s*밴드\\s*11(?![0-9a-zA-Z])']),
+    ("HWB10", ['huawei\\s*band\\s*10(?![0-9a-zA-Z])', '화웨이\\s*밴드\\s*10(?![0-9a-zA-Z])']),
+    ("HWFBP5", ['freebuds\\s*pro\\s*5(?![0-9a-zA-Z])', 'freebuds\\s*5\\s*pro(?![0-9a-zA-Z])']),
+    ("HWFBP4", ['freebuds\\s*pro\\s*4(?![0-9a-zA-Z])']),
+    ("HWFBNEO", ['freebuds\\s*neo(?![0-9a-zA-Z])']),
+    ("HWFBSE", ['freebuds\\s*se(?![0-9a-zA-Z])']),
+    ("HWFB7", ['freebuds\\s*7(?![0-9a-zA-Z])']),
+    ("OPW4", ['one\\s*plus\\s*watch\\s*4(?![0-9a-zA-Z])', '원플러스\\s*워치\\s*4(?![0-9a-zA-Z])']),
+    ("OPW3", ['one\\s*plus\\s*watch\\s*3(?![0-9a-zA-Z])', '원플러스\\s*워치\\s*3(?![0-9a-zA-Z])']),
+    ("OPW2R", ['one\\s*plus\\s*watch\\s*2r(?![0-9a-zA-Z])']),
+    ("OPW2", ['one\\s*plus\\s*watch\\s*2(?![0-9a-zA-Z])', '원플러스\\s*워치\\s*2(?![0-9a-zA-Z])']),
+    ("OPBP3", ['one\\s*plus\\s*buds\\s*pro\\s*3(?![0-9a-zA-Z])']),
+    ("OPB4", ['one\\s*plus\\s*buds\\s*4(?![0-9a-zA-Z])', '원플러스\\s*버즈\\s*4(?![0-9a-zA-Z])']),
+    ("OPB3", ['one\\s*plus\\s*buds\\s*3(?![0-9a-zA-Z])', '원플러스\\s*버즈\\s*3(?![0-9a-zA-Z])']),
+    ("OPBN", [
+        '(?:one\\s*plus\\s*)?nord\\s*buds(?![0-9a-zA-Z])',
+        'one\\s*plus\\s*buds\\s*nord(?![0-9a-zA-Z])'
+    ]),
+    ("NTE3A", ['nothing\\s*ear\\s*\\(?\\s*3a\\s*\\)?(?![0-9a-zA-Z])']),
+    ("NTEA", ['nothing\\s*ear\\s*\\(\\s*a\\s*\\)']),
+    ("NTE", [
+        'nothing\\s*ear(?![0-9a-zA-Z])', '낫싱\\s*이어(?![0-9a-zA-Z])', '나띵\\s*이어(?![0-9a-zA-Z])'
+    ]),
+    ("XMB11", [
+        '(?:xiaomi|redmi|mi)\\s*(?:smart\\s*)?band\\s*11(?![0-9a-zA-Z])',
+        '샤오미\\s*밴드\\s*11(?![0-9a-zA-Z])', '(?<![가-힣])미밴드\\s*11(?![0-9a-zA-Z])'
+    ]),
+    ("XMB10", [
+        '(?:xiaomi|redmi|mi)\\s*(?:smart\\s*)?band\\s*10(?![0-9a-zA-Z])',
+        '샤오미\\s*밴드\\s*10(?![0-9a-zA-Z])', '(?<![가-힣])미밴드\\s*10(?![0-9a-zA-Z])'
+    ]),
+    ("XMB9", [
+        '(?:xiaomi|redmi|mi)\\s*(?:smart\\s*)?band\\s*9(?![0-9a-zA-Z])',
+        '샤오미\\s*밴드\\s*9(?![0-9a-zA-Z])', '(?<![가-힣])미밴드\\s*9(?![0-9a-zA-Z])'
+    ]),
+    ("XMB8", [
+        '(?:xiaomi|redmi|mi)\\s*(?:smart\\s*)?band\\s*8(?![0-9a-zA-Z])',
+        '샤오미\\s*밴드\\s*8(?![0-9a-zA-Z])', '(?<![가-힣])미밴드\\s*8(?![0-9a-zA-Z])'
+    ]),
+    ("XMBAND", [
+        'xiaomi\\s*(?:smart\\s*)?band(?![0-9a-zA-Z])', '\\bmi\\s*band(?![0-9a-zA-Z])',
+        '샤오미\\s*(?:스마트\\s*)?밴드(?![0-9a-zA-Z])', '(?<![가-힣])미밴드(?![0-9a-zA-Z])'
+    ]),
+    ("XMWS5", ['xiaomi\\s*watch\\s*s5(?![0-9a-zA-Z])']),
+    ("XMW5", ['xiaomi\\s*watch\\s*5(?![0-9a-zA-Z])', '샤오미\\s*워치\\s*5(?![0-9a-zA-Z])']),
+    ("RDW6", ['redmi\\s*watch\\s*6(?![0-9a-zA-Z])', '레드미\\s*워치\\s*6(?![0-9a-zA-Z])']),
+    ("RDW5", ['redmi\\s*watch\\s*5(?![0-9a-zA-Z])', '레드미\\s*워치\\s*5(?![0-9a-zA-Z])']),
+    ("RDW4", ['redmi\\s*watch\\s*4(?![0-9a-zA-Z])', '레드미\\s*워치\\s*4(?![0-9a-zA-Z])']),
+    ("AZTR3", ['amazfit\\s*t[\\s\\-]*rex\\s*3(?![0-9a-zA-Z])']),
+    ("AZBIP6", ['amazfit\\s*bip\\s*6(?![0-9a-zA-Z])']),
+    ("AZACTM", ['amazfit\\s*active\\s*max(?![0-9a-zA-Z])']),
+    ("AZBAL3", ['amazfit\\s*balance\\s*3(?![0-9a-zA-Z])']),
+    ("AZBAL2", ['amazfit\\s*balance\\s*2(?![0-9a-zA-Z])']),
+    ("AZBAL", ['amazfit\\s*balance(?![0-9a-zA-Z])']),
+
+    # ═══════════ 경쟁사 · 기타 폰 (Nothing · Motorola · Sony Xperia · Nokia · Asus) ═══════════
+    ("NTP4B", ['nothing\\s*phone\\s*\\(?\\s*4\\s*b\\s*\\)?(?![0-9a-zA-Z])']),
+    ("NTP4A", ['nothing\\s*phone\\s*\\(?\\s*4\\s*a\\s*\\)?(?![0-9a-zA-Z])']),
+    ("NTP3A", ['nothing\\s*phone\\s*\\(?\\s*3\\s*a\\s*\\)?(?![0-9a-zA-Z])']),
+    ("NTP3", ['nothing\\s*phone\\s*\\(?\\s*3\\s*\\)?(?![0-9a-zA-Z])']),
+    ("NTP2A", ['nothing\\s*phone\\s*\\(?\\s*2\\s*a\\s*\\)?(?![0-9a-zA-Z])']),
+    ("NTP2", ['nothing\\s*phone\\s*\\(?\\s*2\\s*\\)?(?![0-9a-zA-Z])']),
+    ("NTP1", ['nothing\\s*phone\\s*\\(?\\s*1\\s*\\)?(?![0-9a-zA-Z])']),
+    ("NTCMF2P", ['cmf\\s*phone\\s*2(?![0-9a-zA-Z])']),
+    ("NTCMF1", ['cmf\\s*phone\\s*1(?![0-9a-zA-Z])']),
+    ("NTEAR", ['nothing\\s*ear(?![0-9a-zA-Z])']),
+    ("NTP", ['nothing\\s*phone(?![0-9a-zA-Z:\\-])', 'nothing\\s*os(?![0-9a-zA-Z])', '낫싱\\s*폰']),
+    ("MTRZFOLD", ['\\brazr\\s*fold(?![0-9a-zA-Z])', '레이저\\s*폴드']),
+    ("MTRZ70U", ['\\brazr\\s*70\\s*ultra(?![0-9a-zA-Z])']),
+    ("MTRZ70", ['\\brazr\\s*70(?![0-9a-zA-Z])']),
+    ("MTRZ60U", ['\\brazr\\s*60\\s*ultra(?![0-9a-zA-Z])']),
+    ("MTRZ60", ['\\brazr\\s*60(?![0-9a-zA-Z])']),
+    ("MTRZ50U", ['\\brazr\\s*50\\s*ultra(?![0-9a-zA-Z])']),
+    ("MTRZ40U", ['\\brazr\\s*40\\s*ultra(?![0-9a-zA-Z])']),
+    ("MTRZR", ['\\brazr(?![0-9a-zA-Z])', '모토\\s*레이저', '레이저\\s*폰']),
+    ("MTEDGE70", [
+        'moto(?:rola)?\\s*edge\\s*70(?![0-9a-zA-Z])',
+        '(?<![0-9]\\s)\\bedge\\s*70(?![0-9a-zA-Z])'
+    ]),
+    ("MTEDGE60", [
+        'moto(?:rola)?\\s*edge\\s*60(?![0-9a-zA-Z])',
+        '(?<![0-9]\\s)\\bedge\\s*60(?![0-9a-zA-Z])'
+    ]),
+    ("MTEDGE50", [
+        'moto(?:rola)?\\s*edge\\s*50(?![0-9a-zA-Z])',
+        '(?<![0-9]\\s)\\bedge\\s*50(?![0-9a-zA-Z])'
+    ]),
+    ("MTEDGE40", [
+        'moto(?:rola)?\\s*edge\\s*40(?![0-9a-zA-Z])',
+        '(?<![0-9]\\s)\\bedge\\s*40(?![0-9a-zA-Z])'
+    ]),
+    ("MTEDGE30", [
+        'moto(?:rola)?\\s*edge\\s*30(?![0-9a-zA-Z])',
+        '(?<![0-9]\\s)\\bedge\\s*30(?![0-9a-zA-Z])'
+    ]),
+    ("MTEDGE20", [
+        'moto(?:rola)?\\s*edge\\s*20(?![0-9a-zA-Z])',
+        '(?<![0-9]\\s)\\bedge\\s*20(?![0-9a-zA-Z])'
+    ]),
+    ("MTEDGE", ['moto(?:rola)?\\s*edge(?![0-9a-zA-Z])', '모토로라\\s*엣지']),
+    ("MTG86", ['\\bmoto\\s*g\\s*86(?![0-9a-zA-Z])']),
+    ("MTGSTYLU", ['\\bmoto\\s*g\\s*stylus(?![0-9a-zA-Z])']),
+    ("MTGPOWER", ['\\bmoto\\s*g\\s*power(?![0-9a-zA-Z])']),
+    ("MTG", ['\\bmoto\\s*g\\s*\\d{0,3}(?![0-9a-zA-Z])', '모토\\s*g(?![0-9a-zA-Z])']),
+    ("MTX", ['\\bmoto\\s*x\\s*\\d{0,2}(?![0-9a-zA-Z])']),
+    ("MTZ", ['\\bmoto\\s*z\\s*\\d{0,2}(?![0-9a-zA-Z])']),
+    ("MTE", ['\\bmoto\\s*e\\s*\\d{0,2}(?![0-9a-zA-Z])']),
+    ("SNX1M8", ['xperia\\s*1\\s*viii(?![0-9a-zA-Z])']),
+    ("SNX1M7", ['xperia\\s*1\\s*vii(?![0-9a-zA-Z])']),
+    ("SNX1M6", ['xperia\\s*1\\s*vi(?![0-9a-zA-Z])']),
+    ("SNX1M5", ['xperia\\s*1\\s*v(?![0-9a-zA-Z])']),
+    ("SNX1M4", ['xperia\\s*1\\s*iv(?![0-9a-zA-Z])']),
+    ("SNX1M3", ['xperia\\s*1\\s*iii(?![0-9a-zA-Z])']),
+    ("SNX1M2", ['xperia\\s*1\\s*ii(?![0-9a-zA-Z])']),
+    ("SNX1", ['xperia\\s*1(?![0-9a-zA-Z])', '엑스페리아\\s*1(?![0-9a-zA-Z])']),
+    ("SNX10M8", ['xperia\\s*10\\s*viii(?![0-9a-zA-Z])']),
+    ("SNX10M7", ['xperia\\s*10\\s*vii(?![0-9a-zA-Z])']),
+    ("SNX10", ['xperia\\s*10(?![0-9a-zA-Z])']),
+    ("SNX5", ['xperia\\s*5(?![0-9a-zA-Z])']),
+    ("SNXXZ", ['xperia\\s*xz\\s*\\d?(?![0-9a-zA-Z])']),
+    ("SNXZ", ['xperia\\s*z\\s*[1-5](?![0-9a-zA-Z])', 'xperia\\s*z(?![0-9a-zA-Z])']),
+    ("SNXPERIA", ['\\bxperia(?![0-9a-zA-Z])', '엑스페리아']),
+    ("NK3310", ['nokia\\s*3310(?![0-9a-zA-Z])']),
+    ("NK3210", ['nokia\\s*3210(?![0-9a-zA-Z])']),
+    ("NKN900", ['nokia\\s*n\\s*900(?![0-9a-zA-Z])']),
+    ("NKN95", ['nokia\\s*n\\s*95(?![0-9a-zA-Z])']),
+    ("NKN9", ['nokia\\s*n\\s*9(?![0-9a-zA-Z])']),
+    ("NKN8", ['nokia\\s*n\\s*8(?![0-9a-zA-Z])']),
+    ("NK9PV", ['nokia\\s*9\\s*pureview(?![0-9a-zA-Z])', 'nokia\\s*9(?![0-9.])(?![0-9a-zA-Z])']),
+    ("NK1100", ['nokia\\s*1100(?![0-9a-zA-Z])']),
+    ("NK808", ['nokia\\s*808(?![0-9a-zA-Z])']),
+    ("NK61", ['nokia\\s*6\\.1(?![0-9a-zA-Z])']),
+    ("NK8_17", ['nokia\\s*8(?![0-9.])(?![0-9a-zA-Z])']),
+    ("NK7P_18", ['nokia\\s*7\\s*plus(?![0-9a-zA-Z])', 'nokia\\s*7(?![0-9.])(?![0-9a-zA-Z])']),
+    ("NK6_17", ['nokia\\s*6(?![0-9.])(?![0-9a-zA-Z])']),
+    ("NKLUMIA", ['\\blumia(?![0-9a-zA-Z])', '노키아\\s*루미아']),
+    ("ASROG9", ['rog\\s*phone\\s*9(?![0-9a-zA-Z])']),
+    ("ASROG8", ['rog\\s*phone\\s*8(?![0-9a-zA-Z])']),
+    ("ASROG5", ['rog\\s*phone\\s*5(?![0-9a-zA-Z])']),
+    ("ASROG3", ['rog\\s*phone\\s*3(?![0-9a-zA-Z])']),
+    ("ASROG2", ['rog\\s*phone\\s*2(?![0-9a-zA-Z])']),
+    ("ASROG", ['rog\\s*phone(?![0-9a-zA-Z])', '로그\\s*폰']),
+    ("ASZEN12", ['zen\\s*fone\\s*12(?![0-9a-zA-Z])']),
+    ("ASZEN10", ['zen\\s*fone\\s*10(?![0-9a-zA-Z])']),
+    ("ASZEN9", ['zen\\s*fone\\s*9(?![0-9a-zA-Z])']),
+    ("ASZEN8", ['zen\\s*fone\\s*8(?![0-9a-zA-Z])']),
+    ("ASZEN6", ['zen\\s*fone\\s*6(?![0-9a-zA-Z])']),
+    ("ASZEN2", ['zen\\s*fone\\s*2(?![0-9a-zA-Z])']),
+    ("ASZENMAX", ['zen\\s*fone\\s*max(?![0-9a-zA-Z])']),
+    ("ASZEN", ['zen\\s*fone(?![0-9a-zA-Z])', '젠폰']),
+
+    # ═══════════ 경쟁사 · 피트니스/오디오 (Garmin · Fitbit · Bose · Sony 오디오 · Jabra) ═══════════
+    ("GMNFX8", ['\\bfenix\\s*8(?![0-9a-zA-Z])', '가민\\s*피닉스\\s*8(?![0-9a-zA-Z])']),
+    ("GMNFX7", ['\\bfenix\\s*7(?![0-9a-zA-Z])', '가민\\s*피닉스\\s*7(?![0-9a-zA-Z])']),
+    ("GMNFX6", ['\\bfenix\\s*6(?![0-9a-zA-Z])']),
+    ("GMNFX3", ['\\bfenix\\s*3(?![0-9a-zA-Z])']),
+    ("GMNFR970", ['\\bforerunner\\s*970(?![0-9a-zA-Z])', '\\bfr\\s*970(?![0-9a-zA-Z])']),
+    ("GMNFR965", ['\\bforerunner\\s*965(?![0-9a-zA-Z])', '\\bfr\\s*965(?![0-9a-zA-Z])']),
+    ("GMNFR955", ['\\bforerunner\\s*955(?![0-9a-zA-Z])', '\\bfr\\s*955(?![0-9a-zA-Z])']),
+    ("GMNFR570", ['\\bforerunner\\s*570(?![0-9a-zA-Z])', '\\bfr\\s*570(?![0-9a-zA-Z])']),
+    ("GMNFR265", ['\\bforerunner\\s*265(?![0-9a-zA-Z])', '\\bfr\\s*265(?![0-9a-zA-Z])']),
+    ("GMNFR165", ['\\bforerunner\\s*165(?![0-9a-zA-Z])', '\\bfr\\s*165(?![0-9a-zA-Z])']),
+    ("GMNFR55", ['\\bforerunner\\s*55(?![0-9a-zA-Z])', '\\bfr\\s*55(?![0-9a-zA-Z])']),
+    ("GMNV4", [
+        "(?:(?<=garmin )|(?<=garmin's )|(?<=garmin’s )|(?<=garmin-)|(?<=가민 )|(?<=가민))venu\\s*4s?(?![0-9a-zA-Z])",
+        '\\bvenu\\s*4s?(?![0-9a-zA-Z])(?=[^\\n]{0,80}(?:garmin|가민|fenix|forerunner|v[ií]voactive|epix|instinct))',
+        '가민\\s*베뉴\\s*4(?![0-9a-zA-Z])'
+    ]),
+    ("GMNV3", [
+        "(?:(?<=garmin )|(?<=garmin's )|(?<=garmin’s )|(?<=garmin-)|(?<=가민 )|(?<=가민))venu\\s*3s?(?![0-9a-zA-Z])",
+        '\\bvenu\\s*3s?(?![0-9a-zA-Z])(?=[^\\n]{0,80}(?:garmin|가민|fenix|forerunner|v[ií]voactive|epix|instinct))',
+        '가민\\s*베뉴\\s*3(?![0-9a-zA-Z])'
+    ]),
+    ("GMNV2", [
+        "(?:(?<=garmin )|(?<=garmin's )|(?<=garmin’s )|(?<=garmin-)|(?<=가민 )|(?<=가민))venu\\s*2s?(?![0-9a-zA-Z])",
+        '\\bvenu\\s*2s?(?![0-9a-zA-Z])(?=[^\\n]{0,80}(?:garmin|가민|fenix|forerunner|v[ií]voactive|epix|instinct))',
+        '가민\\s*베뉴\\s*2(?![0-9a-zA-Z])'
+    ]),
+    ("FTBC6", [
+        "(?:(?<=fitbit )|(?<=fitbit's )|(?<=fitbit’s )|(?<=fitbit-)|(?<=fit bit )|(?<=핏빗 )|(?<=핏빗))charge\\s*6(?![0-9a-zA-Z])",
+        '\\bcharge\\s*6(?![0-9a-zA-Z])(?=[^\\n]{0,40}(?:fit ?bit|핏빗))',
+        '핏빗\\s*차지\\s*6(?![0-9a-zA-Z])'
+    ]),
+    ("FTBC5", [
+        "(?:(?<=fitbit )|(?<=fitbit's )|(?<=fitbit’s )|(?<=fitbit-)|(?<=fit bit )|(?<=핏빗 )|(?<=핏빗))charge\\s*5(?![0-9a-zA-Z])",
+        '\\bcharge\\s*5(?![0-9a-zA-Z])(?=[^\\n]{0,40}(?:fit ?bit|핏빗))',
+        '핏빗\\s*차지\\s*5(?![0-9a-zA-Z])'
+    ]),
+    ("FTBS2", [
+        "(?:(?<=fitbit )|(?<=fitbit's )|(?<=fitbit’s )|(?<=fitbit-)|(?<=fit bit )|(?<=핏빗 )|(?<=핏빗))sense\\s*2(?![0-9a-zA-Z])",
+        '\\bsense\\s*2(?![0-9a-zA-Z])(?=[^\\n]{0,40}(?:fit ?bit|핏빗))',
+        '핏빗\\s*센스\\s*2(?![0-9a-zA-Z])'
+    ]),
+    ("FTBS1", [
+        "(?:(?<=fitbit )|(?<=fitbit's )|(?<=fitbit’s )|(?<=fitbit-)|(?<=fit bit )|(?<=핏빗 )|(?<=핏빗))sense(?![0-9a-zA-Z])",
+        '\\bsense(?![0-9a-zA-Z])(?=[^\\n]{0,40}(?:fit ?bit|핏빗))', '핏빗\\s*센스(?![0-9a-zA-Z])'
+    ]),
+    ("FTBV4", [
+        "(?:(?<=fitbit )|(?<=fitbit's )|(?<=fitbit’s )|(?<=fitbit-)|(?<=fit bit )|(?<=핏빗 )|(?<=핏빗))versa\\s*4(?![0-9a-zA-Z])",
+        '\\bversa\\s*4(?![0-9a-zA-Z])(?=[^\\n]{0,40}(?:fit ?bit|핏빗))',
+        '핏빗\\s*버사\\s*4(?![0-9a-zA-Z])'
+    ]),
+    ("FTBV3", [
+        "(?:(?<=fitbit )|(?<=fitbit's )|(?<=fitbit’s )|(?<=fitbit-)|(?<=fit bit )|(?<=핏빗 )|(?<=핏빗))versa\\s*3(?![0-9a-zA-Z])",
+        '\\bversa\\s*3(?![0-9a-zA-Z])(?=[^\\n]{0,40}(?:fit ?bit|핏빗))',
+        '핏빗\\s*버사\\s*3(?![0-9a-zA-Z])'
+    ]),
+    ("FTBV2", [
+        "(?:(?<=fitbit )|(?<=fitbit's )|(?<=fitbit’s )|(?<=fitbit-)|(?<=fit bit )|(?<=핏빗 )|(?<=핏빗))versa\\s*2(?![0-9a-zA-Z])",
+        '\\bversa\\s*2(?![0-9a-zA-Z])(?=[^\\n]{0,40}(?:fit ?bit|핏빗))',
+        '핏빗\\s*버사\\s*2(?![0-9a-zA-Z])'
+    ]),
+    ("BSEQCU", ['quiet\\s?comfort\\s*ultra', 'bose[^\\n]{0,12}qc\\s*ultra']),
+    ("BSEQC45", [
+        'quiet\\s?comfort\\s*45(?![0-9a-zA-Z])', 'bose[^\\n]{0,12}qc\\s*45(?![0-9a-zA-Z])'
+    ]),
+    ("BSEQC35", [
+        'quiet\\s?comfort\\s*35(?![0-9a-zA-Z])', 'bose[^\\n]{0,12}qc\\s*35(?![0-9a-zA-Z])'
+    ]),
+    ("BSEQCE", ['quiet\\s?comfort\\s*(?:ii\\s*)?earbuds']),
+    ("SNAWH6", ['\\bwh[\\s\\-]?1000\\s?xm\\s?6(?![0-9a-zA-Z])']),
+    ("SNAWH5", ['\\bwh[\\s\\-]?1000\\s?xm\\s?5(?![0-9a-zA-Z])']),
+    ("SNAWH4", ['\\bwh[\\s\\-]?1000\\s?xm\\s?4(?![0-9a-zA-Z])']),
+    ("SNAWF6", ['\\bwf[\\s\\-]?1000\\s?xm\\s?6(?![0-9a-zA-Z])']),
+    ("SNAWF5", ['\\bwf[\\s\\-]?1000\\s?xm\\s?5(?![0-9a-zA-Z])']),
+    ("SNAWF4", ['\\bwf[\\s\\-]?1000\\s?xm\\s?4(?![0-9a-zA-Z])']),
+    ("JBRE", [
+        "(?:(?<=jabra )|(?<=jabra's )|(?<=jabra’s )|(?<=jabra-)|(?<=자브라 )|(?<=자브라))elite(?![0-9a-zA-Z])",
+        '\\belite(?![0-9a-zA-Z])(?=[^\\n]{0,40}(?:jabra|자브라))'
+    ]),
 ]
 
 # 사전 컴파일
@@ -252,19 +964,28 @@ _WORD_BRAND: Dict[str, str] = {
     "apple": "apple", "iphone": "apple", "ipad": "apple",
     "airpods": "apple", "macbook": "apple",
     "google": "google", "pixel": "google",
-    "xiaomi": "xiaomi", "redmi": "xiaomi", "poco": "xiaomi", "amazfit": "xiaomi",
+    "xiaomi": "xiaomi", "redmi": "xiaomi", "poco": "xiaomi", "amazfit": "amazfit",
     "oneplus": "oneplus", "oppo": "oppo", "vivo": "vivo", "realme": "realme",
     "huawei": "huawei", "honor": "honor",
     "motorola": "motorola", "moto": "motorola",
     "sony": "sony", "xperia": "sony",
     "nokia": "nokia", "asus": "asus",
-    "garmin": "garmin", "fitbit": "google", "bose": "bose",
+    "garmin": "garmin", "fitbit": "fitbit", "bose": "bose",
     "jabra": "jabra", "jbl": "jbl",
 }
 # 코드 접두사 → 브랜드. 없으면 삼성. 가장 긴 접두사가 이긴다(GM=갤럭시M vs GMN=가민).
+#
+# **신규 브랜드를 추가할 때 여기를 같이 채워야 한다.** 빠뜨리면 그 코드는 삼성으로
+# 취급돼 자기 브랜드 토큰이 앞에 붙은 매칭(예: 'Garmin fenix 8')을 가드가 버린다.
 _CODE_BRAND_PREFIX: Dict[str, str] = {
     "AP": "apple", "AW": "apple", "AB": "apple",
-    "PX": "google", "PW": "google", "PB": "google",
+    "PX": "google", "PW": "google", "PB": "google", "FTB": "fitbit",
+    "XM": "xiaomi", "RM": "xiaomi", "RDW": "xiaomi", "PC": "xiaomi",
+    "AZ": "amazfit",
+    "OO": "oppo", "VV": "vivo", "OP": "oneplus", "RL": "realme",
+    "HO": "honor", "HW": "huawei",
+    "MT": "motorola", "SN": "sony", "NK": "nokia", "AS": "asus", "NT": "nothing",
+    "GMN": "garmin", "BSE": "bose", "JBR": "jabra",
 }
 
 
