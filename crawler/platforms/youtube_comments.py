@@ -105,8 +105,11 @@ class YouTubeCommentsCrawler(BaseCrawler):
     MIN_DELAY = 0.2
     MAX_DELAY = 0.6
 
-    def __init__(self, product_code: Optional[str] = None, job_id: Optional[int] = None):
-        super().__init__("youtube", product_code=product_code, job_id=job_id)
+    def __init__(self, platform_code: Optional[str] = None,
+                 product_code: Optional[str] = None, job_id: Optional[int] = None):
+        # platform_code 는 tasks.crawl_platform 이 항상 넘긴다. 받지 않으면 TypeError 로
+        # 매 실행 즉사한다(실측: 이 결함으로 5개 소스가 11~18일 무유입).
+        super().__init__(platform_code or "youtube", product_code=product_code, job_id=job_id)
         self.api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
         self.videos_per_query = int(os.getenv("YOUTUBE_VIDEOS_PER_QUERY") or "5")
         self.comments_per_video = min(int(os.getenv("YOUTUBE_COMMENTS_PER_VIDEO") or "100"), 100)

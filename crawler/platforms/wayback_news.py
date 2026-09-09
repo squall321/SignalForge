@@ -57,8 +57,11 @@ class WaybackNewsCrawler(BaseCrawler):
     POLITE = 1.5          # archive.org 요청 간 최소 간격(초)
     SNAPSHOTS_PER_YEAR = 12   # 월 단위 collapse → 연 최대 12 스냅샷
 
-    def __init__(self, product_code: Optional[str] = None, job_id: Optional[int] = None):
-        super().__init__("waybacknews", product_code=product_code, job_id=job_id)
+    def __init__(self, platform_code: Optional[str] = None,
+                 product_code: Optional[str] = None, job_id: Optional[int] = None):
+        # platform_code 는 tasks.crawl_platform 이 항상 넘긴다. 받지 않으면 TypeError 로
+        # 매 실행 즉사한다(실측: 이 결함으로 5개 소스가 11~18일 무유입).
+        super().__init__(platform_code or "waybacknews", product_code=product_code, job_id=job_id)
         self.year = int(os.getenv("WAYBACK_YEAR") or "0")
 
     async def crawl(self) -> List[RawVOC]:

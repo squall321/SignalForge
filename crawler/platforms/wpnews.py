@@ -52,8 +52,11 @@ class WPNewsCrawler(BaseCrawler):
     MAX_PAGES = 3          # 사이트·쿼리·연도당 최대 페이지(100/page). NLP 부하로 과하지 않게.
     PER_PAGE = 100
 
-    def __init__(self, product_code: Optional[str] = None, job_id: Optional[int] = None):
-        super().__init__("wpnews", product_code=product_code, job_id=job_id)
+    def __init__(self, platform_code: Optional[str] = None,
+                 product_code: Optional[str] = None, job_id: Optional[int] = None):
+        # platform_code 는 tasks.crawl_platform 이 항상 넘긴다. 받지 않으면 TypeError 로
+        # 매 실행 즉사한다(실측: 이 결함으로 5개 소스가 11~18일 무유입).
+        super().__init__(platform_code or "wpnews", product_code=product_code, job_id=job_id)
         self.after = os.getenv("WPNEWS_AFTER", "").strip()
         self.before = os.getenv("WPNEWS_BEFORE", "").strip()
         if not self.after and not self.before:

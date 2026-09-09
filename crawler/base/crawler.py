@@ -9,6 +9,7 @@ import asyncio
 import logging
 import os
 import random
+import time
 
 import httpx
 
@@ -107,6 +108,24 @@ class BaseCrawler(ABC):
         self.product_code = product_code
         self.job_id = job_id
         self.logger = logging.getLogger(f"crawler.{platform_code}")
+        self._started = time.monotonic()
+
+    # ── 수집 시간 예산 ────────────────────────────────────────────────
+    # run() 은 crawl() 전량 → NLP 전량 → save() 를 **마지막에 한 번만** 한다.
+    # 그래서 celery soft time limit(600초)이 crawl() 도중에 터지면 긁은 것이
+    # 통째로 버려진다. 실측(2026-09-09) — clien·dogdrip 이 하루 44회씩 전부
+    # SoftTimeLimitExceeded 로 끝나 3일간 저장 0건이었고, 본문·댓글은 정상적으로
+    # 긁고 있었는데 커밋 직전에 죽는 것이었다(워커 시간 16.7h/일 소모).
+    #
+    # 긴 루프를 도는 크롤러는 반복마다 budget_exceeded() 를 확인하고 break 해
+    # **부분 결과라도 반환**해야 한다. 죽는 것보다 절반이 낫다.
+    CRAWL_BUDGET_SEC: float = float(os.getenv("CRAWL_TIME_BUDGET_SEC", "450"))
+
+    def budget_exceeded(self) -> bool:
+        return (time.monotonic() - self._started) >= self.CRAWL_BUDGET_SEC
+
+    def budget_left(self) -> float:
+        return max(0.0, self.CRAWL_BUDGET_SEC - (time.monotonic() - self._started))
 
     @abstractmethod
     async def crawl(self) -> List[RawVOC]:

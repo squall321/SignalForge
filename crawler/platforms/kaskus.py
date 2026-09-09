@@ -133,7 +133,13 @@ class KaskusCrawler(BaseCrawler):
 
             # 3) 본문 + 댓글 보강
             raw_vocs: List[RawVOC] = []
-            for t in targets:
+            for idx, t in enumerate(targets):
+                # 시간 예산 초과 시 부분 결과로 반환 — run() 이 save() 를 맨 끝에
+                # 한 번만 하므로 여기서 죽으면 긁은 것이 전부 버려진다.
+                if self.budget_exceeded():
+                    logger.warning(
+                        f"Kaskus 시간 예산 초과 — 상세 {idx}/{len(targets)}건에서 조기 종료")
+                    break
                 await self._random_delay()
                 try:
                     detail_vocs = await self._fetch_thread_detail(client, t)
