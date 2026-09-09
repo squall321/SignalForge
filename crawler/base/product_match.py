@@ -225,6 +225,80 @@ _COMPILED: List[Tuple[str, List[re.Pattern]]] = [
 ]
 
 
+# ═════════ 타 브랜드 인접 가드 ═══════════════════════════════════════════
+#
+# 브랜드 한정자가 없는 패턴(`watch\\s*ultra`, `\\bfold\\s*6`, `\\bwatch\\s*6`)이
+# 타사 기기를 삼켰다. 코퍼스 1/7 표본(62,209행) 실측 —
+#   GWU  65/384 (16.9%) 가 'Apple Watch Ultra'
+#   GW6  14/147 ( 9.5%) 가 'Redmi Watch 5/6'
+#   GZF6 18/343 ( 5.2%) 가 'vivo X Fold6'
+# 갤럭시워치 울트라 결함 통계의 6건 중 1건이 애플 시계였다는 뜻이다.
+#
+# 규칙은 **인접**이다. 매칭 구간 바로 앞(24자 이내, 사이에 다른 말 없음)에 다른
+# 브랜드 토큰이 붙어 있을 때만 그 매칭을 버린다. 'iPhone 15 with the S24' 처럼
+# 사이에 말이 끼면 진짜 비교문이므로 살린다 — 비교글 신호가 이 모듈의 존재 이유다.
+_ADJ_WINDOW = 24
+# 끼어들 수 있는 중간 토큰은 실제 제품명에 나오는 x/gt 둘로 제한한다. 임의의
+# 1~2글자를 허용하면 'in honor of S25' 같은 영문이 오작동시킨다.
+_ADJ_RIVAL_RE = re.compile(
+    r"\b(apple|iphone|ipad|airpods|macbook|google|pixel|xiaomi|redmi|poco|"
+    r"oneplus|oppo|vivo|realme|huawei|honor|motorola|moto|sony|xperia|nokia|"
+    r"asus|amazfit|garmin|fitbit|bose|jabra|jbl)"
+    r"(?:'s)?[\s\-]*(?:(?:x|gt)[\s\-]+)?$",
+    re.IGNORECASE,
+)
+# 'nothing'·'beats' 는 영단어와 구별이 안 돼 제외했다('beats the S25' 오발화).
+_WORD_BRAND: Dict[str, str] = {
+    "apple": "apple", "iphone": "apple", "ipad": "apple",
+    "airpods": "apple", "macbook": "apple",
+    "google": "google", "pixel": "google",
+    "xiaomi": "xiaomi", "redmi": "xiaomi", "poco": "xiaomi", "amazfit": "xiaomi",
+    "oneplus": "oneplus", "oppo": "oppo", "vivo": "vivo", "realme": "realme",
+    "huawei": "huawei", "honor": "honor",
+    "motorola": "motorola", "moto": "motorola",
+    "sony": "sony", "xperia": "sony",
+    "nokia": "nokia", "asus": "asus",
+    "garmin": "garmin", "fitbit": "google", "bose": "bose",
+    "jabra": "jabra", "jbl": "jbl",
+}
+# 코드 접두사 → 브랜드. 없으면 삼성. 가장 긴 접두사가 이긴다(GM=갤럭시M vs GMN=가민).
+_CODE_BRAND_PREFIX: Dict[str, str] = {
+    "AP": "apple", "AW": "apple", "AB": "apple",
+    "PX": "google", "PW": "google", "PB": "google",
+}
+
+
+def _brand_of(code: str) -> str:
+    up = code.upper()
+    for n in (4, 3, 2):
+        b = _CODE_BRAND_PREFIX.get(up[:n])
+        if b:
+            return b
+    return "samsung"
+
+
+def _rival_adjacent(text: str, code: str, start: int) -> bool:
+    """매칭 구간 바로 앞에 **다른** 브랜드 토큰이 붙어 있으면 True."""
+    m = _ADJ_RIVAL_RE.search(text[max(0, start - _ADJ_WINDOW):start])
+    if not m:
+        return False
+    return _WORD_BRAND[m.group(1).lower()] != _brand_of(code)
+
+
+def _first_clean_span(text: str, code: str,
+                      patterns: List[re.Pattern]) -> Optional[Tuple[int, int]]:
+    """코드의 패턴들을 순서대로 훑어 타 브랜드에 붙지 않은 첫 매칭 구간을 준다.
+
+    같은 패턴의 뒤쪽 출현도 본다 — 'Redmi Watch 6 ... Galaxy Watch 6' 처럼
+    앞 출현만 타사인 글에서 뒤의 진짜 매칭을 살리기 위해서다.
+    """
+    for pat in patterns:
+        for m in pat.finditer(text):
+            if not _rival_adjacent(text, code, m.start()):
+                return m.span()
+    return None
+
+
 def infer_product_code(text: Optional[str]) -> Optional[str]:
     """본문/제목에서 대표 제품 코드 추론. 매치 없으면 None.
 
@@ -273,6 +347,8 @@ def _spans_by_code(text: str, codes: List[str]) -> Dict[str, List[Tuple[int, int
         for pat in patterns:
             for m in pat.finditer(text):
                 s, e = m.span()
+                if _rival_adjacent(text, code, s):
+                    continue          # 타사 기기 언급은 등장 횟수에서도 뺀다
                 cands.append(((pri, s - e, s), code, s, e))   # 우선순위 → 긴 매칭 → 앞
     cands.sort(key=lambda t: t[0])
 
@@ -349,12 +425,7 @@ def infer_all_product_codes(text: Optional[str]) -> List[Tuple[str, str]]:
 
     kept: List[Tuple[str, Tuple[int, int]]] = []
     for code, patterns in _COMPILED:
-        span = None
-        for pat in patterns:
-            m = pat.search(text)
-            if m:
-                span = m.span()
-                break
+        span = _first_clean_span(text, code, patterns)
         if span is None:
             continue
         # 이미 채택된(더 우선순위 높은=구체적인) 매칭과 구간이 겹치면 버림

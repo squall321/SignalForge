@@ -114,6 +114,41 @@ def test_single_candidate_identical():
         assert infer_all_product_codes(t) == [("GS26U", "primary")]
 
 
+# ── 타 브랜드 인접 가드 — 브랜드 한정자 없는 패턴이 타사 기기를 삼키던 문제 ──
+@pytest.mark.parametrize("text,gone", [
+    ("The Apple Watch Ultra 4 may pair the sensor upgrades", "GWU"),
+    ("Xiaomi Redmi Watch 6 Lite Leaked: Features and Prices", "GW6"),
+    ("vivo introduced vivo X Fold6 in the domestic market", "GZF6"),
+    ("bought my partner the Apple Watch 7 last year", "GW7"),
+    ("JBL Flip 7 speaker deal, regularly $1099.99", "GZFL7"),
+    ("Oneplus buds 4 리뷰 기다리는 중", "GB4"),
+    ("Moto Buds 2 with ANC at an excellent price", "GB2"),
+])
+def test_rival_brand_adjacent_suppressed(text, gone):
+    assert gone not in codes(text)
+
+
+@pytest.mark.parametrize("text,kept", [
+    ("Galaxy Watch Ultra 배터리가 하루도 안 간다", "GWU"),
+    ("Samsung Galaxy Z Fold 6 힌지 유격", "GZF6"),
+    ("갤럭시 워치6 페어링 실패", "GW6"),
+])
+def test_own_brand_not_suppressed(text, kept):
+    assert kept in codes(text)
+
+
+def test_comparison_prose_not_suppressed():
+    """사이에 다른 말이 끼면 진짜 비교문이므로 살려야 한다 — 비교글 신호 보존."""
+    got = codes("compare the iPhone 15 with the S24 and see which wins")
+    assert "GS24" in got and "AP15" in got
+
+
+def test_later_clean_occurrence_rescued():
+    """앞 출현만 타사인 글에서 뒤의 진짜 매칭은 살아야 한다."""
+    got = codes("Apple Watch Ultra 2 vs Galaxy Watch Ultra 성능 비교")
+    assert "GWU" in got
+
+
 def test_candidate_set_and_roles_preserved():
     """재선정은 후보 집합과 compared/mentioned 판정을 바꾸지 않는다."""
     text = ("Galaxy Z Fold 8 vs Galaxy S26 Ultra 비교\n"
