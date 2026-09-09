@@ -16,6 +16,11 @@ class Product(Base):
     name_en: Mapped[str] = mapped_column(sa.String(100), nullable=False)
     name_ko: Mapped[Optional[str]] = mapped_column(sa.String(100))
     released_at: Mapped[Optional[date]] = mapped_column(sa.Date)
+    # 0038 — 제품 랭킹에서 자사/타사를 구분하기 위한 단일 출처.
+    # crawler/base/product_match.py 의 _CODE_BRAND_PREFIX 와 같은 표에서 유도한다.
+    brand: Mapped[str] = mapped_column(
+        sa.String(24), nullable=False, server_default="samsung", index=True
+    )
     is_active: Mapped[bool] = mapped_column(sa.Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True), server_default=sa.func.now()

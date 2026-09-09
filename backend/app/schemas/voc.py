@@ -10,6 +10,7 @@ class ProductBase(BaseModel):
     series_code: str
     name_en: str
     name_ko: Optional[str] = None
+    brand: str = "samsung"      # samsung | apple | google | xiaomi ...
     is_active: bool = True
 
 
