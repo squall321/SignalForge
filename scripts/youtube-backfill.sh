@@ -22,9 +22,15 @@ KEY="${YOUTUBE_API_KEY:-}"
 [ -z "$KEY" ] && { echo "$(date '+%F %T') YOUTUBE_API_KEY 미설정 — skip" >> "$LOG"; exit 0; }
 
 # 처리할 연도 결정 (상태파일 없으면 작년부터 시작)
-if [ -f "$STATE" ]; then YEAR="$(cat "$STATE")"; else YEAR=$(( $(date +%Y) - 1 )); fi
+if [ -f "$STATE" ]; then YEAR="$(cat "$STATE")"; else YEAR="$(date +%Y)"; fi
 if [ "$YEAR" -lt "$FLOOR" ]; then
-  echo "$(date '+%F %T') backfill 완료(≤$FLOOR) — idle" >> "$LOG"; exit 0
+  # FLOOR 도달 시 영구 idle 이었다. 그 결과 4종 전부 멈춰 pre-2020 유입이
+  # 하루 1,189건 → 66건(-94%)으로 붕괴했고, 시작이 '작년'이라 금년 상반기는
+  # 한 번도 수집된 적이 없었다(GS26 출시창 118건 vs GZF8 24,677건의 직접 원인).
+  # → 금년부터 재순회한다. 과거 소스는 시간이 지나며 내용이 늘고, 중복은
+  #   content_hash dedup 이 막는다.
+  YEAR="$(date +%Y)"
+  echo "$(date '+%F %T') FLOOR($FLOOR) 도달 — $YEAR 부터 재순회" >> "$LOG"
 fi
 NEXT=$(( YEAR + 1 ))
 DB="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-127.0.0.1}:${POSTGRES_PORT}/${POSTGRES_DB}"
