@@ -52,3 +52,29 @@ def test_evaluate_violations_critical_warning_and_skip():
 if __name__ == "__main__":
     test_evaluate_violations_critical_warning_and_skip()
     print("OK")
+
+
+# ── 무산출 실행 감지 — baseline 0 사각지대 보완 ──────────────────────
+def test_zero_yield_flags_broken_source():
+    """beat 가 계속 돌리는데 산출이 0이면 '은퇴'가 아니라 '고장'이다."""
+    from insight.collection_health import evaluate_zero_yield
+    out = evaluate_zero_yield([{"code": "googlenews", "runs": 32, "failed": 32, "items": 0}])
+    assert len(out) == 1
+    v = out[0]
+    assert v["severity"] == "critical"
+    assert v["metric"] == "collection.zero_yield.googlenews"
+    assert "32회 실행" in v["reason"] and "32회 실패" in v["reason"]
+
+
+def test_zero_yield_metric_namespace_separate():
+    """collection.* 와 쿨다운이 섞이면 한쪽이 다른 쪽을 침묵시킨다."""
+    from insight.collection_health import evaluate_zero_yield, evaluate_violations
+    zy = evaluate_zero_yield([{"code": "wpnews", "runs": 5, "failed": 0, "items": 0}])
+    base = evaluate_violations([{"code": "wpnews", "n_24h": 0,
+                                 "baseline_24h_avg": 10.0, "hours_since": 400}])
+    assert zy[0]["metric"] != base[0]["metric"]
+
+
+def test_zero_yield_empty_when_no_runs():
+    from insight.collection_health import evaluate_zero_yield
+    assert evaluate_zero_yield([]) == []

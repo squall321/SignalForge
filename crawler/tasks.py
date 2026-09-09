@@ -222,6 +222,68 @@ for _code, (_mod, _cls) in _CRAWLER_SPECS.items():
         logger.warning(f"크롤러 로드 실패 [{_code}] {_mod}.{_cls}: {_e}")
 
 
+def _job_dsn() -> Optional[str]:
+    """asyncpg 용 DSN. 컨테이너에 psycopg2 는 없고 asyncpg 만 있다."""
+    url = os.getenv("DATABASE_URL", "")
+    if not url:
+        return None
+    return url.replace("postgresql+asyncpg://", "postgresql://")
+
+
+def _open_crawl_job(platform_code: str, product_code: Optional[str]) -> Optional[int]:
+    """실행 시작을 crawl_jobs 에 기록하고 id 를 준다. 실패해도 수집은 계속한다."""
+    import asyncpg
+
+    dsn = _job_dsn()
+    if dsn is None:
+        return None
+
+    async def _go():
+        conn = await asyncpg.connect(dsn)
+        try:
+            return await conn.fetchval(
+                """
+                INSERT INTO crawl_jobs (platform_id, product_id, status, started_at)
+                VALUES ((SELECT id FROM platforms WHERE code = $1),
+                        (SELECT id FROM products WHERE code = upper($2)),
+                        'running', now())
+                RETURNING id
+                """, platform_code, product_code or "")
+        finally:
+            await conn.close()
+
+    try:
+        return asyncio.run(_go())
+    except Exception as exc:      # 관측용 부가 기능이 수집을 막으면 안 된다
+        logger.warning(f"crawl_jobs INSERT 실패 [{platform_code}]: {exc}")
+        return None
+
+
+def _fail_crawl_job(job_id: Optional[int], exc: Exception) -> None:
+    """crawler.run() 진입 전에 죽은 경우의 실패 기록(BaseCrawler 가 못 남기는 구간)."""
+    import asyncpg
+
+    dsn = _job_dsn()
+    if job_id is None or dsn is None:
+        return
+    msg = f"{type(exc).__name__}: {exc}"[:2000]
+
+    async def _go():
+        conn = await asyncpg.connect(dsn)
+        try:
+            await conn.execute(
+                "UPDATE crawl_jobs SET status='failed', finished_at=now(), "
+                "error_message=$2 WHERE id=$1 AND finished_at IS NULL",
+                job_id, msg)
+        finally:
+            await conn.close()
+
+    try:
+        asyncio.run(_go())
+    except Exception as e2:
+        logger.warning(f"crawl_jobs 실패 기록 실패 (job {job_id}): {e2}")
+
+
 # @lat: crawl_platform — [[crawler#Celery Task]] 참조.
 @app.task(bind=True, max_retries=3, default_retry_delay=300)
 def crawl_platform(
@@ -245,6 +307,14 @@ def crawl_platform(
         logger.error(f"알 수 없거나 로드 실패한 플랫폼: {platform_code}")
         return {"status": "error", "message": f"Unknown/unloaded platform: {platform_code}"}
 
+    # crawl_jobs 행을 여기서 만든다. 이전에는 코드베이스 어디에도 INSERT 가 없었고
+    # BaseCrawler._update_job_status 는 `if not self.job_id: return` 로 막혀 있는데
+    # beat 가 job_id 를 항상 None 으로 넘겨, 이 테이블이 **구조적으로 빌 수밖에** 없었다.
+    # 그 결과 크롤러 5종이 11~18일간 매 실행 TypeError 로 죽어도 DB 로는 관측되지
+    # 않았고, 컨테이너 stderr 를 뒤져야만 보였다.
+    if job_id is None:
+        job_id = _open_crawl_job(platform_code, product_code)
+
     try:
         crawler = CrawlerClass(platform_code=platform_code, product_code=product_code, job_id=job_id)
         result = asyncio.run(crawler.run())
@@ -252,6 +322,9 @@ def crawl_platform(
         return result
     except Exception as exc:
         logger.exception(f"[{platform_code}] 크롤링 실패: {exc}")
+        # crawler.run() 진입 전(생성자 등)에 죽으면 BaseCrawler 가 상태를 못 남긴다.
+        # 그 경우가 바로 이번에 12일간 은폐된 결함이므로 여기서 직접 기록한다.
+        _fail_crawl_job(job_id, exc)
         raise self.retry(exc=exc)
 
 

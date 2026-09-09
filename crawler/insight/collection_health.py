@@ -163,6 +163,59 @@ def evaluate_violations(stats: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
+# ── 무산출 실행 감지 (baseline 0 사각지대) ────────────────────────────────
+#
+# evaluate_violations 는 baseline_24h_avg <= 0 이면 "이미 운영 중단된 사이트"로 보고
+# 건너뛴다. 그래서 소스가 죽으면 **7일간만** 알리고, 8일째부터는 직전 7일도 0이라
+# baseline 이 0 이 되어 영구히 침묵한다. 실측(2026-09-09) — googlenews·appstore·recalls
+# 가 12일, wpnews 18일, waybacknews 11일 무유입이었는데 알림이 하나도 없었다.
+#
+# 이제 crawl_jobs 에 실행 기록이 남으므로 "은퇴한 소스"와 "고장난 소스"를 구별할 수 있다.
+# **beat 가 계속 실행하는데 산출이 0** 이면 은퇴가 아니라 고장이다.
+ZERO_YIELD_MIN_RUNS = 3        # 이만큼 돌고도 0건이면 고장으로 본다
+ZERO_YIELD_WINDOW_H = 48
+
+
+async def collect_zero_yield(conn: asyncpg.Connection) -> List[Dict[str, Any]]:
+    """활성 사이트 중 최근 실행은 있는데 산출이 0인 것 — 고장난 소스."""
+    rows = await conn.fetch(
+        f"""
+        SELECT p.code,
+               count(j.id) AS runs,
+               count(j.id) FILTER (WHERE j.status = 'failed') AS failed,
+               coalesce(sum(j.items_collected), 0) AS items
+        FROM platforms p
+        JOIN crawl_jobs j ON j.platform_id = p.id
+        WHERE p.is_active = TRUE
+          AND j.started_at >= NOW() - INTERVAL '{ZERO_YIELD_WINDOW_H} hours'
+        GROUP BY p.code
+        HAVING count(j.id) >= {ZERO_YIELD_MIN_RUNS}
+           AND coalesce(sum(j.items_collected), 0) = 0
+        ORDER BY p.code
+        """
+    )
+    return [{"code": r["code"], "runs": int(r["runs"]),
+             "failed": int(r["failed"]), "items": int(r["items"])} for r in rows]
+
+
+def evaluate_zero_yield(zy: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for z in zy:
+        how = (f"{z['failed']}회 실패" if z["failed"] else "전부 0건 반환")
+        out.append({
+            "code": z["code"],
+            # metric 을 분리해야 collection.* 쿨다운과 섞이지 않는다
+            "metric": f"collection.zero_yield.{z['code']}",
+            "severity": "critical",
+            "value": 0.0,
+            "threshold": float(ZERO_YIELD_MIN_RUNS),
+            "reason": (f"{z['code']}: 최근 {ZERO_YIELD_WINDOW_H}h 동안 "
+                       f"{z['runs']}회 실행했으나 수집 0건 ({how}) "
+                       f"— 은퇴가 아니라 고장이다"),
+        })
+    return out
+
+
 # ── alert_events INSERT (metric 단위 cooldown) ───────────────────────────
 async def insert_alert_events(
     conn: asyncpg.Connection,
@@ -265,9 +318,13 @@ async def collect_payload(
     conn = await asyncpg.connect(dsn or _dsn())
     try:
         stats = await collect_site_stats(conn)
+        zero_yield = await collect_zero_yield(conn)
     finally:
         await conn.close()
     violations = evaluate_violations(stats)
+    # baseline 0 사각지대 보완 — 이미 collection.* 로 잡힌 사이트는 중복 보고하지 않는다
+    seen = {v["code"] for v in violations}
+    violations += [v for v in evaluate_zero_yield(zero_yield) if v["code"] not in seen]
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "thresholds": {
@@ -276,6 +333,7 @@ async def collect_payload(
         },
         "active_sites": len(stats),
         "stats": stats,
+        "zero_yield": zero_yield,
         "violations": violations,
         "status": _overall_status(violations),
         "violation_counts": {
