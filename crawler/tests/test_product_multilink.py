@@ -207,3 +207,41 @@ def test_new_codes_resolve_to_own_brand():
                         ("GS", "GA", "GW", "GB", "GZ", "GN", "GM", "GJ", "GF",
                          "GR", "GO", "GX", "TAB", "WIDE", "JUMP"))]
     assert samsung_like == []
+
+
+# ── 레거시 사전 폴백 게이트 ──────────────────────────────────────────
+@pytest.mark.parametrize("text,code", [
+    ("I got a xiaomi redmi note 3 about a month ago", "GN3"),
+    ("홍미노트7은 레드도 소개 이미지에 나오긴 하네요", "GN7"),
+    ("Xiaomi Watch S4 系列智能手表新版本内测开启", "GW6"),
+    ("Am I really the only one to think that the Apple Watch is just ugly?", "GGS"),
+])
+def test_legacy_gate_rejects_rival(text, code):
+    """레거시 사전이 타사 기기를 삼성 코드로 준 경우 게이트가 막아야 한다."""
+    from base.product_match import accept_legacy_code
+    assert accept_legacy_code(text, code) is False
+
+
+@pytest.mark.parametrize("text,code", [
+    ("Samsung's Gear S3 and the LG Watch Sport have LTE for $350.", "GGS3"),
+    ("I ended up getting an apple watch, then returning it for Gear S3.", "GGS3"),
+    ("The Gear S smart watch is stand-alone and looks far better than the Apple watch", "GGS"),
+    ("Galaxy Note 7 배터리 폭발로 리콜", "GN7"),
+    ("Galaxy A32 카메라가 고장났어요", "GA32"),
+    ("compare the Galaxy Note 9 with the Redmi Note 7", "GN9"),
+])
+def test_legacy_gate_keeps_samsung(text, code):
+    """자사 근거가 있으면(비교글 포함) 유지해야 한다."""
+    from base.product_match import accept_legacy_code
+    assert accept_legacy_code(text, code) is True
+
+
+@pytest.mark.parametrize("text,hit", [
+    ("Gear S smart watch", True), ("Gear S3 Frontier", True), ("기어 S2", True),
+    ("shifting gears slowly", False), ("gear system failure", False),
+    ("the gearbox broke", False),
+])
+def test_legacy_gear_token(text, hit):
+    """'Gear' 자체 삼성 근거 판정 — 복수형 gears·gear system 을 잡으면 안 된다."""
+    from base.product_match import _LEGACY_GEAR
+    assert bool(_LEGACY_GEAR.search(text)) is hit

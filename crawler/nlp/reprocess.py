@@ -118,12 +118,38 @@ async def fix_korean_sentiment(Session) -> int:
     return fixed
 
 
+def _legacy_code(content: str):
+    """라이브 사전이 빈손일 때만 쓰는 레거시 사전 폴백.
+
+    scripts/relink_products.py 의 MODEL_MAP 은 구형 모델까지 덮지만
+    **경쟁사 카탈로그 이전에 만들어져 타사 기기를 삼성으로 흡수한다**
+    ('홍미노트7' → GN7, 'Xiaomi Watch S4' → GW6). 그래서 accept_legacy_code
+    게이트를 통과한 것만 받는다. 실측 — 미태깅 329,707행 중 24,789행(7.5%),
+    최근 수집분만 보면 12.5% 가 이 경로로 회수된다.
+    """
+    from base.product_match import accept_legacy_code, _brand_of
+
+    try:
+        from scripts.relink_products import match_product_code
+    except Exception:          # 스크립트 부재/의존성 문제 — 폴백 없이 진행
+        return None
+    code = match_product_code(content)
+    if not code:
+        return None
+    if _brand_of(code) == "samsung" and not accept_legacy_code(content, code):
+        return None
+    return code
+
+
 async def retag_products(Session) -> int:
     """Phase C — 신규 제품 패턴(구세대 + 경쟁사)을 기존 행에 재적용.
 
     product_id 가 NULL 인 행만 대상으로 infer_product_code 재실행 → 매치되면
     products.code → id 매핑으로 product_id 채움. 이미 태깅된 행은 건드리지 않음
     (BaseCrawler 가 처음 태깅한 결과를 존중).
+
+    라이브 사전이 못 잡으면 레거시 사전(_legacy_code)으로 한 번 더 시도한다 —
+    라이브는 440 패턴이라 Galaxy Note 7·A32·S7 edge 같은 구형을 놓친다.
     """
     from base.product_match import infer_product_code
 
@@ -155,6 +181,8 @@ async def retag_products(Session) -> int:
             ups = []
             for r in rows:
                 code = infer_product_code(r.content_original)
+                if not code:
+                    code = _legacy_code(r.content_original)
                 if not code:
                     continue
                 pid = pmap.get(code.upper())

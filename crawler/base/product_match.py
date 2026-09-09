@@ -1020,6 +1020,60 @@ def _first_clean_span(text: str, code: str,
     return None
 
 
+# ═════════ 레거시 사전 결과 수용 게이트 ═══════════════════════════════════
+#
+# scripts/relink_products.py 에는 구형 모델까지 덮는 훨씬 넓은 사전(MODEL_MAP)이 있다.
+# 라이브 사전(PRODUCT_PATTERNS)이 못 잡는 'Galaxy Note 7'·'Galaxy A32'·'Galaxy S7 edge'
+# 를 잡아주므로 미태깅 보정에 쓸 가치가 크다 — 실측으로 최근 수집분의 12.5% 가 이렇게
+# 버려지고 있었다.
+#
+# **다만 그 사전은 경쟁사 카탈로그 이전에 만들어져 타사 기기를 삼성으로 흡수한다.**
+# 실측 — '홍미노트7'·'xiaomi redmi note 3' → GN7/GN3, 'Xiaomi Watch S4' → GW6.
+# 그래서 라이브 사전이 먼저 판정하고(경쟁사 380종 + 브랜드 인접 가드 보유),
+# 라이브가 빈손일 때만 레거시를 쓰되 이 게이트를 통과해야 받아들인다.
+#
+# 규칙 — 코드의 기기 계열어(note/watch/buds/fold/flip/tab)가 **타사 브랜드에만**
+# 붙어 있으면 거부한다. 자사 근거가 함께 있으면 비교글이므로 유지한다.
+# 실측(코퍼스 140,000행 스캔, 레거시 부여 후보 6,135건): 거부 19건(0.31%).
+_LEGACY_FAMILY: List[Tuple[str, str]] = [
+    ("GZFL", r"flip|플립"),
+    ("GZF",  r"fold|폴드"),
+    ("GN",   r"note|노트"),
+    ("GGS",  r"watch|gear|워치|기어"),
+    ("GW",   r"watch|워치"),
+    ("GB",   r"buds|earbuds|버즈"),
+    ("GTAB", r"tab\b|tablet|탭"),
+]
+_LEGACY_OWN = r"samsung|galaxy|삼성|갤럭시|갤워치|갤탭|갤"
+_LEGACY_RIVAL = (
+    r"apple|iphone|ipad|airpods|pixel|google|xiaomi|redmi|poco|oneplus|oppo|"
+    r"vivo|realme|huawei|honor|motorola|moto|sony|xperia|nokia|asus|infinix|"
+    r"tecno|nothing|cmf|amazfit|garmin|fitbit|bose|jabra|jbl|lenovo|lg\b|"
+    r"샤오미|홍미|레드미|애플|아이폰|화웨이|오포|비보|원플러스"
+)
+# 'Gear' 는 삼성 전용 브랜드어라 그 자체로 자사 근거다("Gear S3" 에 galaxy 가 없어도 삼성).
+# 'Gear S'(무번호)도 실제 모델이다. `\s+s\b` 로 공백을 요구해야 복수형 'gears'
+# ("shifting gears")를 잡지 않는다. 'gear system' 은 s 뒤 \b 가 막는다.
+_LEGACY_GEAR = re.compile(
+    r"\bgear\s*s?\s*\d|\bgear\s+s\b|\bgear\s+(?:fit|sport|circle)|기어\s*s", re.I)
+
+
+def accept_legacy_code(text: str, code: str) -> bool:
+    """레거시 사전이 준 삼성 코드를 받아들일지 판정."""
+    fam = next((f for pre, f in _LEGACY_FAMILY if code.upper().startswith(pre)), None)
+    if fam is None:
+        return True                      # 계열 혼동이 없는 코드(GS/GA/GM/GJ 등)
+    rival = re.search(rf"(?:{_LEGACY_RIVAL})[\s\-'’]*(?:x[\s\-]*|gt[\s\-]*)?(?:{fam})",
+                      text, re.I)
+    if not rival:
+        return True                      # 타사 인접 없음 → 안전
+    if fam.find("gear") >= 0 and _LEGACY_GEAR.search(text):
+        return True                      # 'Gear S3' 자체가 삼성 근거
+    own = re.search(rf"(?:{_LEGACY_OWN})[\s\-'’]*\w{{0,10}}[\s\-'’]*(?:{fam})",
+                    text, re.I)
+    return bool(own)                     # 자사 근거가 같이 있으면 비교글이라 유지
+
+
 def infer_product_code(text: Optional[str]) -> Optional[str]:
     """본문/제목에서 대표 제품 코드 추론. 매치 없으면 None.
 
