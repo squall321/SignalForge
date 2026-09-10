@@ -21,6 +21,9 @@ class Product(Base):
     brand: Mapped[str] = mapped_column(
         sa.String(24), nullable=False, server_default="samsung", index=True
     )
+    # 0039 — 제품군. series_code 는 브랜드와 라인이 섞여 있어 제품군을 못 대신한다
+    # (series GW 에 Galaxy Fit(밴드)이, OPW 에 OnePlus Buds 가 들어 있었다).
+    category: Mapped[str] = mapped_column(sa.String(16), nullable=False, index=True)
     is_active: Mapped[bool] = mapped_column(sa.Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True), server_default=sa.func.now()

@@ -13,12 +13,13 @@ router = APIRouter(prefix="/products", tags=["products"])
 async def list_products(
     series: Optional[str] = Query(None, description="시리즈 코드 필터 (GS, GZ, GA, GW, GB, GR)"),
     brand: Optional[str] = Query(None, description="브랜드 필터 (samsung, apple, google ...)"),
+    category: Optional[str] = Query(None, description="제품군 필터 (phone, watch, buds, tablet, band, headphone, ring)"),
     is_active: bool = Query(True),
     db: AsyncSession = Depends(get_db),
 ):
     """제품 목록 조회. 경쟁사 380종이 함께 들어 있으므로 brand 로 걸러 쓴다."""
     return await VocService(db).get_products(
-        series=series, brand=brand, is_active=is_active)
+        series=series, brand=brand, category=category, is_active=is_active)
 
 
 @router.get("/{code}/voc", response_model=VocListResponse)

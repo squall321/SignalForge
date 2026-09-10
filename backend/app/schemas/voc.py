@@ -11,6 +11,7 @@ class ProductBase(BaseModel):
     name_en: str
     name_ko: Optional[str] = None
     brand: str = "samsung"      # samsung | apple | google | xiaomi ...
+    category: str = "phone"     # phone|tablet|watch|band|buds|headphone|ring
     is_active: bool = True
 
 

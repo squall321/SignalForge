@@ -199,14 +199,20 @@ def test_buds_pro_reversed_alias():
     assert infer_all_product_codes("OnePlus Buds Pro 3 review")[0][0] == "OPBP3"
 
 
+# 삼성 코드 접두사 — _brand_of 의 기본값이 samsung 이므로, 여기 없는 접두사가
+# samsung 으로 해석되면 그것은 **경쟁사 접두사를 _CODE_BRAND_PREFIX 에 등록하지
+# 않은 것**이다. 삼성 라인을 새로 추가할 때는 이 목록에도 넣어야 한다.
+_SAMSUNG_PREFIXES = ("GS", "GA", "GW", "GB", "GZ", "GN", "GM", "GJ", "GF",
+                     "GR", "GO", "GX", "GV", "GG", "TAB", "WIDE", "JUMP")
+
+
 def test_new_codes_resolve_to_own_brand():
     """_CODE_BRAND_PREFIX 누락 시 가드가 자기 브랜드 매칭을 삼킨다."""
     from base.product_match import PRODUCT_PATTERNS, _brand_of
     samsung_like = [c for c, _ in PRODUCT_PATTERNS
-                    if _brand_of(c) == "samsung" and not c.startswith(
-                        ("GS", "GA", "GW", "GB", "GZ", "GN", "GM", "GJ", "GF",
-                         "GR", "GO", "GX", "TAB", "WIDE", "JUMP"))]
-    assert samsung_like == []
+                    if _brand_of(c) == "samsung"
+                    and not c.startswith(_SAMSUNG_PREFIXES)]
+    assert samsung_like == [], f"경쟁사 접두사 미등록 의심: {samsung_like}"
 
 
 # ── 레거시 사전 폴백 게이트 ──────────────────────────────────────────
@@ -266,3 +272,53 @@ def test_ring_requires_samsung_anchor(text):
 ])
 def test_ring_samsung_context_kept(text):
     assert "GR2" in codes(text)
+
+
+# ── 제품군 확장 (XR·글래스·링·오디오·노트북) ─────────────────────────
+@pytest.mark.parametrize("text,want", [
+    ("Meta Quest 3 controller drift after firmware", "MQ3"),
+    ("Ray-Ban Meta glasses battery dies in 2 hours", "MRB"),
+    ("Apple Vision Pro neck strain after 30 min", "APVP"),
+    ("Galaxy XR 무게가 너무 무겁다", "GXR"),
+    ("Samsung Galaxy Glasses 공개", "GGL"),
+    ("Oura Ring 4 sizing issue and rash", "OURA4"),
+    ("Galaxy Book4 Pro 힌지 유격", "GBK4P"),
+    ("Soundcore Space One ANC hiss", "ANKSPACE"),
+    ("Fairphone 6 camera module replacement", "FP6"),
+    ("Sennheiser Momentum 4 pairing drops", "SENM4"),   # 더 구체적인 세대가 이긴다
+])
+def test_category_expansion_tagged(text, want):
+    got = infer_all_product_codes(text)
+    assert got and got[0][0] == want, got
+
+
+@pytest.mark.parametrize("text,gone", [
+    # 반증이 코퍼스에서 직접 찾은 오탐 — 전부 막혀야 한다
+    ("SwitchBot Keypad Vision Pro door lock review", "APVP"),
+    ("whoop-de-doo, that has been going on for decades", "WHP"),
+    ("Whoop de doo. My apologies for being sloppy", "WHP"),
+    ("The Henoko-Oura Bay area of Okinawa base plan", "OURA"),
+    ("metadata and meta tags for SEO optimization", "MGL"),
+    ("퀄컴이 누비아 인수후부터 칩을 잘 뽑는다", "NB"),
+    ("Here's Samsung and Google's Rival to Ray-Ban Meta Smart Glasses", "MGL"),
+])
+def test_category_expansion_false_positives_blocked(text, gone):
+    assert gone not in codes(text)
+
+
+def test_gear_vr_and_galaxy_xr_are_samsung():
+    """자사 XR 제품이 경쟁사로 새지 않아야 한다."""
+    from base.product_match import _brand_of
+    for c in ("GXR", "GVR", "GGL"):
+        assert _brand_of(c) == "samsung"
+
+
+def test_new_brand_prefixes_registered():
+    """_CODE_BRAND_PREFIX 누락 시 가드가 자기 브랜드 매칭을 삼킨다."""
+    from base.product_match import _brand_of
+    for code, brand in (("MQ3", "meta"), ("MRB", "meta"), ("APVP", "apple"),
+                        ("OURA4", "oura"), ("WHP", "whoop"), ("ANKSPACE", "anker"),
+                        ("SENMOM", "sennheiser"), ("JBLTUNE", "jbl"),
+                        ("MSSFP", "microsoft"), ("NB", "nubia"), ("ZTE", "zte"),
+                        ("TCL", "tcl"), ("FP6", "fairphone"), ("XRL", "xreal")):
+        assert _brand_of(code) == brand, (code, _brand_of(code))

@@ -17,13 +17,15 @@ class VocService:
 
     async def get_products(
         self, series: Optional[str] = None, brand: Optional[str] = None,
-        is_active: bool = True
+        category: Optional[str] = None, is_active: bool = True
     ) -> List[Product]:
         stmt = select(Product).where(Product.is_active == is_active)
         if series:
             stmt = stmt.where(Product.series_code == series.upper())
         if brand:
             stmt = stmt.where(Product.brand == brand.lower())
+        if category:
+            stmt = stmt.where(Product.category == category.lower())
         result = await self.db.execute(stmt)
         return result.scalars().all()
 

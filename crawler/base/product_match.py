@@ -935,6 +935,270 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
         "(?:(?<=jabra )|(?<=jabra's )|(?<=jabra’s )|(?<=jabra-)|(?<=자브라 )|(?<=자브라))elite(?![0-9a-zA-Z])",
         '\\belite(?![0-9a-zA-Z])(?=[^\\n]{0,40}(?:jabra|자브라))'
     ]),
+
+    # ═══════════ 제품군 확장 · XR 헤드셋 ═══════════
+    ("MQ3S", [
+        '(?:meta|oculus)[\\s\\-]*quest[\\s\\-]*3\\s*s(?![0-9a-zA-Z])',
+        '(?<!galaxy\\s)\\bquest[\\s\\-]*3\\s*s(?![0-9a-zA-Z])',
+        '메타[\\s]*퀘스트[\\s]*3\\s*s(?![0-9a-zA-Z])'
+    ]),
+    ("MQ3", [
+        '(?:meta|oculus)[\\s\\-]*quest[\\s\\-]*3(?![0-9a-zA-Z])',
+        '(?<!galaxy\\s)\\bquest[\\s\\-]*3(?![0-9a-zA-Z])', '메타[\\s]*퀘스트[\\s]*3(?![0-9a-zA-Z])'
+    ]),
+    ("MQ2", [
+        '(?:meta|oculus)[\\s\\-]*quest[\\s\\-]*2(?![0-9a-zA-Z])',
+        '(?<!galaxy\\s)\\bquest[\\s\\-]*2(?![0-9a-zA-Z])', '메타[\\s]*퀘스트[\\s]*2(?![0-9a-zA-Z])'
+    ]),
+    ("MQP", [
+        '(?:meta|oculus)[\\s\\-]*quest[\\s\\-]*pro(?![0-9a-zA-Z])',
+        '(?<!galaxy\\s)\\bquest[\\s\\-]*pro(?![0-9a-zA-Z])'
+    ]),
+    ("MQ", [
+        '(?:meta|oculus)[\\s\\-]*quest(?![0-9a-zA-Z])', '(?:메타|오큘러스)[\\s]*퀘스트(?![0-9a-zA-Z])'
+    ]),
+    ("MRFT", ['oculus[\\s\\-]*rift(?![0-9a-zA-Z])', '오큘러스[\\s]*리프트']),
+    ("APVPM5", [
+        '(?:apple[\\s\\-]*)?\\bvision[\\s\\-]*pro[\\s\\-]*\\(?\\s*m5(?![0-9a-zA-Z])',
+        '\\bm5[\\s\\-]*vision[\\s\\-]*pro(?![0-9a-zA-Z])'
+    ]),
+    ("APVP", [
+        'apple[\\s\\-]*vision[\\s\\-]*pro(?![0-9a-zA-Z])',
+        '\\bvision[\\s\\-]*pro(?![0-9a-zA-Z])(?=[^\\n]{0,100}(?:apple|visionos|애플))',
+        '애플[\\s]*비전[\\s]*프로(?![젝그])',
+        '비전[\\s]*프로(?![젝그])(?![0-9a-zA-Z])(?=[^\\n]{0,100}(?:apple|애플|visionos))'
+    ]),
+    ("GXR", [
+        'galaxy[\\s\\-]*xr(?![0-9a-zA-Z])', '갤럭시[\\s]*xr(?![0-9a-zA-Z])',
+        '갤[\\s]*xr(?![0-9a-zA-Z])', '(?:project[\\s\\-]*)?moohan(?![0-9a-zA-Z])',
+        '프로젝트[\\s]*무한'
+    ]),
+    ("GVR", ['gear[\\s\\-]*vr(?![0-9a-zA-Z])', '기어[\\s]*vr(?![0-9a-zA-Z])']),
+
+    # ═══════════ 제품군 확장 · 스마트글래스 ═══════════
+    ("GGL", [
+        'galaxy[\\s\\-]*glasses(?![0-9a-zA-Z])',
+        'samsung[\\s\\-]*(?:ai[\\s\\-]*)?glasses(?![0-9a-zA-Z])', '갤럭시[\\s]*글래스',
+        '삼성[\\s]*(?:ai[\\s]*)?글래스'
+    ]),
+    ("MRBD", [
+        '(?:meta[\\s\\-]*)?ray[\\s\\-]?ban[\\s\\-]*(?:meta[\\s\\-]*)?display(?![0-9a-zA-Z])',
+        '메타[\\s]*레이[\\s\\-]?밴[\\s]*디스플레이'
+    ]),
+    ("OKM", [
+        'oakley[\\s\\-]*meta(?![0-9a-zA-Z])', 'meta[\\s\\-]*oakley(?![0-9a-zA-Z])',
+        'oakley[\\s\\-]*(?:vanguard|hstn)(?![0-9a-zA-Z])', '오클리[\\s]*메타'
+    ]),
+    ("MRB", [
+        'ray[\\s\\-]?ban[\\s\\-]*meta(?![0-9a-zA-Z])',
+        "meta(?:'s|’s)?[\\s\\-]*ray[\\s\\-]?ban(?![0-9a-zA-Z])",
+        'ray[\\s\\-]?ban(?![0-9a-zA-Z])(?=[^\\n]{0,60}meta)', '레이[\\s\\-]?밴[\\s]*메타',
+        '메타[\\s]*레이[\\s\\-]?밴'
+    ]),
+    ("MGL", [
+        '(?<!ban )(?<!ban-)(?<!밴 )(?<!밴)meta[\\s\\-]*(?:ai[\\s\\-]*)?glass(?:es)?(?![0-9a-zA-Z])',
+        '(?<!밴 )(?<!밴)메타[\\s]*(?:ai[\\s]*)?글래스'
+    ]),
+    ("XRL", [
+        '\\bxreal(?![0-9a-zA-Z])', '\\bx\\-real(?![0-9a-zA-Z])', '\\bnreal(?![0-9a-zA-Z])',
+        '엑스리얼'
+    ]),
+    ("VTR", ['\\bviture(?![0-9a-zA-Z])']),
+    ("RKD", ['\\brokid(?![0-9a-zA-Z])', '로키드']),
+
+    # ═══════════ 제품군 확장 · 스마트링 ═══════════
+    ("OURA5", [
+        '\\boura\\s*ring\\s*5(?![0-9a-zA-Z])',
+        '\\boura\\s*ring\\s*gen(?:eration)?\\s*5(?![0-9a-zA-Z])',
+        '\\boura\\s*(?:ring\\s*)?5\\s*(?:대|세대|generation|gen)(?![0-9a-zA-Z])',
+        '\\boura\\s*5(?![0-9a-zA-Z])', '오우라\\s*링\\s*5(?![0-9a-zA-Z])'
+    ]),
+    ("OURA4", [
+        '\\boura\\s*ring\\s*4(?![0-9a-zA-Z])',
+        '\\boura\\s*ring\\s*gen(?:eration)?\\s*4(?![0-9a-zA-Z])',
+        '\\boura\\s*(?:ring\\s*)?gen(?:eration)?\\s*4(?![0-9a-zA-Z])',
+        '\\boura\\s*4(?![0-9a-zA-Z])', '오우라\\s*링\\s*4(?![0-9a-zA-Z])'
+    ]),
+    ("OURA3", [
+        '\\boura\\s*ring\\s*3(?![0-9a-zA-Z])',
+        '\\boura\\s*ring\\s*gen(?:eration)?\\s*3(?![0-9a-zA-Z])',
+        '\\boura\\s*(?:ring\\s*)?gen(?:eration)?\\s*3(?![0-9a-zA-Z])',
+        '\\bgen\\s*3\\s*oura(?![0-9a-zA-Z])', '\\boura\\s*3(?![0-9a-zA-Z])',
+        '오우라\\s*링\\s*3(?![0-9a-zA-Z])'
+    ]),
+    ("OURA", [
+        '\\boura\\s*ring(?![0-9a-zA-Z])', '(?<![A-Za-z]-)\\boura(?![0-9a-zA-Z])(?!\\s*bay\\b)',
+        '오우라\\s*링(?![0-9a-zA-Z])', '오우라(?![0-9a-zA-Z])'
+    ]),
+    ("ULHRA", ['\\bultra\\s?human\\s*(?:ring\\s*)?air(?![0-9a-zA-Z])']),
+    ("ULHR", ['\\bultra\\s?human(?![0-9a-zA-Z])']),
+    ("RGC3", ["\\bring\\s?conn(?:'s|’s)?\\s*(?:gen\\s*)?3(?![0-9a-zA-Z])"]),
+    ("RGC2", [
+        "\\bring\\s?conn(?:'s|’s)?\\s*(?:gen\\s*)?2\\s*air(?![0-9a-zA-Z])",
+        "\\bring\\s?conn(?:'s|’s)?\\s*(?:gen\\s*)?2(?![0-9a-zA-Z])"
+    ]),
+    ("RGC", ['\\bring\\s?conn(?![0-9a-zA-Z])']),
+    ("AZHELIO", ['\\b(?:amazfit\\s*)?helio\\s*ring(?![0-9a-zA-Z])']),
+
+    # ═══════════ 제품군 확장 · 피트니스 밴드 ═══════════
+    ("WHPMG", [
+        '\\bwhoop\\s*(?:strap\\s*)?mg(?![0-9a-zA-Z])',
+        '\\bwhoop\\s*5(?:\\.0)?\\s*(?:life\\s*)?mg(?![0-9a-zA-Z])'
+    ]),
+    ("WHP5", [
+        '\\bwhoop\\s*(?:strap\\s*)?5(?:\\.0)?\\s*(?:peak|life)(?![0-9a-zA-Z])',
+        '\\bwhoop\\s*(?:strap\\s*)?5(?:\\.0)?(?![0-9a-zA-Z])'
+    ]),
+    ("WHP4", ['\\bwhoop\\s*(?:strap\\s*)?4(?:\\.0)?(?![0-9a-zA-Z])']),
+    ("WHP", [
+        '(?<!big\\s)(?<!woo\\s)(?<!whoop\\s)\\bwhoop(?![\\s\\-]*(?:de|dee|doo)\\b)(?!\\s+whoop)(?!\\s+(?:and|or)\\s+(?:cheer|holler|scream|shout|yell|clap))(?![0-9a-zA-Z])'
+    ]),
+
+    # ═══════════ 제품군 확장 · 헤드폰 ═══════════
+    ("ANKSPACE", [
+        '(?:sound\\s?core|anker)(?:\\s*by\\s*anker)?[\\s\\-]*space\\s*(?:one|q45|a40|2)(?:\\s*pro)?(?![0-9a-zA-Z])',
+        '\\bspace\\s*(?:one|q45|a40|2)(?:\\s*pro)?(?![0-9a-zA-Z])(?=[^\\n]{0,80}(?:sound\\s?core|anker))'
+    ]),
+    ("ANKQ", [
+        '(?:sound\\s?core|anker)(?:\\s*by\\s*anker)?[\\s\\-]*(?:life\\s*)?q(?:20i|30s?|45|35)(?![0-9a-zA-Z])',
+        '\\b(?:life\\s*)?q(?:20i|30s?|45|35)(?![0-9a-zA-Z])(?=[^\\n]{0,80}(?:sound\\s?core|anker))'
+    ]),
+    ("SENM4", [
+        'sennheiser[^\\n]{0,40}momentum\\s*(?:wireless\\s*)?4(?![0-9a-zA-Z])',
+        '\\bmomentum\\s*(?:wireless\\s*)?4(?![0-9a-zA-Z])(?=[^\\n]{0,80}(?:sennheiser|젠하이저))',
+        '젠하이저\\s*모멘텀\\s*4(?![0-9a-zA-Z])'
+    ]),
+    ("SENMOM", [
+        'sennheiser[^\\n]{0,40}momentum(?![0-9a-zA-Z])',
+        '\\bmomentum(?![0-9a-zA-Z])(?=[^\\n]{0,80}(?:sennheiser|젠하이저))',
+        '젠하이저\\s*모멘텀(?![0-9a-zA-Z])'
+    ]),
+    ("SENACC", ['\\baccentum(?![0-9a-zA-Z])']),
+    ("BTS360", ['\\bbeats\\s*360(?![0-9a-zA-Z])']),
+    ("BTSSTP", ['\\bbeats\\s*studio\\s*pro(?![0-9a-zA-Z])']),
+    ("BTSSOLO4", ['\\bbeats\\s*solo\\s*4(?![0-9a-zA-Z])']),
+    ("JBLTOUR1", ['\\bjbl\\s*tour\\s*one\\s*(?:m\\s?\\d)?(?![0-9a-zA-Z])']),
+    ("JBLTUNE", [
+        '\\bjbl\\s*tune\\s*(?:beam|flex|buds|\\d{2,3})(?:\\s*\\d{0,3})?(?:nc|bt|tws)?(?![0-9a-zA-Z])'
+    ]),
+    ("NTHP1", ['\\bnothing\\s*headphone\\s*\\(?\\s*1\\s*\\)?(?![0-9a-zA-Z])']),
+    ("NTHPA", ['\\bnothing\\s*headphone\\s*\\(?\\s*a\\s*\\)?(?![0-9a-zA-Z])']),
+
+    # ═══════════ 제품군 확장 · 이어버즈 ═══════════
+    ("ANKLIB5P", ['\\bliberty\\s*5\\s*pro(?![0-9a-zA-Z])']),
+    ("ANKLIB5", ['\\bliberty\\s*5(?![0-9a-zA-Z])']),
+    ("ANKLIB4P", ['\\bliberty\\s*4\\s*pro(?![0-9a-zA-Z])']),
+    ("ANKLIB4", ['\\bliberty\\s*4(?:\\s*nc)?(?![0-9a-zA-Z])']),
+    ("ANKSLEEP", [
+        '\\bsleep\\s*a[0-9]0(?![0-9a-zA-Z])',
+        '(?:sound\\s?core|anker)(?:\\s*by\\s*anker)?[\\s\\-]*sleep\\s*(?:earbuds?)?\\s*\\d?(?![0-9a-zA-Z])',
+        '\\bsleep\\s*earbuds?\\s*\\d?(?![0-9a-zA-Z])(?=[^\\n]{0,80}(?:sound\\s?core|anker))'
+    ]),
+    ("ANKAERO", ['\\baerofit\\s*\\d?(?![0-9a-zA-Z])']),
+    ("ANKSPORTX", ['\\bsport\\s*x[0-9]0(?![0-9a-zA-Z])']),
+    ("ANKP", ['\\bp[234]0i(?![0-9a-zA-Z])', '\\bp31i(?![0-9a-zA-Z])']),
+    ("ANKR", ['\\br[56]0i(?![0-9a-zA-Z])']),
+    ("SENMTW4", [
+        '\\bmomentum\\s*(?:true\\s*wireless|tws)\\s*4(?![0-9a-zA-Z])',
+        '\\bm4\\s*earbuds(?![0-9a-zA-Z])'
+    ]),
+    ("BTSPBP2", ['\\bpower\\s?beats\\s*pro\\s*2(?![0-9a-zA-Z])']),
+    ("BTSPBP", ['\\bpower\\s?beats\\s*pro(?![0-9a-zA-Z])']),
+    ("BTSPBF", ['\\bpower\\s?beats\\s*fit(?![0-9a-zA-Z])']),
+    ("BTSPB", ['\\bpower\\s?beats\\s*\\d?(?![0-9a-zA-Z])']),
+    ("BTSSTBP", ['\\bbeats\\s*studio\\s*buds\\s*(?:\\+|plus)(?![0-9a-zA-Z])']),
+    ("BTSSTB", ['\\bbeats\\s*studio\\s*buds(?![0-9a-zA-Z])']),
+    ("BTSSOLOB", ['\\bbeats\\s*solo\\s*buds(?![0-9a-zA-Z])']),
+    ("BTSFP", ['\\bbeats\\s*fit\\s*pro(?![0-9a-zA-Z])']),
+    ("JBLTOURP", ['\\bjbl\\s*tour\\s*pro\\s*\\d?(?![0-9a-zA-Z])']),
+    ("JBLLIVE", [
+        '\\bjbl\\s*live\\s*(?:buds|beam|flex|pro|\\d{2,3})(?:\\s*\\d{0,3})?(?:nc|bt)?(?![0-9a-zA-Z])'
+    ]),
+    ("JBLEND", ['\\bjbl\\s*endurance\\s*(?:zone|peak|race|dive|buds)?\\s*\\d?(?![0-9a-zA-Z])']),
+    ("JBLVIBE", ['\\bjbl\\s*vibe\\s*(?:beam|buds|flex)?\\s*\\d?(?![0-9a-zA-Z])']),
+    ("JBLWAVE", ['\\bjbl\\s*wave\\s*(?:beam|buds|flex)?\\s*\\d?(?![0-9a-zA-Z])']),
+
+    # ═══════════ 제품군 확장 · 노트북 ═══════════
+    ("GBK6E", [
+        'galaxy\\s*book\\s*6\\s*edge(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*6\\s*(?:엣지|에지)'
+    ]),
+    ("GBK6U", ['galaxy\\s*book\\s*6\\s*ultra(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*6\\s*울트라']),
+    ("GBK6P", ['galaxy\\s*book\\s*6\\s*pro(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*6\\s*프로']),
+    ("GBK6", ['galaxy\\s*book\\s*6(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*6(?![0-9a-zA-Z])']),
+    ("GBK5P3", [
+        'galaxy\\s*book\\s*5\\s*pro\\s*360(?![0-9a-zA-Z])',
+        '(?:갤럭시\\s*북|갤북)\\s*5\\s*프로\\s*360(?![0-9a-zA-Z])'
+    ]),
+    ("GBK5P", ['galaxy\\s*book\\s*5\\s*pro(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*5\\s*프로']),
+    ("GBK5", ['galaxy\\s*book\\s*5(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*5(?![0-9a-zA-Z])']),
+    ("GBK4E", [
+        'galaxy\\s*book\\s*4\\s*edge(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*4?\\s*(?:엣지|에지)'
+    ]),
+    ("GBK4U", ['galaxy\\s*book\\s*4\\s*ultra(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*4\\s*울트라']),
+    ("GBK4P", ['galaxy\\s*book\\s*4\\s*pro(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*4\\s*프로']),
+    ("GBK4", ['galaxy\\s*book\\s*4(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*4(?![0-9a-zA-Z])']),
+    ("GBK3U", ['galaxy\\s*book\\s*3\\s*ultra(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*3\\s*울트라']),
+    ("GBK3P3", [
+        'galaxy\\s*book\\s*3\\s*(?:pro\\s*)?360(?![0-9a-zA-Z])',
+        '(?:갤럭시\\s*북|갤북)\\s*3\\s*(?:프로\\s*)?360(?![0-9a-zA-Z])'
+    ]),
+    ("GBK3P", ['galaxy\\s*book\\s*3\\s*pro(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*3\\s*프로']),
+    ("GBK3", ['galaxy\\s*book\\s*3(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*3(?![0-9a-zA-Z])']),
+    ("GBK2P", ['galaxy\\s*book\\s*2\\s*pro(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*2\\s*프로']),
+    ("GBK2", ['galaxy\\s*book\\s*2(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*2(?![0-9a-zA-Z])']),
+    ("GBKS", ['galaxy\\s*book\\s+s(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*s(?![0-9a-zA-Z])']),
+    ("GBKGO", ['galaxy\\s*book\\s*go(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)고(?![0-9a-zA-Z])']),
+    ("GBKFLX", ['galaxy\\s*book\\s*flex(?![0-9a-zA-Z])', '(?:갤럭시\\s*북|갤북)\\s*플렉스']),
+    ("GBK", [
+        '(?<!guide )(?<!guide to the )galaxy\\s*books?(?![0-9a-zA-Z])',
+        '갤럭시\\s*북(?![0-9a-zA-Z])', '갤북(?![0-9a-zA-Z])'
+    ]),
+    ("MBPRO", ['\\bmacbook\\s*pro(?![0-9a-zA-Z])', '맥북\\s*프로']),
+    ("MBAIR", ['\\bmacbook\\s*air(?![0-9a-zA-Z])', '맥북\\s*에어']),
+    ("MSSFL", ['\\bsurface\\s*laptop(?![0-9a-zA-Z])', '서피스\\s*랩탑']),
+    ("MSSFB", ['\\bsurface\\s*book(?![0-9a-zA-Z])', '서피스\\s*북(?![0-9a-zA-Z])']),
+
+    # ═══════════ 제품군 확장 · 태블릿 ═══════════
+    ("IPADPRO", ['\\bipad\\s*pro(?![0-9a-zA-Z])', '아이패드\\s*프로']),
+    ("IPADAIR", ['\\bipad\\s*air(?![0-9a-zA-Z])', '아이패드\\s*에어']),
+    ("IPADMINI", ['\\bipad\\s*mini(?![0-9a-zA-Z])', '아이패드\\s*미니']),
+    ("MSSFP", ['\\bsurface\\s*pro(?![0-9a-zA-Z])', '서피스\\s*프로']),
+    ("NBRMAST", ["\\bred\\s?magic['’\\s\\-]*astra(?![0-9a-zA-Z])"]),
+    ("TCLNXT", [
+        '\\bnxt\\s?paper(?![0-9a-zA-Z])',
+        "\\btcl[\\s:'’\\-]{0,3}(?:tab|note)\\s*(?:a1|10l|a3)(?![0-9a-zA-Z])"
+    ]),
+
+    # ═══════════ 제품군 확장 · 폰(미커버 브랜드) ═══════════
+    ("MSSFD", ['\\bsurface\\s*duo(?![0-9a-zA-Z])', '서피스\\s*듀오']),
+    ("NBRM11P", [
+        '\\bred\\s?magic\\s*11\\s*s?\\s*pro(?![0-9a-zA-Z])',
+        '\\bred\\s?magic\\s*11s?(?![0-9a-zA-Z])'
+    ]),
+    ("NBRM10", ['\\bred\\s?magic\\s*10s?(?![0-9a-zA-Z])']),
+    ("NBRM", ['\\bred\\s?magic(?![0-9a-zA-Z])', '레드매직']),
+    ("NBZ", ['\\bnubia\\s*z\\s*\\d{2}s?(?![0-9a-zA-Z])']),
+    ("NBNEO", ['\\bnubia\\s*neo(?![0-9a-zA-Z])']),
+    ("NB", ['\\bnubia(?![0-9a-zA-Z])']),
+    ("ZTEAXON", [
+        "\\bzte['’\\s\\-]*axon(?![0-9a-zA-Z])",
+        '\\baxon\\s*(?:m|7|9|10|11|20|30|40|50|60)(?![0-9a-zA-Z])'
+    ]),
+    ("ZTEBLADE", ["\\bzte['’\\s\\-]*blade(?![0-9a-zA-Z])", '\\bblade\\s*[avls]\\s*\\d']),
+    ("FP6", [
+        '\\bfairphone\\s*6(?![0-9a-zA-Z])', '\\bfairphone\\s*\\(?gen\\.?\\s*6', '페어폰\\s*6'
+    ]),
+    ("FP5", ['\\bfairphone\\s*5(?![0-9a-zA-Z])', '페어폰\\s*5']),
+    ("FP4", ['\\bfairphone\\s*4(?![0-9a-zA-Z])', '페어폰\\s*4']),
+    ("FP3", ['\\bfairphone\\s*3(?![0-9a-zA-Z])', '페어폰\\s*3']),
+    ("FP2", ['\\bfairphone\\s*2(?![0-9a-zA-Z])', '페어폰\\s*2']),
+    ("FP", ['\\bfairphones?(?![0-9a-zA-Z])', '페어폰(?![0-9a-zA-Z])']),
+    ("HMDSKY", ['(?:nokia[\\s/\\-]*)?\\bhmd[\\s\\-]*skyline(?![0-9a-zA-Z])']),
+    ("HMD", [
+        '(?:nokia[\\s/\\-]*)?\\bhmd[\\s\\-]+(?:global|pulse|vibe|fusion|crest|arc|asha|key|luma|xplora\\w*|touch|amped|barbie|t2[01]|2760|105|110|150|102|106|123)(?![0-9a-zA-Z])',
+        '(?:nokia[\\s/\\-]*)?\\bhmd\\.com'
+    ]),
+    ("SHAQ", ['\\baquos(?![0-9a-zA-Z])', '아쿠오스', '아쿠아스']),
 ]
 
 # 사전 컴파일
@@ -993,6 +1257,16 @@ _CODE_BRAND_PREFIX: Dict[str, str] = {
     "HO": "honor", "HW": "huawei",
     "MT": "motorola", "SN": "sony", "NK": "nokia", "AS": "asus", "NT": "nothing",
     "GMN": "garmin", "BSE": "bose", "JBR": "jabra",
+    # 0040 제품군 확장 — XR·글래스·링·오디오·노트북·미커버 폰
+    "ANK": "anker", "BTS": "apple", "FP": "fairphone",
+    "HMD": "hmd", "IPAD": "apple", "JBL": "jbl",
+    "MB": "apple", "MGL": "meta", "MQ": "meta",
+    "MRB": "meta", "MRFT": "meta", "MS": "microsoft",
+    "NB": "nubia", "OKM": "meta", "OURA": "oura",
+    "RGC": "ringconn", "RKD": "rokid", "SEN": "sennheiser",
+    "SH": "sharp", "TCL": "tcl", "ULH": "ultrahuman",
+    "VTR": "viture", "WHP": "whoop", "XRL": "xreal",
+    "ZTE": "zte",
 }
 
 
