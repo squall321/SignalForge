@@ -245,3 +245,24 @@ def test_legacy_gear_token(text, hit):
     """'Gear' 자체 삼성 근거 판정 — 복수형 gears·gear system 을 잡으면 안 된다."""
     from base.product_match import _LEGACY_GEAR
     assert bool(_LEGACY_GEAR.search(text)) is hit
+
+
+# ── Galaxy Ring — 무경계 ring 패턴이 타사 스마트링을 삼키던 문제 ──────
+@pytest.mark.parametrize("text", [
+    "Luna Ring 2.0 to inteligentny pierścień, który potrafi",
+    "Circular announced its new Ring 3 Series and Ring 2 with payments",
+    "Телефоны VERTU вернулись в новом формате Сеть restore открыла корнер",
+])
+def test_ring_requires_samsung_anchor(text):
+    assert "GR2" not in codes(text)
+
+
+@pytest.mark.parametrize("text", [
+    "Galaxy Ring 2 배터리가 하루도 안 간다",
+    "Samsung's Galaxy Ring 2 launches with new sensors",
+    "갤럭시 링2 사이즈 고민중",
+    "The Ring 2 from Samsung finally supports gestures",
+    "링2 착용감 어떤가요 갤럭시 워치랑 같이 쓰려는데",
+])
+def test_ring_samsung_context_kept(text):
+    assert "GR2" in codes(text)

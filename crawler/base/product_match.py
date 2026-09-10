@@ -124,8 +124,15 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"버즈\s*3" + _E, r"버즈3", r"갤버즈3", r"\b버3" + _E]),
 
     # ── Galaxy Ring ──
-    ("GR2",   [r"galaxy\s*ring\s*2", r"\bring\s*2" + _E, r"\bring2" + _E,
-               r"갤럭시\s*링\s*2", r"링2",
+    # 무경계 `\bring\s*2`·`\bring2`·`링2` 는 타사 스마트링을 흡수했다. 실측 —
+    # 'Luna Ring 2.0', 'Circular Ring 2'(+포르투갈어판), Vertu 매장 기사(러시아어)가
+    # GR2 로 태깅됐고, 활성 링크 512건 중 10건에 삼성 링 근거가 아예 없었다.
+    # 브랜드 인접 가드로는 못 막는다 — Luna/Circular/Vertu 가 _WORD_BRAND 에 없어서다.
+    # → 브랜드를 매칭에 흡수하거나(1행), 전방 80자 안에 삼성 앵커를 요구한다(2행).
+    ("GR2",   [r"(?:galaxy|samsung|갤럭시|삼성|갤)[\s\-'’]{0,6}(?:ring|링)\s*2" + _E,
+               r"\bring\s*2" + _E + r"(?=[^\n]{0,80}(?:galaxy|samsung|갤럭시|삼성))",
+               r"\bring2" + _E + r"(?=[^\n]{0,80}(?:galaxy|samsung|갤럭시|삼성))",
+               r"링2(?=[^\n]{0,80}(?:galaxy|samsung|갤럭시|삼성))",
                # 단독 "Galaxy Ring"도 GR2 로 추정 (1세대 별도 추적 안 함)
                r"galaxy\s*ring" + _E, r"갤럭시\s*링" + _E]),
 
