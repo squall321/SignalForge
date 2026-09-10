@@ -62,3 +62,31 @@ def test_accepts_platform_code_kwarg(module, name, cls):
     assert ok, (f"{module}.{name} 이 platform_code 를 받지 못한다 — "
                 f"tasks.crawl_platform 이 매 실행 TypeError 로 죽는다. "
                 f"현재 시그니처: {inspect.signature(cls.__init__)}")
+
+
+# ── 수집 예산 — 시간과 건수를 함께 봐야 한다 ─────────────────────────
+def test_budget_time_and_volume():
+    """실측 근거: crawl 452.9s/897건 뒤 NLP 271.4s 가 붙어 725.3s 로 600s 를 넘겼다.
+
+    NLP 비용이 수집량에 비례하므로 시간만 보는 예산으로는 부족하다.
+    """
+    from base.crawler import BaseCrawler
+
+    class _Stub(BaseCrawler):
+        async def crawl(self):
+            return []
+
+    c = _Stub("test")
+    assert c.budget_exceeded(0) is False            # 갓 시작 — 여유
+    assert c.budget_exceeded(c.CRAWL_MAX_ITEMS) is True      # 건수 상한
+    assert c.budget_exceeded(c.CRAWL_MAX_ITEMS - 1) is False
+    c._started -= c.CRAWL_BUDGET_SEC + 1
+    assert c.budget_exceeded(0) is True             # 시간 상한
+
+
+def test_budget_fits_soft_time_limit():
+    """예산 조합이 celery soft time limit(600s) 안에 들어와야 한다."""
+    from base.crawler import BaseCrawler
+    NLP_PER_ITEM = 0.303          # 실측 271.4s / 897건
+    worst = BaseCrawler.CRAWL_BUDGET_SEC + BaseCrawler.CRAWL_MAX_ITEMS * NLP_PER_ITEM
+    assert worst < 600, f"최악 {worst:.0f}s 가 soft limit 600s 를 넘는다"

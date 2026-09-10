@@ -119,9 +119,19 @@ class BaseCrawler(ABC):
     #
     # 긴 루프를 도는 크롤러는 반복마다 budget_exceeded() 를 확인하고 break 해
     # **부분 결과라도 반환**해야 한다. 죽는 것보다 절반이 낫다.
-    CRAWL_BUDGET_SEC: float = float(os.getenv("CRAWL_TIME_BUDGET_SEC", "450"))
+    # 실측(2026-09-10, dogdrip) — crawl 452.9s/897건 · NLP 271.4s · save 1.0s
+    # = 합계 725.3s 로 soft limit 600s 를 넘겼다. 시간만 보는 예산으로는 부족하다.
+    # **NLP 비용이 수집량에 비례**하기 때문이다(건당 0.303s).
+    # 그래서 시간과 건수를 함께 본다 —
+    #   500건 상한이면 NLP 약 152s, 그 시점 crawl 이 약 253s → 합계 약 406s 로 여유가 있다.
+    #   느린 소스는 건수가 안 차므로 330s 시간 상한이 먼저 걸린다(330 + NLP + save < 600).
+    CRAWL_BUDGET_SEC: float = float(os.getenv("CRAWL_TIME_BUDGET_SEC", "330"))
+    CRAWL_MAX_ITEMS: int = int(os.getenv("CRAWL_MAX_ITEMS", "500"))
 
-    def budget_exceeded(self) -> bool:
+    def budget_exceeded(self, collected: int = 0) -> bool:
+        """시간 또는 수집량 상한 초과. 긴 루프는 반복마다 확인하고 break 하라."""
+        if collected and collected >= self.CRAWL_MAX_ITEMS:
+            return True
         return (time.monotonic() - self._started) >= self.CRAWL_BUDGET_SEC
 
     def budget_left(self) -> float:

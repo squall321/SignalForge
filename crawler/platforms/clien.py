@@ -78,8 +78,8 @@ class ClienCrawler(BaseCrawler):
         async with self._make_httpx_client() as client:
             for board_code, board_name in CLIEN_BOARDS:
                 for page in range(0, LIST_PAGES):  # 최근 N페이지
-                    if self.budget_exceeded():
-                        logger.warning("Clien 시간 예산 초과 — 리스트 수집 조기 종료")
+                    if self.budget_exceeded(len(list_posts)):
+                        logger.warning("Clien 예산 초과 — 리스트 수집 조기 종료")
                         break
                     try:
                         posts = await self._fetch_board_page(client, board_code, page)
@@ -109,9 +109,9 @@ class ClienCrawler(BaseCrawler):
                 # 시간 예산 초과 시 부분 결과로 반환한다. run() 이 save() 를 맨 끝에
                 # 한 번만 하므로, soft time limit 에 걸려 죽으면 여기까지 긁은 것이
                 # 전부 버려진다(실측: 하루 44회 전부 그렇게 0건이 됐다).
-                if self.budget_exceeded():
+                if self.budget_exceeded(len(raw_vocs)):
                     logger.warning(
-                        f"Clien 시간 예산 초과 — 상세 {idx}/{len(target_posts)}건에서 조기 종료")
+                        f"Clien 예산 초과 — 상세 {idx}/{len(target_posts)}건에서 조기 종료")
                     break
                 await self._random_delay()
                 try:

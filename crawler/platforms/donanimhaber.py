@@ -151,9 +151,9 @@ class DonanimHaberCrawler(BaseCrawler):
             for idx, (url, hint) in enumerate(details):
                 # 시간 예산 초과 시 부분 결과로 반환 — run() 이 save() 를 맨 끝에
                 # 한 번만 하므로 여기서 죽으면 긁은 것이 전부 버려진다.
-                if self.budget_exceeded():
+                if self.budget_exceeded(len(results)):
                     logger.warning(
-                        f"DonanımHaber 시간 예산 초과 — 상세 {idx}/{len(details)}건에서 조기 종료")
+                        f"DonanımHaber 예산 초과 — 상세 {idx}/{len(details)}건에서 조기 종료")
                     break
                 try:
                     vocs = await self._fetch_detail(client, url, hint)

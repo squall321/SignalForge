@@ -104,9 +104,9 @@ class DogdripCrawler(BaseCrawler):
             for idx, post in enumerate(target_posts):
                 # 시간 예산 초과 시 부분 결과로 반환 — run() 이 save() 를 맨 끝에
                 # 한 번만 하므로 여기서 죽으면 긁은 것이 전부 버려진다.
-                if self.budget_exceeded():
+                if self.budget_exceeded(len(raw_vocs)):
                     logger.warning(
-                        f"Dogdrip 시간 예산 초과 — 상세 {idx}/{len(target_posts)}건에서 조기 종료")
+                        f"Dogdrip 예산 초과 — 상세 {idx}/{len(target_posts)}건에서 조기 종료")
                     break
                 await self._random_delay()
                 try:
