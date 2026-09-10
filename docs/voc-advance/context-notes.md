@@ -287,3 +287,41 @@ test_regression_coverage 의 기본값 SF_BACKEND_URL=127.0.0.1:8000 인데 Sign
 backend 는 18000 이고, 8000 에는 사용자의 VLLM 이 떠 있다. VLLM 이 /health 에 200 을
 주는 바람에 `_alive()` 가 참이 되어 스킵되지 않고 전 API 가 404 로 실패했다.
 올바른 포트로는 401 portal session required(SSO 잠금, 사용자 결정)로 바뀐다.
+
+### D38. 차원을 만들면 공백이 스스로 드러난다
+category 컬럼을 넣은 직후 집계 한 번으로 공백이 전부 보였다 — tablet 58종이 전량
+삼성(iPad 0종), ring 2종이 전량 삼성(Oura 0종), laptop·xr·glasses 는 값 자체가 없음.
+그 전까지는 series_code 47종을 아무리 봐도 "무엇이 없는지"가 보이지 않았다.
+차원 설계가 카탈로그 확장보다 먼저였어야 했다.
+
+### D39. series_code 는 제품군이 아니다
+브랜드와 라인이 섞여 있고 일관성도 없다 — series 'GW' 안에 Galaxy Fit(밴드) 4종과
+Gear Fit 2종이 워치와 섞여 있고, series 'OPW'(OnePlus Watch) 안에 OnePlus Buds 4종이,
+series 'NT'(Nothing Phone) 안에 Nothing Ear 가 있다. AB·SNA·BSE 는 이어버즈와 헤드폰을
+한 시리즈에 넣었다. 그래서 category 는 series 로 유도할 수 없고 별도 컬럼이어야 한다.
+
+### D40. 자사 제품이 카탈로그에 없었다
+경쟁사를 찾다가 자사 공백을 발견했다 — Galaxy Book 797건(MX 노트북)·Galaxy XR 164건·
+Galaxy Glasses 121건·Gear VR·Galaxy Nexus 1,643건·Galaxy S27 1,609건이 코퍼스에 있는데
+products 에 없다. 경쟁사 커버리지를 넓히는 작업이 자사 커버리지 점검을 겸했다.
+
+### D41. 경쟁사 추가는 '구형 자사 무패턴'과 상호작용한다
+iPad/MacBook 을 넣자 갤럭시 폴드 1세대 핸즈온 기사가 IPADMINI 로 갔다. 원인은
+iPad 패턴이 아니라 **GZF1(폴드 1세대)에 라이브 패턴이 없어 경쟁 후보가 아예 없던 것**이다.
+즉 라이브 사전이 좁은 상태(D33)에서 경쟁사를 넓히면 자사 구형 기사의 primary 가
+경쟁사로 넘어간다. 다행히 기존 DB 행은 build_links 가 저장 태그를 primary 로 유지해
+영향이 없고 탈취는 0.47%에 머물렀지만, **구조적으로는 구형 삼성 패턴 보강이 선행돼야 한다.**
+
+### D42. 스키마 상한이 조용히 기다리고 있었다
+series_code varchar(4)·code varchar(10) 에 GBOOK(5자)·JBLTOURPRO(10자)가 걸렸다.
+컬럼 확장을 시도했으나 MV galaxy_master_timeline 이 series_code 에 의존해 ALTER 가
+거부된다(rule _RETURN 의존). 뷰를 재생성하는 것보다 코드명을 맞추는 쪽이 위험이 작아
+GBOOK→GBK, JBLTOUR*→JBLTOUR1/JBLTOURP 로 바꿨다. 다음 확장에서 또 걸릴 것이므로
+그때는 MV 재생성을 포함한 마이그레이션이 필요하다.
+
+### D43. 새 브랜드를 넣으려다 기존 라이브 버그를 찾았다
+스마트링 경쟁사를 조사하던 반증 에이전트가 GR2 의 무경계 `\bring\s*2`·`\bring2`·`링2`가
+'Luna Ring 2.0'·'Circular Ring 2'·Vertu 매장 기사를 갤럭시 링2로 태깅하고 있음을 찾았다
+(활성 512행 중 10행에 삼성 링 근거 없음). 브랜드 인접 가드로는 막히지 않는다 —
+Luna·Circular·Vertu 가 _WORD_BRAND 에 없어서다. **가드는 아는 브랜드만 막는다**는 한계가
+드러났고, 패턴 쪽에서 삼성 앵커를 요구하는 것이 근본 해법이었다.

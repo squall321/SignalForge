@@ -108,3 +108,23 @@ released_at 은 0027 로 전 제품 채움 완료 → 지금 가능.
 - [ ] hackernews 64,920행 NLP 미처리(categories 0.6% vs 100%) — 활성의 14.8%
 - [ ] Galaxy S27(1,838문서)·iPhone 18(1,663문서) 카탈로그 미등록
 - [ ] 한국 커뮤니티 pre-2023 부재 — Note 7 시기 한국 여론 재구성 불가
+
+## Phase 8 — 제품군 차원 + 미커버 카테고리 확장
+
+사용자 지적("메타 같은 웨어러블 커버리지", "제품군 카탈로그도 되고 있나")에서 출발.
+둘 다 **안 되고 있었다**는 것이 실측으로 확인됐다.
+
+- [x] products.category 없음 확인 — series_code 가 브랜드+라인 혼재로 대신 못 함
+      (series GW 에 Galaxy Fit(밴드), OPW 에 OnePlus Buds, NT 에 Nothing Ear)
+- [x] alembic 0039 — category 차원 64규칙, 769종 전수 분류, 미분류 0
+- [x] 차원 신설 직후 공백 노출 — tablet 전량 삼성, ring 전량 삼성, laptop/xr/glasses 값 0
+- [x] 자사 누락 발견 — Galaxy Book 797 · Galaxy XR 164 · Galaxy Glasses 121 · Gear VR
+- [x] alembic 0040 — 116종 확장. products 769→885, 브랜드 20→38, 제품군 10종
+- [x] 반증 오탐 8건 반영 (SwitchBot Vision Pro·whoop-de-doo·Henoko-Oura Bay·
+      누비아=Nuvia·Nokia HMD 오폐기 등)
+- [x] 무번호 IPAD·MBOOK 의도적 제외 — 환산 5,200건이 스치는 언급이라 결함분석 불가
+- [x] 전수 A/B 기존 매칭 파괴 0건, 삼성 primary 탈취 0.47%
+- [x] **라이브 GR2 버그 발견·수정** — `\bring\s*2` 가 Luna/Circular Ring 흡수(8행)
+- [ ] 링크 백필 재실행 중
+- [ ] 라이브 사전에 구형 삼성 패턴 부재 → 경쟁사가 primary 를 가져가는 구조적 문제
+      (예: GZF1 무패턴이라 폴드1 기사가 IPADMINI 로 감)
