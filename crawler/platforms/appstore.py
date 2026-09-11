@@ -65,11 +65,19 @@ class AppStoreCrawler(BaseCrawler):
         seen: set = set()
         out: List[RawVOC] = []
         async with self._make_httpx_client() as client:
+            # 마켓 × 앱 이중 루프라 지역이 늘수록 선형으로 길어진다. 예산 초과 시
+            # 부분 결과라도 반환한다(실측: 20회 연속 SoftTimeLimitExceeded 로 0건).
             for gl, hl in _MARKETS:
+                if self.budget_exceeded(len(out)):
+                    logger.warning(f"앱스토어 예산 초과 — Play {gl} 에서 조기 종료")
+                    break
                 for name, pkg in _PLAY_APPS:
                     out += await self._play(client, name, pkg, gl, hl, seen)
                     await self._random_delay()
             for c, _ in _MARKETS:
+                if self.budget_exceeded(len(out)):
+                    logger.warning(f"앱스토어 예산 초과 — Apple {c} 에서 조기 종료")
+                    break
                 for name, aid in _APPLE_APPS:
                     out += await self._apple(client, name, aid, c, seen)
                     await self._random_delay()

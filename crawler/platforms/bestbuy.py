@@ -79,6 +79,12 @@ class BestBuyCrawler(BaseCrawler):
             )
 
             for product_code, keyword in target.items():
+                # Playwright 브라우저라 제품당 비용이 크다. 예산 초과 시 조기 종료하지
+                # 않으면 hard limit(780s)에 SIGKILL 당해 crawl_jobs 가 running 으로
+                # 고착된다(실측 4건). 그러면 무산출 감지도 오염된다.
+                if self.budget_exceeded(len(raw_vocs)):
+                    logger.warning(f"BestBuy 예산 초과 — [{product_code}] 앞에서 조기 종료")
+                    break
                 try:
                     sku = PRODUCT_SKUS.get(product_code)
                     if not sku:

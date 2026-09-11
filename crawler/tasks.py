@@ -241,6 +241,15 @@ def _open_crawl_job(platform_code: str, product_code: Optional[str]) -> Optional
     async def _go():
         conn = await asyncpg.connect(dsn)
         try:
+            # 좀비 정리 — celery hard time limit(780s)은 SIGKILL 이라 except 절이 돌지
+            # 않고, 재부팅도 마찬가지다. 그래서 'running' 인 채 영원히 남는다(실측:
+            # bestbuy 4건이 이틀간 고착). 방치하면 collect_zero_yield 가 그 소스를
+            # 영구 고장으로 보고하고, 복구돼도 신호가 안 꺼진다.
+            # hard limit 의 3배(40분)를 넘긴 것은 살아 있을 수 없다.
+            await conn.execute(
+                "UPDATE crawl_jobs SET status='failed', finished_at=now(), "
+                "error_message='stale: 종료 기록 없이 40분 초과 (SIGKILL/재부팅 추정)' "
+                "WHERE status='running' AND started_at < now() - interval '40 minutes'")
             return await conn.fetchval(
                 """
                 INSERT INTO crawl_jobs (platform_id, product_id, status, started_at)
