@@ -322,3 +322,31 @@ def test_new_brand_prefixes_registered():
                         ("MSSFP", "microsoft"), ("NB", "nubia"), ("ZTE", "zte"),
                         ("TCL", "tcl"), ("FP6", "fairphone"), ("XRL", "xreal")):
         assert _brand_of(code) == brand, (code, _brand_of(code))
+
+
+# ── 차세대·구형 미등록 모델 (0041) ──────────────────────────────────
+@pytest.mark.parametrize("text,want", [
+    ("Galaxy S27 Ultra 유출 스펙", "GS27U"),
+    ("갤럭시 S27 기대된다", "GS27"),
+    ("The weight of the iPhone Fold ruined it, 254 grams", "APFOLD"),
+    ("폴더블 아이폰 두께가 아쉽다", "APFOLD"),
+    ("iPhone 18 Pro Max battery life", "AP18PM"),
+    ("아이폰 18 프로 가격", "AP18P"),
+    ("iPhone Air 2 rumor roundup", "APAIR2"),
+    ("Galaxy Nexus 2011 재평가", "GNEXUS"),
+])
+def test_next_gen_models_tagged(text, want):
+    got = infer_all_product_codes(text)
+    assert got and got[0][0] == want, got
+
+
+@pytest.mark.parametrize("text,want", [
+    # iPhone Fold 추가가 갤럭시 폴더블을 삼키면 안 된다
+    ("Galaxy Z Fold 8 hinge dust", "GZF8"),
+    ("갤럭시 Z 폴드8 힌지 유격", "GZF8"),
+    ("Galaxy Z Flip 7 크리스", "GZFL7"),
+    ("Galaxy S26 Ultra 카메라", "GS26U"),
+    ("iPhone 17 Pro overheating", "AP17P"),
+])
+def test_next_gen_does_not_steal(text, want):
+    assert infer_all_product_codes(text)[0][0] == want

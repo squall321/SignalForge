@@ -24,6 +24,15 @@ _E = r"(?![0-9a-zA-Z])"
 PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
     # ═══════════ Galaxy 2026 라인업 (루머/얼리 액세스) ═══════════
     # ── Galaxy S26 (Ultra → Plus → 기본 순서) ──
+    # ── Galaxy S27 (2027-01 예정. GS26 선등록 관행과 동일) ──
+    # 실측 언급 S27 1,640 · S27 Ultra 1,167 · S27+ 269
+    ("GS27U", [r"\bs27\s*ultra" + _E, r"galaxy\s*s27\s*ultra", r"\bs27u" + _E,
+               r"s27\s*울트라", r"s27울트라", r"갤럭시\s*s27\s*울트라"]),
+    ("GS27P", [r"\bs27\s*\+", r"\bs27\s*plus" + _E, r"galaxy\s*s27\s*\+",
+               r"s27\s*플러스", r"s27플러스"]),
+    ("GS27",  [r"galaxy\s*s27" + _E, r"\bs27" + _E, r"갤럭시\s*s27" + _E,
+               r"갤s27" + _E, r"갤럭시\s*S27"]),
+
     ("GS26U", [r"\bs26\s*ultra" + _E, r"galaxy\s*s26\s*ultra", r"\bs26u" + _E,
                r"s26\s*울트라", r"s26울트라", r"갤럭시\s*s26\s*울트라",
                r"\bs26\s*울" + _E, r"s26울" + _E, r"26\s*울트라", r"26울트라",
@@ -197,8 +206,26 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"\b버2" + _E]),
 
 
+    # ── Galaxy Nexus (2011, 삼성·구글 공동) — 실측 1,643건인데 미등록이었다 ──
+    ("GNEXUS", [r"galaxy\s*nexus" + _E, r"갤럭시\s*넥서스" + _E, r"\bgnex" + _E]),
+
     # ═══════════ 경쟁사 · Apple iPhone — Pro Max → Pro → Plus/mini/e → 기본 순.
     # APAIR 가 맨 앞인 이유는 'iPhone 17 Air' 를 AP17 이 가로채지 않게 하기 위해서다. ═══════════
+    # ── iPhone 18 세대 + 폴더블 (2026-09~2027) ──
+    # 실측 iPhone Fold 2,490(루머 아닌 실사용 토론) · 18 1,951 · 18 Pro 1,511 ·
+    # 18 Pro Max 599 · Air 2 195 · 18e 146
+    # APFOLD 는 'fold' 가 갤럭시와 겹치므로 **iphone/apple 인접을 반드시 요구**한다.
+    ("APFOLD", [r"\biphone\s*fold" + _E, r"foldable\s*iphone" + _E,
+                r"\biphone\s*폴드" + _E, r"폴더블\s*아이폰" + _E,
+                r"아이폰\s*폴드" + _E]),
+    ("AP18PM", [r"iphone\s*18\s*pro\s*max", r"아이폰\s*18\s*프로\s*맥스",
+                r"\b18\s*프맥" + _E, r"18프맥"]),
+    ("AP18P", [r"iphone\s*18\s*pro" + _E, r"아이폰\s*18\s*프로" + _E, r"아이폰18프로"]),
+    ("AP18E", [r"\biphone\s*18\s*e" + _E, r"아이폰\s*18\s*e" + _E]),
+    ("AP18",  [r"\biphone\s*18" + _E, r"아이폰\s*18" + _E, r"아이폰18" + _E]),
+    ("APAIR2", [r"iphone\s*air\s*2" + _E, r"아이폰\s*에어\s*2" + _E,
+                r"에어\s*2세대(?=[^\n]{0,40}(?:iphone|아이폰|apple|애플))"]),
+
     ("APAIR", [
         'iphone\\s*17\\s*air(?![0-9a-zA-Z])', '\\biphone\\s*air(?![0-9a-zA-Z])',
         '아이폰\\s*17\\s*에어(?![0-9a-zA-Z])', '아이폰\\s*에어(?!팟|드랍|드롭|태그|플레이|프린트)(?![0-9a-zA-Z])'
