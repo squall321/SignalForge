@@ -72,7 +72,11 @@ GALAXY_KEYWORDS = [
 ]
 
 # 커뮤니티당 페이지 (20스레드/페이지)
-LIST_PAGES = 12
+# 12→4 로 줄였다. MIN_DELAY 2.5~5.0s 에 403 백오프(5→15→45s)까지 겹쳐 목록 단계가
+# crawl 예산을 통째로 먹고 상세를 굶겼다(실측: 후보 45건 중 11건만 상세 수집,
+# 그 11건이 전부 기존 글이라 28일간 신규 0건). 4페이지 = 커뮤니티당 80스레드로
+# 일일 수집에는 충분하다.
+LIST_PAGES = 4
 # 본문+댓글 보강 대상 스레드 상한
 MAX_POSTS = 150
 # 댓글 페이지 상한 (스레드당; 폭주 방지)
@@ -99,6 +103,10 @@ class KaskusCrawler(BaseCrawler):
             # 1) 커뮤니티별 스레드 리스트 페이징
             for cid, cname in KASKUS_COMMUNITIES:
                 for page in range(1, LIST_PAGES + 1):
+                    # 목록이 예산을 다 쓰면 상세를 못 돈다 — 상세가 본문·댓글의 출처다
+                    if self.budget_exceeded():
+                        logger.warning("Kaskus 예산 초과 — 목록 수집 조기 종료")
+                        break
                     try:
                         threads = await self._fetch_threads_page(client, cid, page)
                         fresh = [
@@ -271,9 +279,20 @@ class KaskusCrawler(BaseCrawler):
         thread_url: str,
     ) -> List[RawVOC]:
         out: List[RawVOC] = []
-        page = 1
-        while page <= MAX_COMMENT_PAGES:
-            data = await self._get_json_with_retry(
+        # **마지막 페이지부터 역순으로 읽는다.** 이전에는 page=1(가장 오래된 댓글)에서
+        # 시작해 MAX_COMMENT_PAGES(=8, 160개)까지만 읽었다. Kaskus 의 Galaxy 스레드는
+        # 댓글 수백 개인 장수 토론방이라 **새 댓글에 영원히 도달하지 못했다** —
+        # 실측: 28일간 신규 0건, 112건을 수집해도 전량 중복이었다.
+        # 첫 호출로 meta.total 을 얻어 마지막 페이지를 계산한 뒤 거꾸로 내려간다.
+        first = await self._get_json_with_retry(
+            client, f"{API_BASE}/threads/{thread_id}/posts?page=1&limit=20")
+        if not first:
+            return out
+        total = (first.get("meta") or {}).get("total") or 0
+        last_page = max(1, -(-int(total) // 20))          # ceil(total/20)
+        pages = list(range(last_page, max(0, last_page - MAX_COMMENT_PAGES), -1))
+        for page in pages:
+            data = first if page == 1 else await self._get_json_with_retry(
                 client,
                 f"{API_BASE}/threads/{thread_id}/posts?page={page}&limit=20",
             )
@@ -310,10 +329,6 @@ class KaskusCrawler(BaseCrawler):
                     country_code="ID",
                 ))
 
-            total = (data.get("meta") or {}).get("total") or 0
-            if page * 20 >= total:
-                break
-            page += 1
             await asyncio.sleep(0.4)
 
         return out
