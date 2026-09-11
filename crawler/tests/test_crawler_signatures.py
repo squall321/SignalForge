@@ -84,9 +84,27 @@ def test_budget_time_and_volume():
     assert c.budget_exceeded(0) is True             # 시간 상한
 
 
-def test_budget_fits_soft_time_limit():
-    """예산 조합이 celery soft time limit(600s) 안에 들어와야 한다."""
+def test_run_budget_under_soft_limit():
+    """전체 예산이 celery soft time limit(600s) 안에 있어야 한다.
+
+    건수 상한만으로는 못 막는다 — 루프 한 바퀴가 수백 건을 한꺼번에 더해
+    상한을 넘기고(실측 appstore 980건 vs 상한 500), NLP 단가도 소스마다
+    2.6배 차이난다(dogdrip 0.254s/건 vs mlbpark 0.667s/건). 그래서 correctness 는
+    청크 커밋이 담보하고, 이 예산은 마지막 청크 하나만 잃도록 하는 장치다.
+    """
     from base.crawler import BaseCrawler
-    NLP_PER_ITEM = 0.303          # 실측 271.4s / 897건
-    worst = BaseCrawler.CRAWL_BUDGET_SEC + BaseCrawler.CRAWL_MAX_ITEMS * NLP_PER_ITEM
-    assert worst < 600, f"최악 {worst:.0f}s 가 soft limit 600s 를 넘는다"
+    assert BaseCrawler.RUN_BUDGET_SEC < 600
+    # 마지막 청크가 최악 단가로 돌아도 hard limit(780s) 전에는 끝나야 한다
+    WORST_PER_ITEM = 0.667        # 실측 mlbpark 368.8s / 553건
+    assert (BaseCrawler.RUN_BUDGET_SEC
+            + BaseCrawler.NLP_CHUNK * WORST_PER_ITEM) < 780
+
+
+def test_chunked_commit_wired():
+    """run() 이 청크 단위로 save 해야 타임아웃에 전량을 잃지 않는다."""
+    import inspect as _i
+    from base.crawler import BaseCrawler
+    src = _i.getsource(BaseCrawler.run)
+    assert "NLP_CHUNK" in src and "run_budget_exceeded" in src
+    # save 가 루프 안에 있어야 한다 — 루프 밖 단일 호출이면 의미가 없다
+    assert src.index("for i in range(0, len(raw_vocs)") < src.index("await self.save(")

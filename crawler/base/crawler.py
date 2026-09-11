@@ -127,12 +127,20 @@ class BaseCrawler(ABC):
     #   느린 소스는 건수가 안 차므로 330s 시간 상한이 먼저 걸린다(330 + NLP + save < 600).
     CRAWL_BUDGET_SEC: float = float(os.getenv("CRAWL_TIME_BUDGET_SEC", "330"))
     CRAWL_MAX_ITEMS: int = int(os.getenv("CRAWL_MAX_ITEMS", "500"))
+    # NLP→저장 청크. 이 단위로 커밋하므로 타임아웃 시 잃는 것은 마지막 청크뿐이다.
+    NLP_CHUNK: int = int(os.getenv("NLP_CHUNK", "200"))
+    # 실행 전체 예산(crawl + NLP + save). soft limit 600s 의 85%.
+    RUN_BUDGET_SEC: float = float(os.getenv("CRAWL_RUN_BUDGET_SEC", "510"))
 
     def budget_exceeded(self, collected: int = 0) -> bool:
         """시간 또는 수집량 상한 초과. 긴 루프는 반복마다 확인하고 break 하라."""
         if collected and collected >= self.CRAWL_MAX_ITEMS:
             return True
         return (time.monotonic() - self._started) >= self.CRAWL_BUDGET_SEC
+
+    def run_budget_exceeded(self) -> bool:
+        """crawl 이후 단계까지 포함한 전체 예산 초과."""
+        return (time.monotonic() - self._started) >= self.RUN_BUDGET_SEC
 
     def budget_left(self) -> float:
         return max(0.0, self.CRAWL_BUDGET_SEC - (time.monotonic() - self._started))
@@ -363,14 +371,27 @@ class BaseCrawler(ABC):
             raw_vocs = await self.crawl()
             self.logger.info(f"  수집: {len(raw_vocs)}건")
 
-            # NLP 처리
+            # NLP → 저장을 **청크 단위로 커밋**한다. 마지막에 한 번만 저장하면
+            # soft time limit 이 도중에 터질 때 전량이 버려진다.
+            # 건수 상한만으로는 못 막는다 — 루프 한 바퀴가 수백 건을 한꺼번에
+            # 더해 상한을 훌쩍 넘기고(실측 appstore 980건 vs 상한 500), NLP 단가도
+            # 소스마다 2.6배 차이난다(dogdrip 0.254s/건 vs mlbpark 0.667s/건,
+            # 번역 API 레이트리밋 변동). 그래서 상한이 아니라 **부분 커밋**이
+            # 정답이다. 타임아웃돼도 잃는 것은 마지막 청크 하나뿐이다.
             from nlp.pipeline import process_voc_list
-            standard_vocs = [self.normalize(r) for r in raw_vocs]
-            processed_vocs = await process_voc_list(standard_vocs)
-
-            # DB 저장
-            saved = await self.save(processed_vocs)
-            self.logger.info(f"  신규 저장: {saved}건")
+            saved = 0
+            done_n = 0
+            for i in range(0, len(raw_vocs), self.NLP_CHUNK):
+                part = raw_vocs[i:i + self.NLP_CHUNK]
+                processed = await process_voc_list([self.normalize(r) for r in part])
+                saved += await self.save(processed)
+                done_n += len(part)
+                if done_n < len(raw_vocs) and self.run_budget_exceeded():
+                    self.logger.warning(
+                        f"  실행 예산 초과 — {done_n}/{len(raw_vocs)}건 처리 후 중단"
+                        f" (여기까지는 커밋됨)")
+                    break
+            self.logger.info(f"  신규 저장: {saved}건 (처리 {done_n}/{len(raw_vocs)})")
 
             await self._update_job_status("done", items_collected=saved)
             return {"status": "done", "items_collected": saved}
