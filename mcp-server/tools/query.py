@@ -135,12 +135,22 @@ async def search_voc_tool(
         conditions.append("p.code = :product_code")
         params["product_code"] = product_code.upper()
 
+    order_key = (order or "recent").lower()
+    order_sql_is_recent = order_key not in _SEARCH_ORDERS or order_key == "recent"
+    order_sql = _SEARCH_ORDERS.get(order_key, _SEARCH_ORDERS["recent"])
+
     if days:
         # published_at 기준 — collected_at 은 백필 때문에 옛 글도 최근값이라 못 쓴다
         conditions.append("v.published_at >= NOW() - make_interval(days => :days)")
         params["days"] = int(days)
 
-    order_sql = _SEARCH_ORDERS.get((order or "recent").lower(), _SEARCH_ORDERS["recent"])
+    # 미래 발행일 방어. 한국 커뮤니티의 연도 없는 'MM-DD' 표기를 올해로 가정하면
+    # 연말 글이 미래가 된다. 최신순 정렬은 그런 행을 **맨 위로** 끌어올리므로
+    # (실측: 오늘이 09-12 인데 12-27·12-22 가 1위) 정렬 기준에서 배제한다.
+    # 기존 32건은 alembic 0042 로 보정했고, 이건 재발 방어다.
+    if order_sql_is_recent:
+        conditions.append("(v.published_at IS NULL OR v.published_at <= NOW())")
+
     where = " AND ".join(conditions)
     stmt = text(f"""
         SELECT

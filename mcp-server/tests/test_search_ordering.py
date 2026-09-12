@@ -49,3 +49,15 @@ def test_days_param_exists_and_uses_published_at():
     assert m, "days 필터가 없다"
     # 필터 조건이 published_at 기준인지
     assert re.search(r"v\.published_at\s*>=\s*NOW\(\)\s*-\s*make_interval", src)
+
+
+def test_recent_order_excludes_future_dates():
+    """미래 발행일이 최신순 상단을 차지하면 안 된다.
+
+    한국 커뮤니티의 연도 없는 'MM-DD' 를 올해로 가정하면 연말 글이 미래가 된다.
+    실측 — 오늘이 2026-09-12 인데 2026-12-27·12-22·12-18 이 검색 1위였다.
+    """
+    src = inspect.getsource(_q().search_voc_tool)
+    assert "published_at <= NOW()" in src, "미래 날짜 방어가 없다"
+    # engagement 정렬에는 걸지 않는다(바이럴 발굴은 정렬이 날짜와 무관)
+    assert "order_sql_is_recent" in src
