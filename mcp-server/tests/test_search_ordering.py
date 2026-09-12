@@ -61,3 +61,42 @@ def test_recent_order_excludes_future_dates():
     assert "published_at <= NOW()" in src, "미래 날짜 방어가 없다"
     # engagement 정렬에는 걸지 않는다(바이럴 발굴은 정렬이 날짜와 무관)
     assert "order_sql_is_recent" in src
+
+
+# ── 한국어 검색 — FTS 로는 재현율 1.1% 였던 문제 ──────────────────────
+def test_korean_keyword_uses_substring():
+    """한국어는 교착어이고 색인은 번역본(english)뿐이라 FTS 로 안 잡힌다.
+
+    실측 — '발열' FTS 15건 vs content_original 실제 1,346건 = 1.1%.
+    """
+    _, _, mode = _q()._keyword_clause("발열")
+    assert mode == "substring"
+
+
+def test_ascii_keyword_uses_fts():
+    """영어는 인덱스+어간 처리가 유리하다(overheating ↔ overheat)."""
+    for kw in ("overheating", "Galaxy S26", "100%"):
+        assert _q()._keyword_clause(kw)[2] == "fts", kw
+
+
+def test_substring_searches_both_columns():
+    """번역본만 보면 한국어 원문을 놓친다 — 원문도 봐야 한다."""
+    clause, _, _ = _q()._keyword_clause("발열")
+    assert "content_original" in clause and "content_translated" in clause
+
+
+def test_like_wildcards_escaped():
+    """'100%' 류가 와일드카드로 해석되면 전체 행이 걸린다."""
+    _, params, mode = _q()._keyword_clause("발열%")
+    assert mode == "substring"
+    assert params["kw_like"] == r"%발열\%%", params
+
+
+def test_underscore_escaped():
+    _, params, _ = _q()._keyword_clause("힌_지")
+    assert r"\_" in params["kw_like"], params
+
+
+def test_match_override_respected():
+    assert _q()._keyword_clause("발열", "fts")[2] == "fts"
+    assert _q()._keyword_clause("overheating", "substring")[2] == "substring"

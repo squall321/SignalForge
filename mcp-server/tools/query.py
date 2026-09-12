@@ -1,4 +1,6 @@
 """MCP Query Tools — VOC 조회"""
+import re
+
 from typing import Optional, List
 from datetime import datetime
 from db import get_db_session
@@ -107,6 +109,46 @@ async def get_top_issues_tool(
         return [dict(r) for r in rows]
 
 
+
+# ── 키워드 매칭 전략 ─────────────────────────────────────────────────────
+# FTS 인덱스는 to_tsvector('english', content_translated) 하나뿐이라 **한국어
+# 키워드가 사실상 안 먹는다.** 실측(2026-09-12) — '발열' FTS 15건 vs
+# content_original 실제 포함 1,346건 = 재현율 1.1%.
+# 원인은 두 겹이다 — (1) 한국어 행의 96.1%(118,513/123,322)가 영어로 번역돼
+# content_translated 에 '발열'이 없고, (2) 검색이 content_original 을 아예 안 본다.
+#
+# 'simple' 설정으로 content_original 을 색인해도 한국어는 교착어라 조사 결합형
+# ('발열이')을 못 잡아 재현율이 49.8%(670/1,346)에 그친다.
+#
+# 그래서 언어에 따라 경로를 나눈다 —
+#   · ASCII 키워드  → FTS (인덱스 사용, 어간 처리로 overheating↔overheat 매칭)
+#   · 비ASCII 키워드 → 두 컬럼 부분일치 (재현율 100%, 실측 1.0~1.4초)
+# pg_trgm 인덱스를 깔면 부분일치도 빨라지지만 본문 203MB 에 수백 MB 가 더 붙는다.
+# 1.2초가 대화형 호출에 견딜 만하므로 스키마는 건드리지 않는다.
+_NON_ASCII_RE = re.compile(r"[^\x00-\x7F]")
+
+_FTS_CLAUSE = (
+    "to_tsvector('english', COALESCE(v.content_translated, '')) "
+    "@@ plainto_tsquery('english', :keyword)"
+)
+# ILIKE 특수문자를 이스케이프해 '100%' 같은 키워드가 와일드카드로 해석되지 않게 한다
+_SUBSTR_CLAUSE = (
+    "(v.content_original ILIKE :kw_like ESCAPE '\\' "
+    " OR v.content_translated ILIKE :kw_like ESCAPE '\\')"
+)
+
+
+def _keyword_clause(keyword: str, match: str = "auto"):
+    """(clause, params) — 키워드 성격에 맞는 매칭 조건."""
+    mode = (match or "auto").lower()
+    if mode == "auto":
+        mode = "substring" if _NON_ASCII_RE.search(keyword or "") else "fts"
+    if mode == "substring":
+        esc = (keyword or "").replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        return _SUBSTR_CLAUSE, {"kw_like": f"%{esc}%"}, "substring"
+    return _FTS_CLAUSE, {"keyword": keyword}, "fts"
+
+
 # 정렬 옵션 — 기본은 최신순이다.
 # 이전에는 날짜 필터 없이 `ORDER BY engagement_score DESC` 뿐이었다. 그러면 "최근
 # 이슈"를 물어도 **역대 최고 참여도 글**이 나온다. 오래된 글일수록 수년간 좋아요·
@@ -124,12 +166,13 @@ _SEARCH_ORDERS = {
 
 async def search_voc_tool(
     keyword: str, product_code: Optional[str] = None, limit: int = 30,
-    days: Optional[int] = None, order: str = "recent",
+    days: Optional[int] = None, order: str = "recent", match: str = "auto",
 ) -> List[dict]:
     # products 는 LEFT JOIN — 제품 태깅율이 ~18% 라 INNER JOIN 시 미태깅 VOC 82% 가
     # 조용히 누락된다. 검색은 전체 voc_active 를 대상으로 해야 한다(product_code 지정 시만 좁힘).
-    conditions = ["to_tsvector('english', COALESCE(v.content_translated, '')) @@ plainto_tsquery('english', :keyword)"]
-    params: dict = {"keyword": keyword, "limit": limit}
+    kw_clause, kw_params, used_match = _keyword_clause(keyword, match)
+    conditions = [kw_clause]
+    params: dict = {"limit": limit, **kw_params}
 
     if product_code:
         conditions.append("p.code = :product_code")

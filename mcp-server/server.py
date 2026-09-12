@@ -110,20 +110,27 @@ async def search_voc(
     limit: int = 30,
     days: Optional[int] = None,
     order: str = "recent",
+    match: str = "auto",
 ) -> list:
     """
-    키워드로 VOC 전문 검색을 수행합니다 (PostgreSQL FTS 기반).
+    키워드로 VOC 를 검색합니다. **한국어·영어 모두 가능합니다.**
+
+    매칭 경로는 키워드 성격에 따라 자동으로 갈립니다 —
+      · 영어/ASCII  → FTS 인덱스 (빠름, 어간 처리로 overheating↔overheat 매칭)
+      · 한국어 등    → 원문·번역문 부분일치 (재현율 100%, 약 1.2초)
+    한국어가 FTS 로는 재현율 1.1% 밖에 안 나오기 때문입니다(교착어 + 번역본만 색인).
 
     Args:
-        keyword: 검색 키워드 (영어 권장)
+        keyword: 검색 키워드. 한국어 그대로 넣어도 됩니다
         product_code: 특정 제품으로 범위 한정 — 선택
         limit: 반환 건수 (기본 30)
         days: 최근 N일(발행일 기준)로 한정 — 선택. "최근 이슈" 질문엔 30~90 권장
         order: 'recent'(기본, 발행일 최신순) | 'engagement'(참여도순)
-               engagement 는 **날짜 필터 없이 쓰면 역대 바이럴 글이 독식**한다.
-               바이럴 발굴은 get_engagement_leaders(period_days 내장) 쪽이 낫다.
+               engagement 는 **날짜 필터 없이 쓰면 역대 바이럴 글이 독식**합니다.
+               바이럴 발굴은 get_engagement_leaders(period_days 내장) 쪽이 낫습니다.
+        match: 'auto'(기본) | 'fts' | 'substring' — 경로를 강제할 때만 지정
     """
-    return await search_voc_tool(keyword, product_code, limit, days, order)
+    return await search_voc_tool(keyword, product_code, limit, days, order, match)
 
 
 # ── 분석 ──────────────────────────────────────────────────
