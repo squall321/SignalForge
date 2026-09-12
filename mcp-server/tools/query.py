@@ -107,8 +107,24 @@ async def get_top_issues_tool(
         return [dict(r) for r in rows]
 
 
+# 정렬 옵션 — 기본은 최신순이다.
+# 이전에는 날짜 필터 없이 `ORDER BY engagement_score DESC` 뿐이었다. 그러면 "최근
+# 이슈"를 물어도 **역대 최고 참여도 글**이 나온다. 오래된 글일수록 수년간 좋아요·
+# 댓글이 쌓여 상위를 독식하기 때문이다. 실측(2026-09-12) — search_voc('발열') 의
+# 1위가 2019년 뽐뿌 갤럭시 노트10+ 리뷰였고, engagement 상위 30의 제품이 GN9·GN4·
+# GN5·GS10·GW4 같은 구형으로 채워졌다(21건은 아예 미태깅).
+# 관련성 점수가 따로 없는 FTS 검색에서 "가장 바이럴했던 글"보다 "가장 최근 글"이
+# 기본값으로 훨씬 유용하다. 바이럴 발굴은 order='engagement' 또는 전용 도구
+# get_engagement_leaders(period_days 필터 내장)를 쓴다.
+_SEARCH_ORDERS = {
+    "recent": "v.published_at DESC NULLS LAST",
+    "engagement": "v.engagement_score DESC NULLS LAST",
+}
+
+
 async def search_voc_tool(
-    keyword: str, product_code: Optional[str] = None, limit: int = 30
+    keyword: str, product_code: Optional[str] = None, limit: int = 30,
+    days: Optional[int] = None, order: str = "recent",
 ) -> List[dict]:
     # products 는 LEFT JOIN — 제품 태깅율이 ~18% 라 INNER JOIN 시 미태깅 VOC 82% 가
     # 조용히 누락된다. 검색은 전체 voc_active 를 대상으로 해야 한다(product_code 지정 시만 좁힘).
@@ -119,6 +135,12 @@ async def search_voc_tool(
         conditions.append("p.code = :product_code")
         params["product_code"] = product_code.upper()
 
+    if days:
+        # published_at 기준 — collected_at 은 백필 때문에 옛 글도 최근값이라 못 쓴다
+        conditions.append("v.published_at >= NOW() - make_interval(days => :days)")
+        params["days"] = int(days)
+
+    order_sql = _SEARCH_ORDERS.get((order or "recent").lower(), _SEARCH_ORDERS["recent"])
     where = " AND ".join(conditions)
     stmt = text(f"""
         SELECT
@@ -131,7 +153,7 @@ async def search_voc_tool(
         LEFT JOIN products p ON p.id = v.product_id
         LEFT JOIN platforms pl ON pl.id = v.platform_id
         WHERE {where}
-        ORDER BY v.engagement_score DESC NULLS LAST
+        ORDER BY {order_sql}
         LIMIT :limit
     """)
 

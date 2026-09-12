@@ -106,6 +106,8 @@ async def search_voc(
     keyword: str,
     product_code: Optional[str] = None,
     limit: int = 30,
+    days: Optional[int] = None,
+    order: str = "recent",
 ) -> list:
     """
     키워드로 VOC 전문 검색을 수행합니다 (PostgreSQL FTS 기반).
@@ -114,8 +116,12 @@ async def search_voc(
         keyword: 검색 키워드 (영어 권장)
         product_code: 특정 제품으로 범위 한정 — 선택
         limit: 반환 건수 (기본 30)
+        days: 최근 N일(발행일 기준)로 한정 — 선택. "최근 이슈" 질문엔 30~90 권장
+        order: 'recent'(기본, 발행일 최신순) | 'engagement'(참여도순)
+               engagement 는 **날짜 필터 없이 쓰면 역대 바이럴 글이 독식**한다.
+               바이럴 발굴은 get_engagement_leaders(period_days 내장) 쪽이 낫다.
     """
-    return await search_voc_tool(keyword, product_code, limit)
+    return await search_voc_tool(keyword, product_code, limit, days, order)
 
 
 # ── 분석 ──────────────────────────────────────────────────
