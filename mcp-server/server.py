@@ -27,6 +27,8 @@ from tools.insights import (
     top_emerging_keywords_tool,
 )
 from tools.defects import (
+    defect_timeline_tool, defect_breakdown_tool, defect_cooccurrence_tool,
+    defect_onset_tool, defect_evidence_tool,
     defect_profile_tool,
     defect_anomalies_tool,
     lifecycle_compare_tool,
@@ -506,3 +508,138 @@ if __name__ == "__main__":
                     host=mcp.settings.host, port=mcp.settings.port)
     else:
         mcp.run(transport="streamable-http")
+
+
+# ── 결함 시나리오 도출 ────────────────────────────────────────────────────
+# 결함 "시나리오"는 숫자 하나로 서지 않는다. 아래 도구들은 **같은 필터 축**을 받아
+# 한 슬라이스를 여러 관점으로 보게 한다. 권장 조합 —
+#   1) defect_profile      무엇이 문제인가 (제품×부품×증상 상위)
+#   2) defect_timeline     언제부터인가, 가속 중인가
+#   3) defect_breakdown    누가 어디서 말하는가 (플랫폼·국가·양상)
+#   4) defect_onset        출시 후 며칠에 터지는가 (초기불량 vs 마모)
+#   5) defect_cooccurrence 무엇과 함께 터지는가 (복합 고장 모드)
+#   6) defect_evidence     실제로 뭐라고 하는가 (원문 근거)
+# 공통 필터: product_code · component · symptom · severity · modality ·
+#            brand · category · country · platform
+@mcp.tool()
+async def defect_timeline(
+    interval: str = "week",
+    period_days: int = 180,
+    product_code: Optional[str] = None,
+    component: Optional[str] = None,
+    symptom: Optional[str] = None,
+    severity: Optional[str] = None,
+    modality: Optional[str] = None,
+    brand: Optional[str] = None,
+    country: Optional[str] = None,
+    platform: Optional[str] = None,
+) -> dict:
+    """결함 슬라이스의 **시계열** — 언제 시작됐고 가속 중인지.
+
+    단일 카운트로는 '원래 그런 것'과 '새로 터진 것'을 가를 수 없습니다.
+    first_seen 과 버킷별 추이를 함께 반환합니다.
+
+    Args:
+        interval: day | week | month (기본 week)
+        period_days: 조회 기간 (기본 180일)
+        나머지: 공통 필터 — 생략 시 전체
+    """
+    return await defect_timeline_tool(
+        interval=interval, period_days=period_days, product_code=product_code,
+        component=component, symptom=symptom, severity=severity,
+        modality=modality, brand=brand, country=country, platform=platform)
+
+
+@mcp.tool()
+async def defect_breakdown(
+    by: str = "platform",
+    period_days: int = 90,
+    limit: int = 20,
+    product_code: Optional[str] = None,
+    component: Optional[str] = None,
+    symptom: Optional[str] = None,
+    severity: Optional[str] = None,
+    modality: Optional[str] = None,
+    brand: Optional[str] = None,
+    country: Optional[str] = None,
+    platform: Optional[str] = None,
+) -> dict:
+    """결함 슬라이스를 **임의 축으로 분해** — 누가 어디서 말하는가.
+
+    firsthand_pct 를 함께 줍니다. 낮으면 전언·기사 반향이라 실제 고장률이 아닙니다.
+
+    Args:
+        by: platform | country | modality | severity | component | symptom |
+            product | brand | category
+        나머지: 공통 필터
+    """
+    return await defect_breakdown_tool(
+        by=by, period_days=period_days, limit=limit, product_code=product_code,
+        component=component, symptom=symptom, severity=severity,
+        modality=modality, brand=brand, country=country, platform=platform)
+
+
+@mcp.tool()
+async def defect_cooccurrence(
+    period_days: int = 180,
+    limit: int = 20,
+    min_docs: int = 3,
+    product_code: Optional[str] = None,
+    component: Optional[str] = None,
+    brand: Optional[str] = None,
+    country: Optional[str] = None,
+) -> dict:
+    """같은 글에서 **함께 나타나는 결함 쌍** — 복합 고장 모드 발굴.
+
+    예: battery/drain + battery/overheat, software/lag + thermal/overheat.
+    단일 증상 집계로는 보이지 않는 연쇄를 드러냅니다.
+    주의 — 동시 등장이지 인과가 아닙니다(한 글이 여러 불만을 나열했을 수 있음).
+    """
+    return await defect_cooccurrence_tool(
+        period_days=period_days, limit=limit, min_docs=min_docs,
+        product_code=product_code, component=component, brand=brand, country=country)
+
+
+@mcp.tool()
+async def defect_onset(
+    period_days: int = 730,
+    product_code: Optional[str] = None,
+    component: Optional[str] = None,
+    symptom: Optional[str] = None,
+    severity: Optional[str] = None,
+    brand: Optional[str] = None,
+) -> dict:
+    """**출시 후 며칠에 보고되는가** — 초기불량과 마모고장을 가릅니다.
+
+    median_days 가 작고 within_30d 비중이 높으면 초기불량,
+    after_1y 가 크면 마모·열화 패턴입니다.
+    주의 — 수집 시작(2026-05) 이전 출시 제품은 초기 구간이 비어 median 이 왜곡됩니다.
+    """
+    return await defect_onset_tool(
+        period_days=period_days, product_code=product_code, component=component,
+        symptom=symptom, severity=severity, brand=brand)
+
+
+@mcp.tool()
+async def defect_evidence(
+    period_days: int = 180,
+    limit: int = 10,
+    modality: Optional[str] = "firsthand",
+    product_code: Optional[str] = None,
+    component: Optional[str] = None,
+    symptom: Optional[str] = None,
+    severity: Optional[str] = None,
+    country: Optional[str] = None,
+    platform: Optional[str] = None,
+) -> dict:
+    """결함 슬라이스의 **실제 사용자 발언** — 시나리오를 구체화하는 원문 근거.
+
+    기본은 modality='firsthand'(자기 기기에서 실제로 겪은 증상)입니다.
+    전언·기사·구매고민은 고장 서술이 아니므로 기본에서 제외합니다
+    (modality=None 으로 전체를 볼 수 있습니다).
+    source_url 기준 중복 제거로 같은 글의 페이지 분할을 한 건으로 셉니다.
+    """
+    return await defect_evidence_tool(
+        period_days=period_days, limit=limit, modality=modality,
+        product_code=product_code, component=component, symptom=symptom,
+        severity=severity, country=country, platform=platform)
