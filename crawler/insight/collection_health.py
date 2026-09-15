@@ -243,6 +243,63 @@ def evaluate_zero_yield(zy: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 # ── alert_events INSERT (metric 단위 cooldown) ───────────────────────────
+# ── 발행일 결측 감시 ──────────────────────────────────────────────────────
+# 셀렉터 노후화는 **조용히** 진행된다. 사이트가 클래스명을 바꾸면 크롤러는
+# 예외도 내지 않고 그 필드만 비운 채 계속 저장한다. 실측(2026-09-15) —
+# dogdrip 은 `.comment-bar-author` → `.comment-bar` 변경을 못 따라가 넉 달 가까이
+# 댓글의 **88%** 를 작성자 '익명' + 발행일 NULL 로 쌓았고, 실패 로그도 0건이었다.
+# 수집량 지표로는 절대 안 보인다(건수는 정상이었다).
+#
+# 발행일이 없으면 그 글은 시계열 분석에서 통째로 빠지므로, 결측률 자체를 본다.
+NULL_DATE_WARN = 0.25          # 최근 창의 25% 이상이 무날짜면 경고
+NULL_DATE_CRIT = 0.60          # 60% 이상이면 심각 — 필드가 통째로 깨진 것이다
+NULL_DATE_MIN_ROWS = 40        # 표본이 적으면 판단하지 않는다
+NULL_DATE_WINDOW_H = 72
+
+
+async def collect_null_dates(conn: asyncpg.Connection) -> List[Dict[str, Any]]:
+    """최근 창에서 published_at 이 비어 저장된 비율."""
+    rows = await conn.fetch(
+        f"""
+        SELECT p.code,
+               count(*) AS rows_total,
+               count(*) FILTER (WHERE v.published_at IS NULL) AS rows_null
+        FROM voc_records v
+        JOIN platforms p ON p.id = v.platform_id
+        WHERE p.is_active = TRUE
+          AND v.collected_at >= NOW() - INTERVAL '{NULL_DATE_WINDOW_H} hours'
+        GROUP BY p.code
+        HAVING count(*) >= {NULL_DATE_MIN_ROWS}
+        ORDER BY p.code
+        """
+    )
+    return [{"code": r["code"], "rows": int(r["rows_total"]),
+             "null_rows": int(r["rows_null"]),
+             "null_ratio": (int(r["rows_null"]) / int(r["rows_total"])
+                            if r["rows_total"] else 0.0)} for r in rows]
+
+
+def evaluate_null_dates(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for it in items:
+        ratio = it["null_ratio"]
+        if ratio < NULL_DATE_WARN:
+            continue
+        sev = "critical" if ratio >= NULL_DATE_CRIT else "warning"
+        out.append({
+            "code": it["code"],
+            "metric": f"collection.null_date.{it['code']}",
+            "severity": sev,
+            "value": round(ratio, 3),
+            "threshold": NULL_DATE_CRIT if sev == "critical" else NULL_DATE_WARN,
+            "reason": (f"{it['code']}: 최근 {NULL_DATE_WINDOW_H}h 저장 "
+                       f"{it['rows']}건 중 {it['null_rows']}건({ratio:.0%})이 "
+                       f"발행일 없음 — 목록/상세 셀렉터가 낡았는지 확인하라"
+                       " (날짜 없는 글은 시계열에서 빠진다)"),
+        })
+    return out
+
+
 async def insert_alert_events(
     conn: asyncpg.Connection,
     violations: List[Dict[str, Any]],
@@ -345,12 +402,16 @@ async def collect_payload(
     try:
         stats = await collect_site_stats(conn)
         zero_yield = await collect_zero_yield(conn)
+        null_dates = await collect_null_dates(conn)
     finally:
         await conn.close()
     violations = evaluate_violations(stats)
     # baseline 0 사각지대 보완 — 이미 collection.* 로 잡힌 사이트는 중복 보고하지 않는다
     seen = {v["code"] for v in violations}
     violations += [v for v in evaluate_zero_yield(zero_yield) if v["code"] not in seen]
+    # 결측률은 수집량과 **독립된 신호**다 — 건수가 정상이어도 필드가 비어 있을 수
+    # 있으므로 이미 보고된 사이트라도 따로 낸다(metric namespace 가 다르다).
+    violations += evaluate_null_dates(null_dates)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "thresholds": {
@@ -360,6 +421,7 @@ async def collect_payload(
         "active_sites": len(stats),
         "stats": stats,
         "zero_yield": zero_yield,
+        "null_dates": null_dates,
         "violations": violations,
         "status": _overall_status(violations),
         "violation_counts": {

@@ -161,3 +161,48 @@ def test_unknown_fetch_count_keeps_old_behaviour():
         "blocked": 0, "blocked_detail": None, "fetched": 0, "fetch_known": 0,
     }])
     assert len(out) == 1
+
+
+# ── 발행일 결측 감시 ──────────────────────────────────────────────────
+def test_null_date_critical_when_field_is_broken():
+    """셀렉터가 깨지면 건수는 정상인데 필드만 빈다 — 수집량 지표로는 안 보인다.
+
+    dogdrip 은 그렇게 넉 달 가까이 댓글 88%를 무날짜로 쌓았고 실패 로그도
+    0건이었다.
+    """
+    from insight.collection_health import evaluate_null_dates
+    out = evaluate_null_dates([
+        {"code": "dogdrip", "rows": 200, "null_rows": 176, "null_ratio": 0.88},
+    ])
+    assert len(out) == 1
+    assert out[0]["severity"] == "critical"
+    assert "88%" in out[0]["reason"]
+    assert "셀렉터" in out[0]["reason"], "무엇을 해야 하는지 말해줘야 한다"
+
+
+def test_null_date_warning_band():
+    from insight.collection_health import evaluate_null_dates
+    out = evaluate_null_dates([
+        {"code": "x", "rows": 100, "null_rows": 30, "null_ratio": 0.30},
+    ])
+    assert len(out) == 1 and out[0]["severity"] == "warning"
+
+
+def test_null_date_healthy_is_silent():
+    """정상 소스에 경보가 뜨면 소음이 되어 진짜 문제를 묻는다."""
+    from insight.collection_health import evaluate_null_dates
+    assert evaluate_null_dates([
+        {"code": "clien", "rows": 500, "null_rows": 10, "null_ratio": 0.02},
+    ]) == []
+
+
+def test_null_date_metric_namespace_is_separate():
+    """zero_yield·collection.* 와 섞이면 쿨다운이 서로를 덮는다."""
+    from insight.collection_health import evaluate_null_dates, evaluate_zero_yield
+    nd = evaluate_null_dates([{"code": "dogdrip", "rows": 100,
+                               "null_rows": 90, "null_ratio": 0.9}])
+    zy = evaluate_zero_yield([{"code": "dogdrip", "runs": 5, "failed": 0,
+                               "items": 0, "blocked": 0, "blocked_detail": None,
+                               "fetched": 0, "fetch_known": 5}])
+    assert nd[0]["metric"] != zy[0]["metric"]
+    assert nd[0]["metric"].startswith("collection.null_date.")

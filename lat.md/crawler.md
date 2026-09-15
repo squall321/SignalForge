@@ -171,3 +171,24 @@ Playwright 경로 — 봇 챌린지를 Playwright 로 푸는 크롤러(fmkorea �
 아는 지점에서 `self.report_blocked(사유)` 를 불러 직접 알린다. 안 부르면 그
 소스만 조용히 0건으로 남아 원인이 묻힌다 —
 `test_playwright_crawlers_declare_blocks` 가 이걸 강제한다.
+
+
+## 셀렉터 노후화는 조용히 진행된다
+
+사이트가 클래스명을 바꾸면 크롤러는 **예외도 내지 않고 그 필드만 비운 채**
+계속 저장한다. 수집 건수는 정상이라 수집량 지표로는 절대 안 보인다.
+
+실측(2026-09-15) — dogdrip 은 `.comment-bar-author` → `.comment-bar` 변경을 못
+따라가 넉 달 가까이 댓글의 **88%** 를 작성자 '익명' + 발행일 NULL 로 쌓았다.
+실패 로그는 0건이었다. 발행일이 없으면 그 글은 시계열 분석에서 통째로 빠지므로
+역사를 모으는 의미를 반쯤 잃는다.
+
+그래서 **결측률 자체를 지표로 본다**(`collection_health.collect_null_dates`).
+최근 72h 저장분에서 `published_at IS NULL` 비율이 25% 넘으면 warning,
+60% 넘으면 critical 이다. 실제 적용 시 23개 소스 중 dogdrip 하나만 걸렸고
+(91%) 나머지는 2% 이하였다 — 오경보 없이 진짜 문제만 짚는다.
+
+셀렉터를 고칠 때는 **옛 셀렉터를 폴백으로 남긴다**. 구조가 되돌아가거나 A/B
+배포 중이어도 견딘다.
+
+Source: [[crawler/insight/collection_health.py#collect_null_dates]]
