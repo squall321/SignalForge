@@ -34,10 +34,20 @@ from base.crawler import BaseCrawler, RawVOC  # noqa: E402
 logger = logging.getLogger(__name__)
 
 # WP REST 를 노출하고 옛 기사를 주는 매체 (실측 확인). code 는 meta.publisher 용.
+# WP REST 기간 검색이 **실제로 과거를 내주는 것만** 넣는다. 2026-09-15 실측 —
+#   Hipertextual·TechCabal·MySmartPrice  2022년 기사 정상 반환         → 채택
+#   MobileSyrup   200 인데 after/before 를 무시하고 최신만 준다        → 제외
+#   SamsungFans·Ausdroid·PhoneArena·XatakaMX  403                     → 제외
+#   Tecnoblog     검색 0건                                            → 제외
+# MobileSyrup 같은 경우가 위험하다 — 정상처럼 보이면서 최신 것만 다시 긁는다.
+# 그래서 아래 _window_respected() 로 반환 날짜가 요청 창 안인지 확인한다.
 _SITES = [
     ("9to5Google", "https://9to5google.com"),
     ("Phandroid", "https://phandroid.com"),
     ("SamMobile", "https://www.sammobile.com"),
+    ("Hipertextual", "https://hipertextual.com"),
+    ("TechCabal", "https://techcabal.com"),
+    ("MySmartPrice", "https://www.mysmartprice.com"),
 ]
 _QUERIES = ["Samsung Galaxy", "Galaxy Fold", "Galaxy Watch"]
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -99,6 +109,17 @@ class WPNewsCrawler(BaseCrawler):
                 break
             if not isinstance(posts, list) or not posts:
                 break
+
+            # **날짜 필터를 무시하는 사이트가 있다.** 200 과 데이터를 주면서
+            # after/before 를 안 보는 것이다(실측 MobileSyrup). 그걸 못 걸러내면
+            # 과거를 긁는 줄 알고 최신만 되풀이 수집한다. 창 밖이면 접는다.
+            if not self._window_respected(posts):
+                logger.warning(
+                    "WP %s '%s' — 기간 필터가 무시된다(요청 %s~%s). 이 매체는 "
+                    "역사 수집에 쓸 수 없다", pub, query, self.after or "~",
+                    self.before or "~")
+                break
+
             for po in posts:
                 v = self._to_voc(po, pub)
                 if v and v.external_id not in seen and _GALAXY.search(v.content or ""):
@@ -108,6 +129,26 @@ class WPNewsCrawler(BaseCrawler):
                 break
             await self._random_delay()
         return res
+
+    def _window_respected(self, posts: list) -> bool:
+        """받은 글의 날짜가 요청한 창 안인가.
+
+        창을 지정하지 않았으면 항상 참. 하나라도 창 안이면 참으로 본다
+        (경계 글이 섞일 수 있다). 전부 창 밖이면 필터가 무시된 것이다.
+        """
+        if not self.after and not self.before:
+            return True
+        lo = (self.after or "")[:10]
+        hi = (self.before or "")[:10]
+        seen_any = False
+        for po in posts:
+            d = (po.get("date_gmt") or po.get("date") or "")[:10]
+            if not d:
+                continue
+            seen_any = True
+            if (not lo or d >= lo) and (not hi or d <= hi):
+                return True
+        return not seen_any      # 날짜를 하나도 못 읽었으면 판단 보류
 
     def _to_voc(self, po: dict, pub: str) -> Optional[RawVOC]:
         link = (po.get("link") or "").strip()

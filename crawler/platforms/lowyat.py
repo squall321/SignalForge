@@ -41,7 +41,19 @@ LOWYAT_BOARDS = [
 MYT = timezone(timedelta(hours=8))
 
 # 목록 스캔: 카테고리당 최근 N 페이지
-LIST_PAGES = 12
+def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
+    """env 정수 읽기. 값이 이상하면 기본값으로 — 백필이 잘못된 값에 죽지 않게."""
+    try:
+        v = int(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return v if v >= min_value else default
+
+
+LIST_PAGES = _env_int("LOWYAT_BACKFILL_PAGES", 12)
+# 목록 스캔 **시작** 페이지. 기본은 기존 동작 그대로.
+# 역사 백필이 이 값을 올려 더 깊이 내려간다.
+PAGE_START = _env_int("LOWYAT_PAGE_START", 0, min_value=0)
 # 상세 수집 최대 토픽 수 (필터 통과한 최신순 상위)
 MAX_POSTS = 150
 # 토픽 페이지당 게시글 수 (IPB 기본)
@@ -77,7 +89,7 @@ class LowyatCrawler(BaseCrawler):
             client.headers["Referer"] = BASE_URL + "/"
 
             for board_path, board_name in LOWYAT_BOARDS:
-                for page in range(LIST_PAGES):
+                for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                     try:
                         topics = await self._fetch_board_page(client, board_path, page)
                         filtered = [t for t in topics if self._is_galaxy_related(t)]

@@ -76,7 +76,19 @@ GALAXY_KEYWORDS = [
 # crawl 예산을 통째로 먹고 상세를 굶겼다(실측: 후보 45건 중 11건만 상세 수집,
 # 그 11건이 전부 기존 글이라 28일간 신규 0건). 4페이지 = 커뮤니티당 80스레드로
 # 일일 수집에는 충분하다.
-LIST_PAGES = 4
+def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
+    """env 정수 읽기. 값이 이상하면 기본값으로 — 백필이 잘못된 값에 죽지 않게."""
+    try:
+        v = int(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return v if v >= min_value else default
+
+
+LIST_PAGES = _env_int("KASKUS_BACKFILL_PAGES", 4)
+# 목록 스캔 **시작** 페이지. 기본은 기존 동작 그대로.
+# 역사 백필이 이 값을 올려 더 깊이 내려간다.
+PAGE_START = _env_int("KASKUS_PAGE_START", 1, min_value=1)
 # 본문+댓글 보강 대상 스레드 상한
 MAX_POSTS = 150
 # 댓글 페이지 상한 (스레드당; 폭주 방지)
@@ -102,7 +114,7 @@ class KaskusCrawler(BaseCrawler):
 
             # 1) 커뮤니티별 스레드 리스트 페이징
             for cid, cname in KASKUS_COMMUNITIES:
-                for page in range(1, LIST_PAGES + 1):
+                for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                     # 목록이 예산을 다 쓰면 상세를 못 돈다 — 상세가 본문·댓글의 출처다
                     if self.budget_exceeded():
                         logger.warning("Kaskus 예산 초과 — 목록 수집 조기 종료")

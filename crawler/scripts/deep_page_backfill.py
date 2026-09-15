@@ -50,6 +50,20 @@ SITES = {
     "dogdrip": ("platforms.dogdrip", "DogdripCrawler", "DOGDRIP", 1),
     "ruliweb": ("platforms.ruliweb", "RuliwebCrawler", "RULIWEB", 1),
     "bobaedream": ("platforms.bobaedream", "BobaeDreamCrawler", "BOBAEDREAM", 1),
+    # 글로벌 포럼
+    "kaskus": ("platforms.kaskus", "KaskusCrawler", "KASKUS", 1),
+    "lowyat": ("platforms.lowyat", "LowyatCrawler", "LOWYAT", 0),   # 0-indexed
+    "donanimhaber": ("platforms.donanimhaber", "DonanimHaberCrawler",
+                     "DONANIMHABER", 1),
+}
+
+# 이 틀에 못 넣는 것 — 억지로 만들지 않고 사유를 남긴다.
+#   resetera       목록 페이지네이션이 없다(검색/피드 기반). 다른 수단이 필요하다.
+#   gsmarena_forum 기기별 리뷰 구조라 '페이지'의 의미가 다르다
+#                  (MAX_REVIEWS_PER_DEVICE 로 깊이가 정해진다). 별도 취급.
+UNSUPPORTED = {
+    "resetera": "목록 페이지네이션 없음 (검색/피드 기반)",
+    "gsmarena_forum": "기기별 리뷰 구조 — 페이지 의미가 다름",
 }
 
 PAGES_PER_RUN = int(os.getenv("DEEP_PAGES_PER_RUN", "12"))

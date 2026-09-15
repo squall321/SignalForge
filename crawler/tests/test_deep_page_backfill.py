@@ -159,3 +159,19 @@ def test_every_site_loop_uses_page_start(monkeypatch, tmp_path):
         src = (root / (mod_path.replace(".", "/") + ".py")).read_text()
         assert "range(PAGE_START, PAGE_START + LIST_PAGES)" in src, \
             f"{site}: 목록 루프가 PAGE_START 를 쓰지 않는다"
+
+
+def test_zero_indexed_sites_floor_is_zero(monkeypatch, tmp_path):
+    """0-indexed 사이트의 바닥이 1 이면 첫 페이지를 영영 안 본다."""
+    m = _load(monkeypatch, tmp_path)
+    for site in ("clien", "lowyat"):
+        assert m.SITES[site][3] == 0, f"{site} 바닥이 {m.SITES[site][3]}"
+
+
+def test_unsupported_sites_have_reasons(monkeypatch, tmp_path):
+    """이 틀에 못 넣는 것은 **사유를 적는다**. 억지로 만들지 않는다."""
+    m = _load(monkeypatch, tmp_path)
+    assert m.UNSUPPORTED, "불가 목록이 비어 있다"
+    for site, why in m.UNSUPPORTED.items():
+        assert site not in m.SITES, f"{site} 가 양쪽에 다 있다"
+        assert len(why) > 8, f"{site} 사유가 부실하다: {why!r}"

@@ -21,13 +21,14 @@ exec 9>"/tmp/sf-backfill-global.lock"
 flock -n 9 || exit 0
 
 # 요일별로 한두 site 씩 나눈다. 한 site 당 수백 건 상세 수집이라 무겁고,
-# 호스트 swap 이 0 이라 몰아서 돌리면 안 된다. 토·일은 global/kr backfill 몫.
+# 호스트 swap 이 0 이라 몰아서 돌리면 안 된다. 일요일은 kr-backfill 몫으로 비운다.
 case "$(date +%u)" in
   1) SITES="dcinside" ;;
   2) SITES="clien" ;;
   3) SITES="ppomppu" ;;
   4) SITES="theqoo,instiz" ;;
   5) SITES="dogdrip,ruliweb,bobaedream" ;;
+  6) SITES="kaskus,lowyat,donanimhaber" ;;   # 토: 글로벌 포럼
   *) exit 0 ;;
 esac
 SITES="${DEEP_SITES:-$SITES}"
