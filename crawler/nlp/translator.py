@@ -85,6 +85,9 @@ async def _throttle():
 # (4456자 한국어 기사 실측). 그 예외 메시지에 'connection' 이 들어가 rate-limit 로
 # 오인 재시도까지 유발 → 긴 기사가 backlog 최전방을 영구 봉쇄했다. 청크 분할로 해소.
 _CHUNK = 2000          # 안정 처리 상한(2000·3000 성공, 4999 실패 실측)
+# MyMemory 는 500자를 넘기면 거부한다("Text length need to be between 0 and 500
+# characters"). Google 기준 _CHUNK 를 그대로 넘기면 폴백이 통째로 무력해진다.
+_MYMEMORY_CHUNK = 500
 _MAX_CHARS = 6000      # 분석(감성·토픽)엔 앞부분으로 충분 — 노이즈 기사 과다 호출 방지
 
 
@@ -170,16 +173,27 @@ async def _translate_chunk(text: str, source_lang: str, src: str) -> str:
             pass
 
     # 2차 fallback: MyMemory (무료·무키). Google 이 간헐 'No translation found' 낼 때 대응.
+    #
+    # **MyMemory 는 500자 상한이다.** _CHUNK(2000)는 Google 기준으로 맞춘 값이라
+    # 그대로 넘기면 "Text length need to be between 0 and 500 characters" 로
+    # 전부 실패한다 — Google 이 레이트리밋에 걸린 구간에서 긴 글이 통째로
+    # 번역 없이 원문 보존됐다(실측 telepolis 폴란드어 기사).
+    # 그래서 여기서 500자로 다시 쪼갠다.
     mm = MYMEMORY_MAP.get(source_lang) or MYMEMORY_MAP.get(src)
     if mm:
         try:
-            await _throttle()
-            result = await loop.run_in_executor(
-                None,
-                lambda: MyMemoryTranslator(source=mm, target="en-US").translate(text),
-            )
-            if result and not _looks_like_error_page(result):
-                return result
+            parts = _split_chunks(text, _MYMEMORY_CHUNK) if len(text) > _MYMEMORY_CHUNK else [text]
+            out = []
+            for part in parts:
+                await _throttle()
+                r = await loop.run_in_executor(
+                    None,
+                    lambda p=part: MyMemoryTranslator(source=mm, target="en-US").translate(p),
+                )
+                if not r or _looks_like_error_page(r):
+                    raise ValueError("빈 응답 또는 에러 페이지")
+                out.append(r)
+            return " ".join(out)
         except Exception as e:
             logger.warning(f"번역 실패 (MyMemory {source_lang}): {e}")
     return text  # 둘 다 실패 → 원문 보존
