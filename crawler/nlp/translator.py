@@ -179,12 +179,20 @@ async def _translate_chunk(text: str, source_lang: str, src: str) -> str:
             # 성공으로 치면 안 됨 → auto 재감지로 넘어감.
             break  # 빈/무변경 결과 → auto/MyMemory fallback
         except Exception as e:
+            # 마감을 넘겼으면 재시도하지 않는다. 백오프가 최대 30초씩 붙어
+            # 이미 시작된 한 건이 마감을 수 분 넘길 수 있다 — 마감은 "새 번역을
+            # 막는 것"만으로는 부족하고 진행 중인 것도 끊어야 한다.
+            if past_deadline():
+                return text
             if attempt < _MAX_RETRIES and _is_rate_limit(e):
                 backoff = min(2 ** attempt + random.uniform(0, 1), 30)
                 await asyncio.sleep(backoff)
                 continue
             logger.debug(f"Google 번역 실패 ({source_lang}): {e} → auto/MyMemory fallback")
             break
+
+    if past_deadline():
+        return text
 
     # 1.5차: source='auto' 재시도 — 언어 오탐(한국어가 tr/pt 로 감지 등) 대응.
     if src != "auto":
@@ -207,11 +215,13 @@ async def _translate_chunk(text: str, source_lang: str, src: str) -> str:
     # 번역 없이 원문 보존됐다(실측 telepolis 폴란드어 기사).
     # 그래서 여기서 500자로 다시 쪼갠다.
     mm = MYMEMORY_MAP.get(source_lang) or MYMEMORY_MAP.get(src)
-    if mm:
+    if mm and not past_deadline():
         try:
             parts = _split_chunks(text, _MYMEMORY_CHUNK) if len(text) > _MYMEMORY_CHUNK else [text]
             out = []
             for part in parts:
+                if past_deadline():
+                    raise TimeoutError("번역 마감 초과 — 원문 보존")
                 await _throttle()
                 r = await loop.run_in_executor(
                     None,

@@ -127,3 +127,65 @@ async def test_pipeline_threads_deadline_to_translator(monkeypatch):
 
     await process_voc_list([_Voc()], translate_deadline=time.monotonic() - 1)
     assert not called, "마감이 지났는데 번역을 시도했다"
+
+
+@pytest.mark.asyncio
+async def test_deadline_stops_retry_backoff(monkeypatch):
+    """마감은 '새 번역을 막는 것'만으로 부족하다 — 진행 중인 재시도도 끊어야 한다.
+
+    백오프가 최대 30초씩 4회 붙으면 이미 시작된 한 건이 마감을 수 분 넘긴다.
+    """
+    attempts = {"n": 0}
+
+    class _RateLimited:
+        def __init__(self, *a, **kw):
+            pass
+
+        def translate(self, text):
+            attempts["n"] += 1
+            raise RuntimeError("too many requests")
+
+    monkeypatch.setattr(T, "GoogleTranslator", _RateLimited)
+    monkeypatch.setattr(T, "_throttle", lambda: asyncio.sleep(0))
+    T.set_deadline(time.monotonic() - 1)          # 이미 지난 마감
+
+    t0 = time.monotonic()
+    out = await T._translate_chunk("Bonjour", "fr", "fr")
+    elapsed = time.monotonic() - t0
+
+    assert out == "Bonjour", "실패했는데 원문을 보존하지 않았다"
+    assert attempts["n"] <= 1, f"마감 후에도 {attempts['n']}회 재시도했다"
+    assert elapsed < 1.0, f"백오프로 {elapsed:.1f}s 를 썼다"
+
+
+@pytest.mark.asyncio
+async def test_deadline_stops_mymemory_pieces(monkeypatch):
+    """MyMemory 500자 분할은 긴 글의 호출 수를 4배로 늘린다 —
+    조각 루프 안에서도 마감을 봐야 한다."""
+    calls = {"n": 0}
+
+    class _Boom:
+        def __init__(self, *a, **kw):
+            pass
+
+        def translate(self, text):
+            raise RuntimeError("google down")
+
+    class _MM:
+        def __init__(self, *a, **kw):
+            pass
+
+        def translate(self, text):
+            calls["n"] += 1
+            return "EN "
+
+    monkeypatch.setattr(T, "GoogleTranslator", _Boom)
+    monkeypatch.setattr(T, "MyMemoryTranslator", _MM)
+    monkeypatch.setattr(T, "MYMEMORY_MAP", {"fr": "fr-FR"})
+    monkeypatch.setattr(T, "_throttle", lambda: asyncio.sleep(0))
+    T.set_deadline(time.monotonic() - 1)
+
+    long_fr = "bonjour tout le monde. " * 90        # 약 2,070자 = 5조각
+    out = await T._translate_chunk(long_fr, "fr", "fr")
+    assert calls["n"] == 0, "마감 후에도 MyMemory 를 불렀다"
+    assert out == long_fr
