@@ -33,11 +33,19 @@
 - [x] **백필은 번역을 건너뛴다** — 12시간 주기 치유가 메운다. 백필이 번역
       레이트리밋을 유발해 실시간 파이프라인 할당량을 갉아먹던 문제.
 - [x] ppomppu 컬럼 고정 인덱스 해소 — review 게시판 발행일이 통째로 NULL 이었다
-- [ ] theqoo · instiz · dogdrip · ruliweb · bobaedream · slrclub(사이트 복구 후)
-      → `deep_page_backfill.SITES` 에 추가 + 각 크롤러에 `PAGE_START`
+- [x] theqoo · instiz · dogdrip · ruliweb · bobaedream 추가 (대상 3→8, 월~금 배분)
+      SITES 항목의 모듈·클래스·PAGE_START 실재를 시험으로 강제 — 오타 하나면
+      그 소스만 조용히 빠진다(BobaedreamCrawler 오타를 그 시험이 잡았다)
+- [ ] slrclub — 사이트가 80·443 모두 connection refused. 복구 후 재시도
 - [ ] 글로벌 포럼 — kaskus · lowyat · resetera · gsmarena_forum · donanimhaber
 - [ ] 각 소스의 "바닥" 확인 (몇 페이지까지 실제로 존재하나)
-- [ ] 다른 소스도 컬럼 고정 인덱스를 쓰는지 점검 (ppomppu 와 같은 결함 가능)
+- [x] 컬럼 고정 인덱스 전수 점검 — ppomppu·instiz 둘뿐이고 instiz 는 실해 없음
+- [x] **발행일 결측률 감시 신설** — 셀렉터 노후화는 수집량 지표로 안 보인다.
+      dogdrip 이 넉 달간 88%를 무날짜로 쌓는 동안 실패 로그는 0건이었다.
+      최근 72h 결측률 25% warning / 60% critical (23개 중 dogdrip 만 걸림)
+- [x] **dogdrip 댓글 셀렉터 복구** — `.comment-bar-author` → `.comment-bar`.
+      수집 시 날짜·작성자 12% → 100%
+- [ ] dogdrip 옛 행 소급 복구 진행 중 (매일 150 URL, NULL 88% → 65.1%)
 
 ## R3 — 사이트맵/아카이브 (유형 C)
 
@@ -60,3 +68,5 @@
 | — | 2026-09-15 | (기준선) | 코퍼스 2026 이전 약 135,000 | — | 88 활성 중 백필 커버 약 15 |
 | R1 | 2026-09-15 | reddit_rss 2023 | 0 | **492** | r/samsung 5 페이지분. 커서 2023-12-27 에서 이어받는다 |
 | R2 | 2026-09-15 | ppomppu p80~83 | — | **3** (2018년) | 커서 틀 구축. 20건 중 3건 신규 = 그 구간은 거의 보유 중 |
+| R2 | 2026-09-15 | dogdrip 셀렉터 | 날짜 12% | **100%** | 수집 시점. 넉 달간 88%를 버리고 있었다 |
+| R2 | 2026-09-15 | dogdrip 소급복구 | NULL 9,211 | **6,791** | 150 URL 로 2,326건. 매일 자동 전진 |
