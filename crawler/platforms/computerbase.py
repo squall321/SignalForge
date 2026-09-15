@@ -120,7 +120,13 @@ class ComputerBaseCrawler(BaseCrawler):
 
             # 3) 본문 + 댓글 보강
             results: List[RawVOC] = []
-            for art in target:
+            for _i, art in enumerate(target):
+                # 예산 초과 시 부분 결과 반환 — run() 은 NLP→save 를 청크로
+                # 커밋하므로 여기까지 긁은 것은 남는다. 죽으면 전량이 버려진다.
+                if self.budget_exceeded(len(results)):
+                    logger.warning(
+                        f"ComputerBase 예산 초과 — {_i}/{len(target)}건에서 조기 종료")
+                    break
                 await self._random_delay()
                 try:
                     body, thread_url = await self._fetch_article(client, art.source_url)

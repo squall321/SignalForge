@@ -189,7 +189,7 @@ sf_up() {
 }
 
 sf_up sf-backend "ss -tln 2>/dev/null | grep -E '[:.]${API_PORT:-8000}\b' >/dev/null" \
-  --bind "$BACKEND_DIR:/app" \
+  --bind "$BACKEND_DIR:/app" --bind "$PROJECT_ROOT/shared:/shared" \
   --env API_PORT="${API_PORT:-8000}" --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" \
   "$SIF_DIR/backend.sif"
 
@@ -200,7 +200,7 @@ for i in $(seq 1 30); do
 done
 
 sf_up sf-mcp "ss -tln 2>/dev/null | grep -E '[:.]${MCP_PORT:-8001}\b' >/dev/null" \
-  --bind "$MCP_DIR:/mcp-server" \
+  --bind "$MCP_DIR:/mcp-server" --bind "$PROJECT_ROOT/shared:/shared" \
   --env MCP_PORT="${MCP_PORT:-8001}" --env DATABASE_URL="$DB_URL" \
   "$SIF_DIR/mcp.sif"
 

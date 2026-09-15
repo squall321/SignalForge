@@ -154,7 +154,13 @@ class HardwareFRCrawler(BaseCrawler):
             logger.info(f"  HardwareFR: {len(uniq)} 스레드 채집 예정")
 
             # 2) 각 thread 의 마지막 페이지 → 게시글 파싱
-            for thread_url, topic_id, last_page_str in uniq:
+            for _i, (thread_url, topic_id, last_page_str) in enumerate(uniq):
+                # 예산 초과 시 부분 결과 반환 — run() 은 NLP→save 를 청크로
+                # 커밋하므로 여기까지 긁은 것은 남는다. 죽으면 전량이 버려진다.
+                if self.budget_exceeded(len(items)):
+                    logger.warning(
+                        f"Hardware.fr 예산 초과 — {_i}/{len(uniq)} 스레드에서 조기 종료")
+                    break
                 last_page = int(last_page_str) if last_page_str.isdigit() else 1
                 pages_to_fetch = list(
                     range(max(1, last_page - THREAD_PAGES_PER + 1), last_page + 1)

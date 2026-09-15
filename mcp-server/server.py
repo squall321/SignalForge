@@ -26,6 +26,10 @@ from tools.insights import (
     site_health_tool,
     top_emerging_keywords_tool,
 )
+from tools.stats import (
+    corpus_overview_tool, keyword_stats_tool,
+    period_compare_tool, voc_breakdown_tool,
+)
 from tools.defects import (
     defect_timeline_tool, defect_breakdown_tool, defect_cooccurrence_tool,
     defect_onset_tool, defect_evidence_tool,
@@ -650,3 +654,97 @@ async def defect_evidence(
         period_days=period_days, limit=limit, modality=modality,
         product_code=product_code, component=component, symptom=symptom,
         severity=severity, country=country, platform=platform)
+
+
+# ── 전체 통계 (포털 LLM 이 '감질맛나는' 답을 하지 않도록) ──────────────────
+# 문제는 도구가 **행을 주고 통계를 안 준 것**이었다. search_voc 는 30행을 돌려줄 뿐
+# "총 몇 건인지, 전기 대비 얼마나 늘었는지, 어느 제품에 몰렸는지"를 말해주지 못한다.
+# 아래 4종은 답변의 **전제**를 만들어준다. 전부 1초대에 나온다.
+@mcp.tool()
+async def corpus_overview(days: Optional[int] = None) -> dict:
+    """코퍼스 **전체 현황** — 규모·기간·커버리지·품질·결함률을 한 번에.
+
+    "우리가 뭘 갖고 있나"에 답합니다. 어떤 분석이든 앞에 놓을 전제가 됩니다.
+
+    Args:
+        days: 최근 N일로 한정 — 생략 시 전 기간
+    """
+    return await corpus_overview_tool(days)
+
+
+@mcp.tool()
+async def keyword_stats(
+    keyword: str,
+    days: int = 90,
+    interval: str = "week",
+    top_n: int = 8,
+    product_code: Optional[str] = None,
+    brand: Optional[str] = None,
+    category: Optional[str] = None,
+    country: Optional[str] = None,
+    platform: Optional[str] = None,
+) -> dict:
+    """키워드의 **통계 프로파일** — search_voc 의 통계판.
+
+    search_voc 가 개별 글을 준다면 이건 총량·추세·분포·감성을 줍니다.
+    "발열 1,012건, 전기 대비 +561%, GZF8 이 32%, 부정 82%" 같은 답을 만들 수 있습니다.
+    한국어 키워드도 그대로 넣으면 됩니다(재현율 100%).
+
+    반환: total(건수·고유URL·플랫폼·국가·감성), vs_previous_period(증감),
+          series(시계열), top(제품·플랫폼·국가 상위와 비중)
+    """
+    return await keyword_stats_tool(
+        keyword, days=days, interval=interval, top_n=top_n,
+        product_code=product_code, brand=brand, category=category,
+        country=country, platform=platform)
+
+
+@mcp.tool()
+async def period_compare(
+    days: int = 30,
+    by: str = "product",
+    limit: int = 15,
+    keyword: Optional[str] = None,
+    brand: Optional[str] = None,
+    category: Optional[str] = None,
+    country: Optional[str] = None,
+) -> dict:
+    """**최근 N일 vs 직전 N일** — 무엇이 늘고 줄었나.
+
+    절대 건수만으로는 변화를 볼 수 없습니다. risers/fallers 를 함께 반환합니다.
+
+    Args:
+        by: product | brand | category | country | platform
+        keyword: 특정 키워드로 한정 — 선택 (한국어 가능)
+    """
+    return await period_compare_tool(
+        days=days, by=by, limit=limit, keyword=keyword,
+        brand=brand, category=category, country=country)
+
+
+@mcp.tool()
+async def voc_breakdown(
+    by: str = "product",
+    days: Optional[int] = 30,
+    limit: int = 20,
+    keyword: Optional[str] = None,
+    product_code: Optional[str] = None,
+    brand: Optional[str] = None,
+    category: Optional[str] = None,
+    country: Optional[str] = None,
+    platform: Optional[str] = None,
+    sentiment: Optional[str] = None,
+) -> dict:
+    """전체 VOC 를 **임의 축으로 분해** — 결함에 한정되지 않습니다.
+
+    각 행에 share_pct(슬라이스 내 비중)와 negative_pct 가 붙습니다.
+
+    Args:
+        by: product | brand | category | country | platform | platform_kind |
+            language | sentiment
+        keyword: 키워드로 슬라이스 한정 — 선택 (한국어 가능)
+    """
+    return await voc_breakdown_tool(
+        by=by, days=days, limit=limit, keyword=keyword,
+        product_code=product_code, brand=brand, category=category,
+        country=country, platform=platform, sentiment=sentiment)

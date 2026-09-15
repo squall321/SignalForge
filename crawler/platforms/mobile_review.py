@@ -86,6 +86,10 @@ class MobileReviewCrawler(BaseCrawler):
 
             for post_type in WP_POST_TYPES:
                 for term in SEARCH_TERMS:
+                    # 3중 루프(타입×검색어×페이지)라 항목이 늘수록 선형으로 길어진다
+                    if self.budget_exceeded(len(items)):
+                        logger.warning("Mobile-review 예산 초과 — 조기 종료")
+                        break
                     for page in range(1, LIST_PAGES + 1):
                         try:
                             page_items = await self._fetch_rest_page(

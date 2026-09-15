@@ -72,6 +72,8 @@ class AppStoreCrawler(BaseCrawler):
                     logger.warning(f"앱스토어 예산 초과 — Play {gl} 에서 조기 종료")
                     break
                 for name, pkg in _PLAY_APPS:
+                    if self.budget_exceeded(len(out)):
+                        break          # 마켓 한 바퀴가 예산을 넘길 수 있다
                     out += await self._play(client, name, pkg, gl, hl, seen)
                     await self._random_delay()
             for c, _ in _MARKETS:
@@ -79,6 +81,8 @@ class AppStoreCrawler(BaseCrawler):
                     logger.warning(f"앱스토어 예산 초과 — Apple {c} 에서 조기 종료")
                     break
                 for name, aid in _APPLE_APPS:
+                    if self.budget_exceeded(len(out)):
+                        break
                     out += await self._apple(client, name, aid, c, seen)
                     await self._random_delay()
         logger.info("앱스토어 리뷰 수집 완료 — %d건", len(out))

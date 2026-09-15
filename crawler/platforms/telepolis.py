@@ -79,6 +79,11 @@ class TelepolisCrawler(BaseCrawler):
 
             # 1) 태그 페이지 순회 → 기사 URL 목록 수집
             for page in range(1, LIST_PAGES + 1):
+                # 목록이 예산을 다 쓰면 2단계(본문 수집)가 즉시 끊긴다 —
+                # 실측: 목록에만 300초+ 를 써 기사가 10건만 수집됐다.
+                if self.budget_exceeded():
+                    logger.warning("Telepolis 예산 초과 — 목록 수집 조기 종료")
+                    break
                 try:
                     urls = await self._fetch_list_page(client, page)
                     if not urls:
@@ -101,6 +106,12 @@ class TelepolisCrawler(BaseCrawler):
             url_list = list(seen_urls)
             for idx, url in enumerate(url_list):
                 if len(items) >= MAX_POSTS:
+                    break
+                # 예산 초과 시 부분 결과 반환 — run() 은 NLP→save 를 청크로
+                # 커밋하므로 여기까지 긁은 것은 남는다. 죽으면 전량이 버려진다.
+                if self.budget_exceeded(len(items)):
+                    logger.warning(
+                        f"Telepolis 예산 초과 — {idx}/{len(url_list)}건에서 조기 종료")
                     break
                 try:
                     voc = await self._fetch_article(client, url)

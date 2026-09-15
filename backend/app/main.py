@@ -9,7 +9,7 @@ from app.config import settings
 from app.core.session import verify_session
 from app.database import engine
 from app.models import Product, Platform, VocRecord, VocCategory, CrawlJob  # noqa: F401 — import 순서 보장
-from app.api import products, analytics, crawl_jobs, websocket, dashboard, kg, temporal, geo, community, insights, _internal, deep, alerts, shared, charts, portal_sso
+from app.api import stats, products, analytics, crawl_jobs, websocket, dashboard, kg, temporal, geo, community, insights, _internal, deep, alerts, shared, charts, portal_sso
 
 
 @asynccontextmanager
@@ -42,6 +42,7 @@ app.add_middleware(
 )
 
 # 라우터 등록
+app.include_router(stats.router, prefix="/api/v1")
 app.include_router(products.router, prefix="/api/v1")
 app.include_router(analytics.router, prefix="/api/v1")
 app.include_router(crawl_jobs.router, prefix="/api/v1")
