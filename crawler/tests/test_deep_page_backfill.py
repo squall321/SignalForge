@@ -115,3 +115,20 @@ def test_clien_floor_is_zero(monkeypatch, tmp_path):
 def test_selected_sites_are_known_only(monkeypatch, tmp_path):
     m = _load(monkeypatch, tmp_path, DEEP_SITES="dcinside,없는사이트")
     assert m._selected() == ["dcinside"]
+
+
+def test_backfill_skips_translation_by_default(monkeypatch, tmp_path):
+    """백필은 번역을 건너뛴다 — 대량 수집이 번역 레이트리밋을 유발하면
+    실시간 파이프라인의 할당량까지 갉아먹는다. 12시간 주기 치유가 메운다."""
+    m = _load(monkeypatch, tmp_path)
+    assert m.SKIP_TRANSLATE is True
+    d = m._nlp_deadline()
+    assert d is not None, "마감이 없으면 번역을 그대로 시도한다"
+    import time as _t
+    assert d < _t.monotonic(), "이미 지난 마감이어야 번역을 건너뛴다"
+
+
+def test_backfill_translation_can_be_enabled(monkeypatch, tmp_path):
+    m = _load(monkeypatch, tmp_path, BACKFILL_TRANSLATE=1)
+    assert m.SKIP_TRANSLATE is False
+    assert m._nlp_deadline() is None

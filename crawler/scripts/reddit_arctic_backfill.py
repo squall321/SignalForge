@@ -42,6 +42,7 @@ import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -67,6 +68,21 @@ UA = "SignalForge/1.0 archive backfill"
 
 _RETRY_STATUS = (429, 500, 502, 503, 504)
 _MAX_RETRY = 4
+
+# 백필은 **번역을 건너뛴다.** 대량 수집이 번역 서비스를 두드리면 레이트리밋을
+# 유발해(실측: 이 스크립트 1회 실행에 MyMemory 실패 23건) 실시간 파이프라인의
+# 번역 할당량까지 갉아먹는다. 원문은 그대로 저장되고, 12시간 주기
+# translation_reprocess(nlp.reprocess.translate_backlog)가
+# `content_translated = content_original` 인 행을 골라 나중에 메운다.
+# 한국어 감성은 원문에서 직접 하므로 분석에도 지장이 없다.
+# BACKFILL_TRANSLATE=1 로 켤 수 있다.
+SKIP_TRANSLATE = os.getenv("BACKFILL_TRANSLATE", "0") != "1"
+
+
+def _nlp_deadline():
+    """번역을 건너뛰려면 이미 지난 마감을 넘긴다(nlp.pipeline 이 해석)."""
+    return (time.monotonic() - 1) if SKIP_TRANSLATE else None
+
 
 # 창 안 진행 상태 — {"2023": {"samsung": "2023-06-14T02:11:00" | "done"}}
 STATE_PATH = os.getenv(
@@ -238,7 +254,8 @@ async def main():
                 for i in range(0, len(raws), crawler.NLP_CHUNK):
                     part = raws[i:i + crawler.NLP_CHUNK]
                     processed = await process_voc_list(
-                        [crawler.normalize(r) for r in part])
+                        [crawler.normalize(r) for r in part],
+                        translate_deadline=_nlp_deadline())
                     saved += await crawler.save(processed)
                 total_saved += saved
                 log.info("r/%s %d년: %d건 수집 → %d건 신규 저장",

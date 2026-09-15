@@ -250,19 +250,33 @@ class PpomppuCrawler(BaseCrawler):
                 comment_el = row.select_one(".baseList-c")
                 comment_count = int(re.sub(r"[^\d]", "", comment_el.get_text(strip=True)) or 0) if comment_el else 0
 
-                # 작성자: cols[2]
-                author_el = cols[2].select_one(".list_name a") or cols[2]
-                author = author_el.get_text(strip=True) if author_el else "익명"
-
-                # 날짜: cols[3]
-                date_text = cols[3].get_text(strip=True) if len(cols) > 3 else ""
+                # **컬럼 번호를 고정하면 안 된다.** 게시판마다 배치가 다르다 —
+                # 실측(2026-09-15) phone 은 날짜가 cols[3], review 는 cols[6] 이고
+                # review 에는 분류·중복제목 칸이 더 있다. 고정 인덱스로 읽던 탓에
+                # review 글은 발행일이 통째로 NULL 이었고(역사 수집의 의미를 반쯤
+                # 잃는다) 작성자 자리에는 제목 조각이 들어갔다.
+                # 날짜는 형식으로 찾고, 작성자는 그 **바로 앞 칸**이다(양쪽 공통).
+                date_idx = self._find_date_col(cols)
+                if date_idx is None:
+                    date_text, author_cell = "", None
+                else:
+                    date_text = cols[date_idx].get_text(strip=True)
+                    author_cell = cols[date_idx - 1] if date_idx >= 1 else None
                 published_at = self._parse_ppomppu_date(date_text)
 
-                # 추천: cols[4] (.baseList-rec)
-                like_count = int(re.sub(r"[^\d]", "", cols[4].get_text(strip=True)) or 0) if len(cols) > 4 else 0
+                if author_cell is not None:
+                    author_el = author_cell.select_one(".list_name a") or author_cell
+                    author = author_el.get_text(strip=True) or "익명"
+                else:
+                    author = "익명"
 
-                # 조회수: cols[5] (.baseList-views)
-                view_count = int(re.sub(r"[^\d]", "", cols[5].get_text(strip=True)) or 0) if len(cols) > 5 else 0
+                # 추천·조회수는 클래스로 찾는다(위치가 게시판마다 다르다).
+                # 추천은 '추천 - 반대' 형태('3 - 1')다. 숫자만 이어붙이면 31 이
+                # 되므로 **첫 숫자**만 취한다.
+                rec_el = row.select_one(".baseList-rec")
+                like_count = self._first_int(rec_el.get_text(strip=True)) if rec_el else 0
+                view_el = row.select_one(".baseList-views")
+                view_count = self._first_int(view_el.get_text(strip=True)) if view_el else 0
 
                 uid = hashlib.md5(post_url.encode()).hexdigest()[:16]
 
@@ -284,6 +298,27 @@ class PpomppuCrawler(BaseCrawler):
     def _is_galaxy_related(self, voc: RawVOC) -> bool:
         content_lower = voc.content.lower()
         return any(kw.lower() in content_lower for kw in GALAXY_KEYWORDS)
+
+    _DATE_CELL_RE = re.compile(r"^\d{2}[/:]\d{2}")
+    _FIRST_INT_RE = re.compile(r"\d+")
+
+    @staticmethod
+    def _first_int(text: str) -> int:
+        """맨 앞 숫자. '3 - 1'(추천-반대) 를 31 로 읽지 않기 위함이다."""
+        m = PpomppuCrawler._FIRST_INT_RE.search(text or "")
+        return int(m.group()) if m else 0
+
+    @staticmethod
+    def _find_date_col(cols):
+        """날짜처럼 보이는 칸의 인덱스. 없으면 None.
+
+        'YY/MM/DD'(옛 글) 와 'HH:MM'(오늘 글) 두 형식을 찾는다. 뒤에서부터 보는
+        이유 — 제목에 '18/03' 같은 문자열이 섞일 수 있어 앞에서 찾으면 오인한다.
+        """
+        for i in range(len(cols) - 1, -1, -1):
+            if PpomppuCrawler._DATE_CELL_RE.match(cols[i].get_text(strip=True)):
+                return i
+        return None
 
     def _parse_ppomppu_date(self, text: str):
         """'26/05/15', '14:32', '14:32:59' 파싱"""

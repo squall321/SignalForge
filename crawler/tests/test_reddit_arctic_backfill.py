@@ -156,3 +156,16 @@ def test_subs_default_matches_live_crawler(monkeypatch, tmp_path):
     m = _load(monkeypatch, tmp_path)
     from platforms.reddit_rss import SUBREDDITS
     assert m._subs() == list(SUBREDDITS)
+
+
+def test_backfill_skips_translation_by_default(monkeypatch, tmp_path):
+    """Reddit 백필도 같은 원칙 — 수집과 번역을 분리한다."""
+    m = _load(monkeypatch, tmp_path)
+    assert m.SKIP_TRANSLATE is True
+    import time as _t
+    assert m._nlp_deadline() < _t.monotonic()
+
+
+def test_backfill_translation_can_be_enabled(monkeypatch, tmp_path):
+    m = _load(monkeypatch, tmp_path, BACKFILL_TRANSLATE=1)
+    assert m._nlp_deadline() is None

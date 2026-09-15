@@ -51,6 +51,21 @@ PAGES_PER_RUN = int(os.getenv("DEEP_PAGES_PER_RUN", "12"))
 EMPTY_LIMIT = int(os.getenv("DEEP_EMPTY_LIMIT", "3"))
 BUDGET_SEC = float(os.getenv("DEEP_BUDGET_SEC", "900"))
 DRY_RUN = os.getenv("DRY_RUN", "0") == "1"
+# 백필은 **번역을 건너뛴다.** 대량 수집이 번역 서비스를 두드리면 레이트리밋을
+# 유발해(실측: 이 스크립트 1회 실행에 MyMemory 실패 23건) 실시간 파이프라인의
+# 번역 할당량까지 갉아먹는다. 원문은 그대로 저장되고, 12시간 주기
+# translation_reprocess(nlp.reprocess.translate_backlog)가
+# `content_translated = content_original` 인 행을 골라 나중에 메운다.
+# 한국어 감성은 원문에서 직접 하므로 분석에도 지장이 없다.
+# BACKFILL_TRANSLATE=1 로 켤 수 있다.
+SKIP_TRANSLATE = os.getenv("BACKFILL_TRANSLATE", "0") != "1"
+
+
+def _nlp_deadline():
+    """번역을 건너뛰려면 이미 지난 마감을 넘긴다(nlp.pipeline 이 해석)."""
+    return (time.monotonic() - 1) if SKIP_TRANSLATE else None
+
+
 STATE_PATH = os.getenv(
     "DEEP_STATE",
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -105,7 +120,9 @@ async def _run_site(site: str, start_page: int) -> int:
     saved = 0
     for i in range(0, len(raw), crawler.NLP_CHUNK):
         part = raw[i:i + crawler.NLP_CHUNK]
-        processed = await process_voc_list([crawler.normalize(r) for r in part])
+        processed = await process_voc_list(
+            [crawler.normalize(r) for r in part],
+            translate_deadline=_nlp_deadline())
         saved += await crawler.save(processed)
     log.info("%s: %d건 수집 → %d건 신규 저장", site, len(raw), saved)
     return saved
