@@ -2,6 +2,16 @@
 
 2026 년 봇 차단 강화 이후 SignalForge 의 Reddit 수집은 공식 OAuth 토큰 없이 동작하지 않습니다. `old.reddit.com` 의 `.json` 엔드포인트는 더 이상 익명 접근을 허용하지 않으므로 (`403 Blocked`), 이 문서를 따라 5 분 안에 키를 발급받아 `.env` 에 등록하면 수집이 즉시 재개됩니다. 키가 없으면 `crawler/platforms/reddit.py:crawl()` 은 빈 리스트와 경고 로그만 남기고 안전하게 종료되므로 파이프라인 전체가 죽지 않습니다.
 
+## 0. 비용 — 저희 사용량이면 무료
+
+Reddit 는 2023 년에 API 를 유료화했지만 과금 대상은 **상업용·대량 사용**입니다.
+OAuth 인증 클라이언트의 무료 구간은 분당 100 요청이고, 이 크롤러는 분당
+10~30 요청 수준이라 한참 아래입니다(`MIN_DELAY`/`MAX_DELAY` 로 조절).
+
+**단, 등록 폼의 "Will your app train AI models?" 에 반드시 `No`** 로 답해야
+합니다. `Yes` 로 가면 commercial license 협의 단계로 넘어가 통과까지 평균
+2 주가 걸립니다. 이 수집은 VOC 모니터링이지 모델 학습이 아닙니다.
+
 ## 1. 앱 생성
 
 1. https://www.reddit.com/prefs/apps 에 로그인 후 접속.
@@ -67,26 +77,45 @@ REDDIT_PASSWORD=
 
 ## 4. 활성화 + 재시작
 
-```bash
-# crawler 및 celery 재시작 (PID 는 환경에 맞게 조정)
-sudo systemctl restart signalforge-celery-worker signalforge-celery-beat
+이 프로젝트는 Apptainer 인스턴스로 돌아갑니다 (systemd 서비스가 아닙니다 —
+2026-07 컨테이너화 이후). 워커는 `.env` 를 기동 시점에 읽으므로 **키를 넣은 뒤
+반드시 재기동**해야 합니다.
 
-# DB 에서 platforms.is_active 를 true 로
-psql postgresql://signalforge:signalforge_pass@127.0.0.1:5434/signalforge \
+```bash
+cd /home/koopark/claude/SignalForge
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+
+apptainer instance stop sf-crawler-worker
+apptainer instance stop sf-crawler-beat
+bash scripts/up.sh            # 멱등 — 죽은 것만 다시 띄운다
+```
+
+DB 에서 `platforms.is_active` 를 true 로 (헬스 리포트 집계 대상에 넣기 위함):
+
+```bash
+set -a; . ./.env; set +a
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p 5434 \
+  -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
   -c "UPDATE platforms SET is_active = true WHERE code = 'reddit';"
 ```
+
+> beat 스케줄은 `crawler/celery_app.py` 에 하드코딩돼 있어 `is_active` 와
+> 무관하게 이미 돌고 있습니다. 즉 **키만 넣고 재기동하면 다음 주기부터 수집이
+> 재개**되고, `is_active` 는 헬스 리포트 표시용입니다.
 
 ## 5. 검증
 
 다음 명령으로 토큰이 발급되고 첫 listing 이 수집되는지 즉시 확인할 수 있습니다.
 
 ```bash
-cd /home/koopark/claude/SignalForge/crawler
-python -c "
-import asyncio
+cd /home/koopark/claude/SignalForge
+apptainer exec --bind crawler:/crawler --env-file .env apptainer/sif/crawler.sif \
+  bash -lc 'cd /crawler && python3 -c "
+import asyncio, sys; sys.path.insert(0, \".\")
 from platforms.reddit import RedditCrawler
 print(len(asyncio.run(RedditCrawler().crawl())))
-"
+"'
 ```
 
 키가 올바르면 100~ 200 건 수준의 RawVOC 가 수집되고, 키가 비어 있으면 `Reddit OAuth 키 미설정 — skip` 경고 후 `0` 이 출력됩니다.
@@ -94,8 +123,9 @@ print(len(asyncio.run(RedditCrawler().crawl())))
 ## 6. 단위 테스트
 
 ```bash
-cd /home/koopark/claude/SignalForge/crawler
-pytest tests/test_reddit_oauth.py -v
+cd /home/koopark/claude/SignalForge
+apptainer exec --bind crawler:/crawler apptainer/sif/crawler.sif \
+  bash -lc 'cd /crawler && python3 -m pytest tests/test_reddit_oauth.py -v'
 ```
 
 세 케이스 (키 무, 키 + mock 토큰, 401 후 자동 갱신) 가 모두 통과해야 합니다.
