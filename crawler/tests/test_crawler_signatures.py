@@ -85,20 +85,30 @@ def test_budget_time_and_volume():
 
 
 def test_run_budget_under_soft_limit():
-    """전체 예산이 celery soft time limit(600s) 안에 있어야 한다.
-
-    건수 상한만으로는 못 막는다 — 루프 한 바퀴가 수백 건을 한꺼번에 더해
-    상한을 넘기고(실측 appstore 980건 vs 상한 500), NLP 단가도 소스마다
-    2.6배 차이난다(dogdrip 0.254s/건 vs mlbpark 0.667s/건). 그래서 correctness 는
-    청크 커밋이 담보하고, 이 예산은 마지막 청크 하나만 잃도록 하는 장치다.
-    """
+    """전체 예산이 celery soft time limit(600s) 안에 있어야 한다."""
     from base.crawler import BaseCrawler
-    WORST_PER_ITEM = 0.667        # 실측 mlbpark 368.8s / 553건
-    # **soft limit 기준으로 봐야 한다.** 예산을 확인한 뒤 시작한 청크는 끝까지
-    # 돌므로 예산 + 청크 1개가 실제 상한이다. hard limit 만 보다가 602.8초를
-    # 놓쳤다(mobile_review).
-    worst = BaseCrawler.RUN_BUDGET_SEC + BaseCrawler.NLP_CHUNK * WORST_PER_ITEM
-    assert worst < 600, f"최악 {worst:.0f}s 가 soft limit 600s 를 넘는다"
+    assert BaseCrawler.RUN_BUDGET_SEC < 600
+    # 예산을 확인한 뒤 시작한 청크는 끝까지 돈다. 그 여유가 있어야 한다.
+    assert BaseCrawler.RUN_BUDGET_SEC < 500, "마지막 청크가 돌 여유가 없다"
+
+
+def test_translate_deadline_is_wired():
+    """NLP 시간은 건당 추정으로 못 막는다 — 마감시각이 연결돼 있어야 한다.
+
+    청크 크기를 "최악 0.667s/건"으로 잡았다가 틀렸다. 실측 telepolis 는
+    150건 NLP 에 426초(2.84s/건)를 썼다 — Google 레이트리밋 백오프가 최대
+    30초씩 붙어 건당 비용에 상한이 없다. 그래서 건수가 아니라 시각으로 끊는다.
+    """
+    import inspect as _i
+    from base.crawler import BaseCrawler
+    src = _i.getsource(BaseCrawler.run)
+    assert "translate_deadline" in src, "run() 이 번역 마감을 넘기지 않는다"
+    assert "RUN_BUDGET_SEC" in src
+
+    from nlp.translator import past_deadline, set_deadline   # noqa: F401
+    import nlp.translator as T
+    assert "past_deadline()" in _i.getsource(T.translate_to_english), \
+        "번역 진입점이 마감을 확인하지 않는다"
 
 
 def test_chunked_commit_wired():
