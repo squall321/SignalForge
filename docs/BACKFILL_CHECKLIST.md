@@ -24,9 +24,20 @@
 한국 커뮤니티가 우선. 이미 `historical_kr_backfill.py` 가 clien·ppomppu·dcinside
 3 개를 덮는다. 나머지를 같은 틀에 넣는다.
 
+- [x] **커서 틀 구축** — `crawler/scripts/deep_page_backfill.py` +
+      `scripts/deep-page-backfill.sh` (월/화/수 각 1 site). 기존 kr-backfill 은
+      매주 같은 앞 50p 를 다시 긁어 제자리걸음이었다(36분에 5건).
+- [x] dcinside · clien · ppomppu 에 `PAGE_START` 도입 (기본값 불변)
+- [x] 회귀 시험 13+9 종 — 창 타일링 빈틈 없음·커서 전진·실패 시 보존·바닥 재순회
+- [x] 실측 ppomppu p80~83 — 20건 수집 → **3건 신규(2018년 글)**, 커서 p84
+- [x] **백필은 번역을 건너뛴다** — 12시간 주기 치유가 메운다. 백필이 번역
+      레이트리밋을 유발해 실시간 파이프라인 할당량을 갉아먹던 문제.
+- [x] ppomppu 컬럼 고정 인덱스 해소 — review 게시판 발행일이 통째로 NULL 이었다
 - [ ] theqoo · instiz · dogdrip · ruliweb · bobaedream · slrclub(사이트 복구 후)
+      → `deep_page_backfill.SITES` 에 추가 + 각 크롤러에 `PAGE_START`
 - [ ] 글로벌 포럼 — kaskus · lowyat · resetera · gsmarena_forum · donanimhaber
 - [ ] 각 소스의 "바닥" 확인 (몇 페이지까지 실제로 존재하나)
+- [ ] 다른 소스도 컬럼 고정 인덱스를 쓰는지 점검 (ppomppu 와 같은 결함 가능)
 
 ## R3 — 사이트맵/아카이브 (유형 C)
 
@@ -48,3 +59,4 @@
 |---|---|---|---|---|---|
 | — | 2026-09-15 | (기준선) | 코퍼스 2026 이전 약 135,000 | — | 88 활성 중 백필 커버 약 15 |
 | R1 | 2026-09-15 | reddit_rss 2023 | 0 | **492** | r/samsung 5 페이지분. 커서 2023-12-27 에서 이어받는다 |
+| R2 | 2026-09-15 | ppomppu p80~83 | — | **3** (2018년) | 커서 틀 구축. 20건 중 3건 신규 = 그 구간은 거의 보유 중 |
