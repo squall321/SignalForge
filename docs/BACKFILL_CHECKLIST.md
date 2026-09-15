@@ -75,7 +75,12 @@
 - [x] 백필 셸 규약 시험 — 문법·set -u·DB 정의 순서·전역 락·시작/종료 로그·
       러너 등록(49 케이스). 작업 중 DB 정의를 지워 매 실행 즉시 죽던 것을 계기로.
 - [ ] 403 매체(PhoneArena·XatakaMX 등)에 다른 수단이 있는지 — sitemap / Wayback
-- [ ] 나머지 wp-json 보유 크롤러 검토 (arageek · jagatreview · mobile_review · techinafrica)
+- [x] **A 묶음 3종 완료** — hipertextual·mobile_review·jagatreview 에 기간 창을
+      직접 얹어 **자기 플랫폼 코드로** 역사를 쌓는다(wpnews 로 모으면 플랫폼별
+      분석에서 그 소스는 여전히 역사가 없다). 공용 모듈 `base/wp_window.py` 로
+      빼서 11개 wp-json 크롤러가 갈라지지 않게 했다.
+      실측 hipertextual 2022 상반기 62건 — 이전 과거 0건.
+- [ ] arageek · techcabal · mysmartprice · mobilesyrup 등 나머지 wp-json 검토
 
 ## R4 — Wayback (유형 D)
 
