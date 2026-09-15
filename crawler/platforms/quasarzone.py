@@ -130,9 +130,16 @@ class QuasarzoneCrawler(BaseCrawler):
         soup = BeautifulSoup(html, "html.parser")
         results: List[RawVOC] = []
 
-        # 목록 영역 한정 — 공지/광고 행 회피
-        wrap = soup.select_one(".list-board-wrap") or soup
-        for tr in wrap.select("table tbody tr"):
+        # 행 컨테이너 — 사이트가 table 레이아웃에서 div(.v2-list-row)로 바뀌었다
+        # (2026-09 확인). 옛 셀렉터만 보던 탓에 14일간 0건이었다. 링크는
+        # a.subject-link 로 그대로 30개가 보이는데 table tbody tr 에는 공지·광고
+        # 14행만 잡혀 조건을 하나도 통과하지 못했다.
+        # 새 구조를 먼저 보고, 없으면 옛 구조로 떨어진다.
+        rows = soup.select(".v2-list-row")
+        if not rows:
+            wrap = soup.select_one(".list-board-wrap") or soup
+            rows = wrap.select("table tbody tr")
+        for tr in rows:
             try:
                 link_el = tr.select_one("a.subject-link")
                 if not link_el:
@@ -157,7 +164,7 @@ class QuasarzoneCrawler(BaseCrawler):
                 author = (author or "").strip() or "익명"
 
                 # 날짜: 'MM-DD' 또는 'HH:MM' 형식
-                dt_el = tr.select_one(".date")
+                dt_el = tr.select_one(".v2-list-row__time") or tr.select_one(".date")
                 date_raw = dt_el.get_text(strip=True) if dt_el else ""
                 published_at = self._parse_quasar_date(date_raw)
 
@@ -349,14 +356,15 @@ class QuasarzoneCrawler(BaseCrawler):
         return None
 
     def _parse_quasar_date(self, text: str) -> Optional[datetime]:
-        """목록 표기: 'MM-DD' (이전일자) 또는 'HH:MM' (오늘)"""
+        """목록 표기: 'MM-DD'/'MM.DD' (이전일자) 또는 'HH:MM' (오늘)"""
         text = (text or "").strip()
         if not text:
             return None
         try:
             now = datetime.now(KST)
-            if re.match(r"^\d{2}-\d{2}$", text):
-                m, d = text.split("-")
+            # 'MM-DD' 와 'MM.DD' — 새 레이아웃은 점으로 구분한다
+            if re.match(r"^\d{2}[-.]\d{2}$", text):
+                m, d = re.split(r"[-.]", text)
                 dt = datetime(year=now.year, month=int(m), day=int(d), tzinfo=KST)
                 # 연도 없는 MM-DD 는 올해로 가정하되, 미래면 작년(연말 경계·backfill 옛글 보호).
                 if dt.date() > now.date():

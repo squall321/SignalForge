@@ -104,6 +104,42 @@ ACCEPT_LANGUAGES = [
 #
 # 508(Loop Detected)을 쓰는 이유 — fetch() 의 재시도 대상(403/429/503)이
 # 아니어서 백오프 sleep 을 유발하지 않는다.
+# 봇 차단벽 서명 — HTTP 200 으로 오지만 내용은 챌린지 페이지인 것들.
+#
+# 이게 없으면 차단된 소스가 "정상인데 조용함"으로 보인다. 실측 —
+# androidcentral 은 35일간 실패 기록 0건·수집 0건이었고, 원인은 stile 챌린지
+# 벽이었다. 0건은 "할 말이 없었다"와 "막혔다"를 구분하지 못한다.
+_WALL_SIGNS = (
+    "/.stile/challenge",            # stile
+    "cf-browser-verification",      # Cloudflare
+    "/cdn-cgi/challenge-platform",  # Cloudflare turnstile
+    "just a moment",                # Cloudflare 대기 페이지 제목
+    "enable javascript and cookies to continue",
+    "px-captcha",                   # PerimeterX
+    "/_incapsula_resource",         # Imperva
+    "are you a robot",
+)
+
+
+def _looks_walled(resp: httpx.Response) -> bool:
+    """봇 차단벽 페이지인지 — 본문이 작고 서명이 보이면 벽으로 본다."""
+    if resp.status_code in (401, 403, 429):
+        return True
+    if resp.status_code != 200:
+        return False
+    url = str(resp.url).lower()
+    if any(sig in url for sig in _WALL_SIGNS):
+        return True
+    # 챌린지 페이지는 대개 아주 작다. 본문을 읽지 못하는 스트리밍 응답은 건너뛴다.
+    try:
+        if len(resp.content) > 20_000:
+            return False
+        body = resp.content[:20_000].decode("utf-8", "ignore").lower()
+    except Exception:
+        return False
+    return any(sig in body for sig in _WALL_SIGNS)
+
+
 class _BudgetTransport(httpx.AsyncBaseTransport):
     def __init__(self, crawler: "BaseCrawler", inner: httpx.AsyncBaseTransport):
         self._crawler = crawler
@@ -119,7 +155,15 @@ class _BudgetTransport(httpx.AsyncBaseTransport):
                     " (여기까지 모은 것은 유지)")
             return httpx.Response(508, request=request,
                                   content=b"", headers={"x-sf-budget": "exceeded"})
-        return await self._inner.handle_async_request(request)
+
+        resp = await self._inner.handle_async_request(request)
+        self._crawler._wall_total += 1
+        try:
+            if _looks_walled(resp):
+                self._crawler._wall_hits += 1
+        except Exception:
+            pass
+        return resp
 
     async def aclose(self) -> None:
         await self._inner.aclose()
@@ -144,6 +188,9 @@ class BaseCrawler(ABC):
         self.job_id = job_id
         self.logger = logging.getLogger(f"crawler.{platform_code}")
         self._started = time.monotonic()
+        # 봇 차단벽 관측 — 0건이 "할 말 없음"인지 "막힘"인지 가른다
+        self._wall_hits = 0
+        self._wall_total = 0
 
     # ── 수집 시간 예산 ────────────────────────────────────────────────
     # run() 은 crawl() 전량 → NLP 전량 → save() 를 **마지막에 한 번만** 한다.
@@ -180,6 +227,23 @@ class BaseCrawler(ABC):
     def run_budget_exceeded(self) -> bool:
         """crawl 이후 단계까지 포함한 전체 예산 초과."""
         return (time.monotonic() - self._started) >= self.RUN_BUDGET_SEC
+
+    # 차단벽 판정 기준 — 요청 대다수가 벽이면 그 실행은 막힌 것으로 본다.
+    WALL_RATIO = 0.5
+    WALL_MIN_REQ = 3
+
+    def _wall_summary(self) -> Optional[str]:
+        """이번 실행이 차단벽에 막혔다고 볼 수 있으면 사유 문자열, 아니면 None.
+
+        호출자(run)가 "수집 0건"일 때만 부른다 — 한 건이라도 긁혔으면
+        벽이 좀 보여도 소스는 동작한 것이다(상세 페이지 일부만 403 등).
+        """
+        if self._wall_total < self.WALL_MIN_REQ or not self._wall_hits:
+            return None
+        ratio = self._wall_hits / self._wall_total
+        if ratio < self.WALL_RATIO:
+            return None
+        return f"요청 {self._wall_total}건 중 {self._wall_hits}건이 차단 응답 ({ratio:.0%})"
 
     def budget_left(self) -> float:
         return max(0.0, self.CRAWL_BUDGET_SEC - (time.monotonic() - self._started))
@@ -431,6 +495,18 @@ class BaseCrawler(ABC):
                         f" (여기까지는 커밋됨)")
                     break
             self.logger.info(f"  신규 저장: {saved}건 (처리 {done_n}/{len(raw_vocs)})")
+
+            # 0건은 "할 말이 없었다"와 "막혔다"를 구분하지 못한다. 차단벽을
+            # 봤다면 done 이 아니라 blocked 로 남긴다 — 그러지 않으면
+            # androidcentral 처럼 35일간 "정상인데 조용함"으로 묻힌다.
+            # 한 건이라도 긁었다면 소스는 동작한 것이다 — 상세 페이지 일부가
+            # 403 이어도 막힌 게 아니다. 아무것도 못 긁었을 때만 차단으로 본다.
+            wall_note = self._wall_summary() if not raw_vocs else None
+            if wall_note:
+                self.logger.warning(f"  차단벽 관측 — {wall_note}")
+                await self._update_job_status(
+                    "failed", items_collected=saved, error_message=f"blocked: {wall_note}")
+                return {"status": "blocked", "items_collected": saved, "detail": wall_note}
 
             await self._update_job_status("done", items_collected=saved)
             return {"status": "done", "items_collected": saved}
