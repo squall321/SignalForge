@@ -75,6 +75,10 @@ _DEFAULT_SUBREDDITS: List[str] = [
     "apple",
     "iphonehelp",
     "ios",
+    # Google Pixel — 경쟁사 축 중 유일한 공백이었다(2026-09-15 실측:
+    # 90일 태깅이 apple 10,677 vs google 2,671). OAuth 크롤러에는 있었으나
+    # reddit_rss 에는 빠져 있었고, OAuth 쪽은 2025-11 정책 변경으로 죽었다.
+    "GooglePixel",
 ]
 
 
