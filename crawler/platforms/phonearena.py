@@ -39,7 +39,20 @@ PHONEARENA_TAGS = [
 ]
 
 # 페이지 수: 피드당 50건 × N 페이지 (LIST_PAGES=12 → 최대 600 후보)
-LIST_PAGES = 12
+def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
+    """env 정수 읽기. 값이 이상하면 기본값으로 — 백필이 잘못된 값에 죽지 않게."""
+    try:
+        v = int(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return v if v >= min_value else default
+
+
+LIST_PAGES = _env_int("PHONEARENA_BACKFILL_PAGES", 12)
+# 목록 스캔 **시작** 페이지. 기본은 기존 동작 그대로(맨 앞부터).
+# 역사 백필이 이 값을 올려 더 깊이 내려간다 — 앞 N페이지만 다시 긁으면
+# 제자리걸음이다.
+PAGE_START = _env_int("PHONEARENA_PAGE_START", 1)
 # 최종 처리할 최대 글 수
 MAX_POSTS = 150
 
@@ -69,7 +82,7 @@ class PhoneArenaCrawler(BaseCrawler):
             client.headers["Accept-Language"] = "en-US,en;q=0.9"
 
             for tag, tag_name in PHONEARENA_TAGS:
-                for page in range(1, LIST_PAGES + 1):
+                for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                     try:
                         posts = await self._fetch_feed(client, tag, page)
                         # 명백한 비-Galaxy 글 필터 (samsung 태그여도 Apple/Google 글이 섞임)

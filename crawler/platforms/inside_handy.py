@@ -39,7 +39,20 @@ BASE_URL = "https://www.inside-digital.de"
 RSS_URL = f"{BASE_URL}/feed"
 
 # RSS 페이지네이션 — 페이지당 10건. 12 × 10 = 120 후보
-LIST_PAGES = 12
+def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
+    """env 정수 읽기. 값이 이상하면 기본값으로 — 백필이 잘못된 값에 죽지 않게."""
+    try:
+        v = int(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return v if v >= min_value else default
+
+
+LIST_PAGES = _env_int("INSIDE_HANDY_BACKFILL_PAGES", 12)
+# 목록 스캔 **시작** 페이지. 기본은 기존 동작 그대로(맨 앞부터).
+# 역사 백필이 이 값을 올려 더 깊이 내려간다 — 앞 N페이지만 다시 긁으면
+# 제자리걸음이다.
+PAGE_START = _env_int("INSIDE_HANDY_PAGE_START", 1)
 MAX_POSTS = 150
 
 # 독일 표준시 (CET, UTC+1). RSS pubDate 는 +0000 으로 응답하지만 안전망.
@@ -100,7 +113,7 @@ class InsideHandyCrawler(BaseCrawler):
             client.headers["Accept-Language"] = "de-DE,de;q=0.9,en;q=0.8"
             client.headers["Accept-Encoding"] = "gzip, deflate"
 
-            for page in range(1, LIST_PAGES + 1):
+            for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                 try:
                     posts = await self._fetch_feed_page(client, page)
                     if not posts:

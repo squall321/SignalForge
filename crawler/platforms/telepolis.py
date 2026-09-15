@@ -43,7 +43,20 @@ BASE_URL = "https://www.telepolis.pl"
 TAG_URL = f"{BASE_URL}/tag/samsung"
 
 # 태그 페이지 수 (페이지당 ~17건 teaser)
-LIST_PAGES = 12
+def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
+    """env 정수 읽기. 값이 이상하면 기본값으로 — 백필이 잘못된 값에 죽지 않게."""
+    try:
+        v = int(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return v if v >= min_value else default
+
+
+LIST_PAGES = _env_int("TELEPOLIS_BACKFILL_PAGES", 12)
+# 목록 스캔 **시작** 페이지. 기본은 기존 동작 그대로(맨 앞부터).
+# 역사 백필이 이 값을 올려 더 깊이 내려간다 — 앞 N페이지만 다시 긁으면
+# 제자리걸음이다.
+PAGE_START = _env_int("TELEPOLIS_PAGE_START", 1)
 MAX_POSTS = 150
 
 # 폴란드 표준시 — CET(+1)/CEST(+2). DST 는 3월 마지막 일~10월 마지막 일.
@@ -78,7 +91,7 @@ class TelepolisCrawler(BaseCrawler):
             )
 
             # 1) 태그 페이지 순회 → 기사 URL 목록 수집
-            for page in range(1, LIST_PAGES + 1):
+            for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                 # 목록이 예산을 다 쓰면 2단계(본문 수집)가 즉시 끊긴다 —
                 # 실측: 목록에만 300초+ 를 써 기사가 10건만 수집됐다.
                 if self.budget_exceeded():

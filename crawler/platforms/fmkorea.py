@@ -51,6 +51,10 @@ MAX_POSTS = _env_int("FMKOREA_MAX_POSTS", 80)
 # 보드별 스캔 페이지 수
 # BACKFILL_PAGES 환경변수로 옛 글 백카탈로그 수집 시 50~100 까지 확장
 LIST_PAGES = _env_int("FMKOREA_BACKFILL_PAGES", 5)
+# 목록 스캔 **시작** 페이지. 기본은 기존 동작 그대로(맨 앞부터).
+# 역사 백필이 이 값을 올려 더 깊이 내려간다 — 앞 N페이지만 다시 긁으면
+# 제자리걸음이다.
+PAGE_START = _env_int("FMKOREA_PAGE_START", 1)
 
 BOARD_LIST_URL = "{base}/index.php?mid={mid}&category={cat}&page={page}"
 
@@ -102,7 +106,7 @@ class FMKoreaCrawler(BaseCrawler):
             headers=headers, timeout=30.0, follow_redirects=True, **proxy_kwargs,
         ) as client:
             for mid, cat, name in FMK_BOARDS:
-                for page in range(1, LIST_PAGES + 1):
+                for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                     try:
                         posts = await self._fetch_board_page(client, mid, cat, page)
                         filtered = [p for p in posts if self._is_galaxy_related(p)]

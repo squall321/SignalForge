@@ -82,3 +82,35 @@ def test_runner_invokes_every_backfill():
         if path.name == "backfill-runner.sh":
             continue
         assert path.name in runner, f"{path.name} 이 러너에 없다 — 영영 안 돈다"
+
+
+def test_every_deep_site_is_scheduled():
+    """SITES 에 넣고 요일 배분에 빠뜨리면 그 소스는 영영 안 돈다.
+
+    등록과 배분이 따로라 조용히 어긋난다 — 실패도 로그도 없다.
+    """
+    import re
+    sh = (SCRIPTS / "deep-page-backfill.sh").read_text()
+    scheduled = set()
+    for m in re.finditer(r'SITES="([a-z_0-9,]+)"', sh):
+        scheduled |= {x for x in m.group(1).split(",") if x}
+
+    py = (SCRIPTS.parent / "crawler" / "scripts" / "deep_page_backfill.py").read_text()
+    sites = set(re.findall(r'^\s+"([a-z_0-9]+)": \("platforms\.', py, re.M))
+
+    assert sites, "SITES 를 못 읽었다"
+    missing = sites - scheduled
+    assert not missing, f"요일 배분에 빠진 소스: {sorted(missing)}"
+    extra = scheduled - sites
+    assert not extra, f"SITES 에 없는 스케줄: {sorted(extra)}"
+
+
+def test_unsupported_and_sites_do_not_overlap():
+    """같은 소스가 '가능'과 '불가' 양쪽에 있으면 판단이 흐려진다."""
+    import re
+    py = (SCRIPTS.parent / "crawler" / "scripts" / "deep_page_backfill.py").read_text()
+    sites = set(re.findall(r'^\s+"([a-z_0-9]+)": \("platforms\.', py, re.M))
+    block = py.split("UNSUPPORTED = {", 1)[1].split("}", 1)[0]
+    unsup = set(re.findall(r'"([a-z_0-9]+)":', block))
+    assert unsup, "불가 목록이 비었다"
+    assert not (sites & unsup), f"양쪽에 있다: {sorted(sites & unsup)}"

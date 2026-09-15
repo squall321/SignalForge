@@ -55,6 +55,17 @@ SITES = {
     "lowyat": ("platforms.lowyat", "LowyatCrawler", "LOWYAT", 0),   # 0-indexed
     "donanimhaber": ("platforms.donanimhaber", "DonanimHaberCrawler",
                      "DONANIMHABER", 1),
+    # 뉴스·포럼 — 목록 페이지네이션 보유(2026-09-15 전수 분류에서 식별)
+    "phonearena": ("platforms.phonearena", "PhoneArenaCrawler", "PHONEARENA", 1),
+    "tecnoblog": ("platforms.tecnoblog", "TecnoblogCrawler", "TECNOBLOG", 1),
+    "telepolis": ("platforms.telepolis", "TelepolisCrawler", "TELEPOLIS", 1),
+    "shiftdelete": ("platforms.shiftdelete", "ShiftDeleteCrawler", "SHIFTDELETE", 1),
+    "frandroid": ("platforms.frandroid", "FrandroidCrawler", "FRANDROID", 1),
+    "kompas": ("platforms.kompas", "KompasCrawler", "KOMPAS", 1),
+    "phandroid": ("platforms.phandroid", "PhandroidCrawler", "PHANDROID", 1),
+    "inside_handy": ("platforms.inside_handy", "InsideHandyCrawler",
+                     "INSIDE_HANDY", 1),
+    "droidsans": ("platforms.droidsans", "DroidSansCrawler", "DROIDSANS", 1),
 }
 
 # 이 틀에 못 넣는 것 — 억지로 만들지 않고 사유를 남긴다.
@@ -64,6 +75,10 @@ SITES = {
 UNSUPPORTED = {
     "resetera": "목록 페이지네이션 없음 (검색/피드 기반)",
     "gsmarena_forum": "기기별 리뷰 구조 — 페이지 의미가 다름",
+    "sweclockers": "LIST_PAGES 는 의례적 상한 — RSS 자체가 페이지네이션 미지원",
+    "computerbase": "MAX_THREAD_PAGES(스레드 내부 페이지) — 목록 깊이와 의미가 다름",
+    "fourchan_g": "4chan 은 스레드가 만료돼 사라진다 — 역사가 존재하지 않는다",
+    "fmkorea": "Playwright 봇 챌린지에 막혀 있다 — 그게 풀려야 깊이가 의미 있다",
 }
 
 PAGES_PER_RUN = int(os.getenv("DEEP_PAGES_PER_RUN", "12"))

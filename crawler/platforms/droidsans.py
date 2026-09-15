@@ -35,7 +35,20 @@ BASE_URL = "https://droidsans.com"
 RSS_URL = f"{BASE_URL}/feed/"
 
 # R5 첫 수집 보수: 2 페이지만 (OOM 안전). 안정화 후 증가.
-LIST_PAGES = 2
+def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
+    """env 정수 읽기. 값이 이상하면 기본값으로 — 백필이 잘못된 값에 죽지 않게."""
+    try:
+        v = int(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return v if v >= min_value else default
+
+
+LIST_PAGES = _env_int("DROIDSANS_BACKFILL_PAGES", 2)
+# 목록 스캔 **시작** 페이지. 기본은 기존 동작 그대로(맨 앞부터).
+# 역사 백필이 이 값을 올려 더 깊이 내려간다 — 앞 N페이지만 다시 긁으면
+# 제자리걸음이다.
+PAGE_START = _env_int("DROIDSANS_PAGE_START", 1)
 MAX_POSTS = 120
 
 # WordPress RSS 네임스페이스
@@ -79,7 +92,7 @@ class DroidSansCrawler(BaseCrawler):
                 "Chrome/124.0.0.0 Safari/537.36"
             )
 
-            for page in range(1, LIST_PAGES + 1):
+            for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                 try:
                     posts = await self._fetch_feed_page(client, page)
                     if not posts:
