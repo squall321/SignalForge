@@ -102,8 +102,14 @@ ACCEPT_LANGUAGES = [
 # 반복은 네트워크 없이 순식간에 소진되고, crawl() 은 **그때까지 모은 것을
 # 정상 반환**한다. 예외를 던지면 수집분이 통째로 날아가므로 던지지 않는다.
 #
-# 508(Loop Detected)을 쓰는 이유 — fetch() 의 재시도 대상(403/429/503)이
-# 아니어서 백오프 sleep 을 유발하지 않는다.
+# **200 + 빈 JSON 본문**을 쓴다. 에러 상태코드를 쓰면 안 된다 —
+# 크롤러 60개가 resp.raise_for_status() 를 부르고, 거기서 예외가 터져
+# crawl() 밖으로 새면 그때까지 모은 것을 통째로 잃는다. 막으려던 바로 그
+# 실패다(실측: 508 을 쓰던 초판이 ppomppu 에서 HTTPStatusError 를 냈다).
+# 본문 b"{}" 는 두 소비 경로를 모두 안전하게 만든다 —
+#   · resp.text  → HTML 파서가 0건을 찾고 루프가 그냥 넘어간다
+#   · resp.json() → 빈 dict 라 .get(...) 이 자연히 빈 리스트를 준다
+# x-sf-budget 헤더로 이 응답임을 구분할 수 있다.
 # 봇 차단벽 서명 — HTTP 200 으로 오지만 내용은 챌린지 페이지인 것들.
 #
 # 이게 없으면 차단된 소스가 "정상인데 조용함"으로 보인다. 실측 —
@@ -154,8 +160,10 @@ class _BudgetTransport(httpx.AsyncBaseTransport):
                 self._crawler.logger.warning(
                     "수집 예산 소진 — 이후 요청은 네트워크 없이 종료한다"
                     " (여기까지 모은 것은 유지)")
-            return httpx.Response(508, request=request,
-                                  content=b"", headers={"x-sf-budget": "exceeded"})
+            return httpx.Response(
+                200, request=request, content=b"{}",
+                headers={"x-sf-budget": "exceeded",
+                         "content-type": "application/json"})
 
         resp = await self._inner.handle_async_request(request)
         self._crawler._wall_total += 1

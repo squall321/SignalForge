@@ -51,9 +51,14 @@ async def test_budget_spent_short_circuits_without_network():
         r = await cl.get("https://example.invalid/")
     # 네트워크를 타지 않아야 한다 — 이게 이 장치의 전부다
     assert inner.calls == 0
-    assert r.status_code == 508
-    # 재시도 대상(403/429/503)이 아니어야 백오프 sleep 을 유발하지 않는다
-    assert r.status_code not in (403, 429, 503)
+    # **에러 상태코드면 안 된다.** 크롤러 60개가 raise_for_status() 를 부르고
+    # 거기서 예외가 crawl() 밖으로 새면 모은 것을 통째로 잃는다.
+    r.raise_for_status()                      # 예외가 나면 이 시험이 실패한다
+    assert r.status_code == 200
+    assert r.headers.get("x-sf-budget") == "exceeded"
+    # 두 소비 경로가 모두 안전해야 한다
+    assert r.json() == {}
+    assert r.text == "{}"
 
 
 @pytest.mark.asyncio
