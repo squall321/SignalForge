@@ -215,3 +215,44 @@ async def test_structural_wall_still_blocks():
     out = await c.run()
     assert out["status"] == "blocked"
     assert "차단 응답" in out["detail"], out["detail"]
+
+
+# ── Playwright 경로 (감지 사각지대) ────────────────────────────────────
+@pytest.mark.asyncio
+async def test_report_blocked_marks_run_blocked():
+    """크롤러가 스스로 선언한 차단도 blocked 로 남아야 한다.
+
+    _BudgetTransport 는 httpx 요청만 본다. Playwright 로 봇 챌린지를 푸는
+    fmkorea 는 그 길목을 지나지 않아, 챌린지에 막혀 0건을 반환해도
+    "할 말이 없었다"와 구분되지 않았다.
+    """
+    c = _Stub(raw=[])
+    c.report_blocked("Playwright 보안 챌린지 통과 실패")
+    out = await c.run()
+    assert out["status"] == "blocked"
+    assert out["detail"] == "Playwright 보안 챌린지 통과 실패"
+    assert c.job_states[-1][1]["error_message"].startswith("blocked:")
+
+
+@pytest.mark.asyncio
+async def test_report_blocked_is_ignored_when_items_were_collected():
+    """일부라도 긁었으면 done 이다 — 자기 선언도 예외가 아니다."""
+    from base.crawler import RawVOC
+    c = _Stub(raw=[RawVOC(external_id="a", content="x" * 40,
+                          source_url="https://e.invalid/a")])
+    c.report_blocked("챌린지 실패")
+    assert (await c.run())["status"] == "done"
+
+
+def test_playwright_crawlers_declare_blocks():
+    """Playwright 로 챌린지를 푸는 크롤러는 실패 시 report_blocked 를 불러야 한다.
+
+    안 부르면 그 소스만 조용히 0건으로 남아 원인이 묻힌다.
+    """
+    import pathlib as _p
+    plats = _p.Path(__file__).resolve().parents[1] / "platforms"
+    for name in ("fmkorea",):
+        src = (plats / f"{name}.py").read_text()
+        assert "report_blocked(" in src, (
+            f"{name} 은 Playwright 챌린지를 쓰는데 실패를 알리지 않는다 — "
+            "self.report_blocked(사유) 를 불러라")

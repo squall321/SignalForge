@@ -279,6 +279,18 @@ class BaseCrawler(ABC):
     WALL_RATIO = 0.5
     WALL_MIN_REQ = 3
 
+    def report_blocked(self, reason: str) -> None:
+        """크롤러가 **스스로** 차단을 선언한다.
+
+        _BudgetTransport 는 httpx 요청만 본다. Playwright 로 봇 챌린지를 푸는
+        크롤러(fmkorea 등)는 그 길목을 지나지 않아 차단이 감지되지 않는다 —
+        챌린지에 막혀 0건을 반환해도 "할 말이 없었다"와 구분되지 않았다.
+        그런 크롤러는 실패를 아는 지점에서 이걸 불러 사실을 남긴다.
+        """
+        self._wall_total = max(self._wall_total, self.WALL_MIN_REQ)
+        self._wall_hits = self._wall_total          # 비율 조건을 확실히 넘긴다
+        self._wall_reason = reason
+
     def _wall_summary(self) -> Optional[str]:
         """이번 실행이 차단벽에 막혔다고 볼 수 있으면 사유 문자열, 아니면 None.
 
@@ -290,6 +302,8 @@ class BaseCrawler(ABC):
         ratio = self._wall_hits / self._wall_total
         if ratio < self.WALL_RATIO:
             return None
+        if getattr(self, "_wall_reason", None):
+            return self._wall_reason
         return (f"요청 {self._wall_total}건 중 {self._wall_hits}건이 "
                 f"차단 응답 ({ratio:.0%})")
 

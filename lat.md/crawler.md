@@ -166,5 +166,8 @@ Source: [[crawler/base/crawler.py#_looks_walled]]
 그래서 `items_fetched` 를 따로 기록해 "못 긁었다"와 "긁었는데 신규가 없다"를
 가른다(alembic 0043).
 
-남은 감지 공백 — Playwright 로 챌린지를 푸는 크롤러(fmkorea 등)는 httpx 를
-지나지 않아 차단 감지가 닿지 않는다.
+Playwright 경로 — 봇 챌린지를 Playwright 로 푸는 크롤러(fmkorea 등)는 httpx 를
+지나지 않아 `_BudgetTransport` 의 자동 감지가 닿지 않는다. 그런 크롤러는 실패를
+아는 지점에서 `self.report_blocked(사유)` 를 불러 직접 알린다. 안 부르면 그
+소스만 조용히 0건으로 남아 원인이 묻힌다 —
+`test_playwright_crawlers_declare_blocks` 가 이걸 강제한다.

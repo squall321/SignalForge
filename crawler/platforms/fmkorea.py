@@ -78,7 +78,11 @@ class FMKoreaCrawler(BaseCrawler):
         # 1) Playwright 로 보안 챌린지 통과 + 쿠키/UA 획득
         cookie_header, user_agent = await self._bootstrap_session()
         if not cookie_header:
+            # Playwright 경로는 _BudgetTransport 를 지나지 않아 차단이 자동으로
+            # 잡히지 않는다. 챌린지 실패는 "할 말이 없었다"가 아니라 막힌 것이므로
+            # 여기서 직접 알린다 — 그래야 헬스 리포트가 원인을 말한다.
             logger.warning("FMKorea 보안 챌린지 통과 실패 — 빈 결과 반환")
+            self.report_blocked("Playwright 보안 챌린지 통과 실패")
             return []
 
         headers = {
