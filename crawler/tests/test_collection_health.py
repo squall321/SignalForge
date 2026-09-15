@@ -116,3 +116,48 @@ def test_zero_yield_tolerates_missing_block_fields():
     from insight.collection_health import evaluate_zero_yield
     out = evaluate_zero_yield([{"code": "x", "runs": 5, "failed": 2, "items": 0}])
     assert "2회 실패" in out[0]["reason"]
+
+
+def test_fetched_but_no_new_is_not_an_alert():
+    """긁었는데 신규가 없는 것은 고장이 아니다.
+
+    ifixit 는 700건을 긁고 신규 저장 0건인데 "고장이다"로 경보가 떴다.
+    이 소음이 진짜 장애(35일 막혀 있던 androidcentral)를 묻는다.
+    """
+    from insight.collection_health import evaluate_zero_yield
+    out = evaluate_zero_yield([{
+        "code": "ifixit", "runs": 12, "failed": 0, "items": 0,
+        "blocked": 0, "blocked_detail": None, "fetched": 700, "fetch_known": 12,
+    }])
+    assert out == [], f"정상 소스에 경보가 떴다: {out}"
+
+
+def test_fetched_zero_is_still_an_alert():
+    """정말 아무것도 못 긁은 것은 여전히 경보다."""
+    from insight.collection_health import evaluate_zero_yield
+    out = evaluate_zero_yield([{
+        "code": "deadsite", "runs": 12, "failed": 0, "items": 0,
+        "blocked": 0, "blocked_detail": None, "fetched": 0, "fetch_known": 12,
+    }])
+    assert len(out) == 1
+
+
+def test_blocked_alerts_even_when_something_was_fetched():
+    """차단은 일부를 긁었더라도 알려야 한다 — 접근 방식 문제다."""
+    from insight.collection_health import evaluate_zero_yield
+    out = evaluate_zero_yield([{
+        "code": "androidcentral", "runs": 12, "failed": 12, "items": 0,
+        "blocked": 12, "blocked_detail": "blocked: 요청 36건 중 18건이 차단 응답 (50%)",
+        "fetched": 3, "fetch_known": 12,
+    }])
+    assert len(out) == 1 and "차단됨" in out[0]["reason"]
+
+
+def test_unknown_fetch_count_keeps_old_behaviour():
+    """items_fetched 가 NULL 인 옛 행은 '모름'이라 판단하지 않는다."""
+    from insight.collection_health import evaluate_zero_yield
+    out = evaluate_zero_yield([{
+        "code": "old", "runs": 12, "failed": 0, "items": 0,
+        "blocked": 0, "blocked_detail": None, "fetched": 0, "fetch_known": 0,
+    }])
+    assert len(out) == 1

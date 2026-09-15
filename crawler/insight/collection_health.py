@@ -184,6 +184,8 @@ async def collect_zero_yield(conn: asyncpg.Connection) -> List[Dict[str, Any]]:
                count(j.id) AS runs,
                count(j.id) FILTER (WHERE j.status = 'failed') AS failed,
                count(j.id) FILTER (WHERE j.error_message LIKE 'blocked:%') AS blocked,
+               coalesce(sum(j.items_fetched), 0) AS fetched,
+               count(j.id) FILTER (WHERE j.items_fetched IS NOT NULL) AS fetch_known,
                max(j.error_message) FILTER (WHERE j.error_message LIKE 'blocked:%')
                  AS blocked_detail,
                coalesce(sum(j.items_collected), 0) AS items
@@ -200,7 +202,9 @@ async def collect_zero_yield(conn: asyncpg.Connection) -> List[Dict[str, Any]]:
     return [{"code": r["code"], "runs": int(r["runs"]),
              "failed": int(r["failed"]), "items": int(r["items"]),
              "blocked": int(r["blocked"] or 0),
-             "blocked_detail": r["blocked_detail"]} for r in rows]
+             "blocked_detail": r["blocked_detail"],
+             "fetched": int(r["fetched"] or 0),
+             "fetch_known": int(r["fetch_known"] or 0)} for r in rows]
 
 
 def evaluate_zero_yield(zy: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -209,6 +213,13 @@ def evaluate_zero_yield(zy: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         # **원인을 이름으로 부른다.** "N회 실패"로만 적으면 대응이 안 나온다 —
         # androidcentral 은 그렇게 35일간 리포트에 떠 있었는데 아무도 움직이지
         # 않았다. 실제 원인은 stile 챌린지 벽이었고 그건 재시도로 안 뚫린다.
+        # **긁었는데 신규가 없는 것은 고장이 아니다.** 이 둘을 섞으면 오경보가
+        # 진짜 장애를 묻는다 — ifixit 는 700건을 긁고 신규 0건인데 고장으로
+        # 떴고, 정말로 막혀 있던 androidcentral 은 같은 문구에 섞여 35일간
+        # 아무도 손대지 않았다. items_fetched 가 NULL 이면 "모름"이라 판단하지
+        # 않는다(옛 행).
+        if z.get("fetch_known") and z.get("fetched", 0) > 0 and not z.get("blocked"):
+            continue
         if z.get("blocked"):
             detail = (z.get("blocked_detail") or "blocked").removeprefix("blocked:").strip()
             how = f"차단됨 — {detail}"

@@ -562,10 +562,12 @@ class BaseCrawler(ABC):
             if wall_note:
                 self.logger.warning(f"  차단벽 관측 — {wall_note}")
                 await self._update_job_status(
-                    "failed", items_collected=saved, error_message=f"blocked: {wall_note}")
+                    "failed", items_collected=saved, items_fetched=len(raw_vocs),
+                    error_message=f"blocked: {wall_note}")
                 return {"status": "blocked", "items_collected": saved, "detail": wall_note}
 
-            await self._update_job_status("done", items_collected=saved)
+            await self._update_job_status("done", items_collected=saved,
+                                          items_fetched=len(raw_vocs))
             return {"status": "done", "items_collected": saved}
         except Exception as e:
             self.logger.exception(f"크롤링 실패: {e}")
@@ -573,8 +575,14 @@ class BaseCrawler(ABC):
             raise
 
     async def _update_job_status(
-        self, status: str, items_collected: int = 0, error_message: Optional[str] = None
+        self, status: str, items_collected: int = 0, error_message: Optional[str] = None,
+        items_fetched: Optional[int] = None,
     ):
+        """items_fetched 는 **긁은 건수**, items_collected 는 **신규 저장 건수**.
+
+        둘을 구분해야 "못 긁었다"와 "긁었는데 전부 중복이다"를 가를 수 있다 —
+        ifixit 는 700건을 긁고 신규 0건인데 헬스 체크가 고장으로 경보했다.
+        """
         if not self.job_id:
             return
         try:
@@ -592,12 +600,15 @@ class BaseCrawler(ABC):
                     extra = ", finished_at = NOW()"
                     params["items_collected"] = items_collected
                     params["error_message"] = error_message
+                    if items_fetched is not None:
+                        params["items_fetched"] = items_fetched
 
                 stmt = text(f"""
                     UPDATE crawl_jobs
                     SET status = :status
                         {extra}
                         {', items_collected = :items_collected' if 'items_collected' in params else ''}
+                        {', items_fetched = :items_fetched'     if 'items_fetched'  in params else ''}
                         {', error_message = :error_message'   if 'error_message' in params else ''}
                     WHERE id = :job_id
                 """)
