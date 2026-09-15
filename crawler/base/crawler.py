@@ -134,16 +134,23 @@ def _looks_walled(resp: httpx.Response, url: str = "", body: bytes = b"") -> boo
     resp.content 접근이 ResponseNotRead 로 터지기 때문이다 — 그걸 try 로
     삼키면 본문 판정이 조용히 죽는다(실측: 벽 0건으로 나왔다).
     """
+    # **본문이 실하면 거절이 아니다.** 상태코드가 무엇이든 페이지를 받았다면
+    # 파싱할 수 있다 — computerbase 는 429 와 함께 32KB 짜리 정상 포럼 HTML 을
+    # 돌려주는데, 상태코드만 보고 차단으로 적었다(실측 오탐).
+    if len(body) > 20_000:
+        return False
+    # 401/403 은 거절, 429 는 레이트리밋 — 대응은 다르지만 둘 다 "지금은 못
+    # 긁는다"이므로 함께 센다. 구분은 _wall_summary 가 문구로 남긴다.
     if resp.status_code in (401, 403, 429):
         return True
     if resp.status_code != 200:
         return False
     if any(sig in (url or str(resp.request.url)).lower() for sig in _WALL_SIGNS):
         return True
-    # 챌린지 페이지는 대개 아주 작다. 긴 본문은 정상 페이지로 본다.
-    if not body or len(body) > 20_000:
+    # 챌린지 페이지는 대개 아주 작다.
+    if not body:
         return False
-    text = body[:20_000].decode("utf-8", "ignore").lower()
+    text = body.decode("utf-8", "ignore").lower()
     return any(sig in text for sig in _WALL_SIGNS)
 
 
@@ -185,6 +192,8 @@ class _BudgetTransport(httpx.AsyncBaseTransport):
         try:
             if _looks_walled(resp, url=str(request.url), body=body):
                 self._crawler._wall_hits += 1
+                if resp.status_code == 429:
+                    self._crawler._throttle_hits += 1
         except Exception:
             pass
 
@@ -222,6 +231,7 @@ class BaseCrawler(ABC):
         # 봇 차단벽 관측 — 0건이 "할 말 없음"인지 "막힘"인지 가른다
         self._wall_hits = 0
         self._wall_total = 0
+        self._throttle_hits = 0     # 429 — 레이트리밋. 차단과 대응이 다르다
 
     # ── 수집 시간 예산 ────────────────────────────────────────────────
     # run() 은 crawl() 전량 → NLP 전량 → save() 를 **마지막에 한 번만** 한다.
@@ -274,7 +284,13 @@ class BaseCrawler(ABC):
         ratio = self._wall_hits / self._wall_total
         if ratio < self.WALL_RATIO:
             return None
-        return f"요청 {self._wall_total}건 중 {self._wall_hits}건이 차단 응답 ({ratio:.0%})"
+        # 429 가 대부분이면 차단이 아니라 레이트리밋이다 — 대응이 다르므로
+        # (차단은 접근 방식을 바꿔야 하고, 레이트리밋은 주기를 늦추면 된다)
+        # 문구로 구분해 남긴다.
+        kind = ("레이트리밋(429)" if self._throttle_hits > self._wall_hits / 2
+                else "차단 응답")
+        return (f"요청 {self._wall_total}건 중 {self._wall_hits}건이 "
+                f"{kind} ({ratio:.0%})")
 
     def budget_left(self) -> float:
         return max(0.0, self.CRAWL_BUDGET_SEC - (time.monotonic() - self._started))

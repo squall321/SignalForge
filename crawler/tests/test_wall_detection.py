@@ -175,3 +175,37 @@ async def test_transport_handles_gzip_without_double_decode():
     async with httpx.AsyncClient(transport=_BudgetTransport(c, inner)) as cl:
         r = await cl.get("https://example.invalid/")
     assert r.content == raw
+
+
+# ── 레이트리밋과 차단 구분 ─────────────────────────────────────────────
+def test_large_body_is_never_a_wall_regardless_of_status():
+    """본문이 실하면 거절이 아니다 — 상태코드가 무엇이든 파싱할 수 있다.
+
+    computerbase 는 429 와 함께 32KB 짜리 정상 포럼 HTML 을 돌려주는데
+    상태코드만 보고 차단으로 적었다(실측 오탐).
+    """
+    real_page = b"<!doctype html>" + b"<div>forum thread</div>" * 2000
+    assert len(real_page) > 20_000
+    assert not _walled(429, real_page)
+    assert not _walled(403, real_page)
+
+
+def test_short_429_is_still_counted():
+    assert _walled(429, b"http 429 too many requests")
+
+
+@pytest.mark.asyncio
+async def test_summary_says_rate_limit_when_429_dominates():
+    c = _Stub(raw=[])
+    c._wall_total, c._wall_hits, c._throttle_hits = 10, 9, 9
+    out = await c.run()
+    assert out["status"] == "blocked"
+    assert "레이트리밋" in out["detail"], out["detail"]
+
+
+@pytest.mark.asyncio
+async def test_summary_says_blocked_when_not_429():
+    c = _Stub(raw=[])
+    c._wall_total, c._wall_hits, c._throttle_hits = 10, 9, 0
+    out = await c.run()
+    assert "차단 응답" in out["detail"], out["detail"]
