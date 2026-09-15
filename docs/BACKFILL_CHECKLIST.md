@@ -37,7 +37,9 @@
       SITES 항목의 모듈·클래스·PAGE_START 실재를 시험으로 강제 — 오타 하나면
       그 소스만 조용히 빠진다(BobaedreamCrawler 오타를 그 시험이 잡았다)
 - [ ] slrclub — 사이트가 80·443 모두 connection refused. 복구 후 재시도
-- [ ] 글로벌 포럼 — kaskus · lowyat · resetera · gsmarena_forum · donanimhaber
+- [x] 글로벌 포럼 — kaskus · lowyat · donanimhaber 추가 (대상 8→11, 토요일 배분)
+      실측 kaskus 2페이지 126건. **불가 2종은 사유를 남겼다**(UNSUPPORTED) —
+      resetera(목록 페이지네이션 없음) · gsmarena_forum(기기별 리뷰 구조)
 - [ ] 각 소스의 "바닥" 확인 (몇 페이지까지 실제로 존재하나)
 - [x] 컬럼 고정 인덱스 전수 점검 — ppomppu·instiz 둘뿐이고 instiz 는 실해 없음
 - [x] **발행일 결측률 감시 신설** — 셀렉터 노후화는 수집량 지표로 안 보인다.
@@ -49,9 +51,19 @@
 
 ## R3 — 사이트맵/아카이브 (유형 C)
 
-- [ ] 워드프레스 계열 sitemap.xml 지원 여부 조사 (sammobile · sammyfans · phandroid · tecnoblog · hipertextual …)
-- [ ] 연도별 아카이브 URL 패턴이 있는 곳 목록화
-- [ ] 공통 sitemap 백필 유틸 (소스별 스크립트 중복 방지)
+- [x] **sitemap 이 아니라 WP REST 가 답이었다.** wpnews 가 이미 `after`/`before`
+      로 2016년까지 13,799건(과거 12,596건)을 모으고 있었다 — 대상 매체가
+      3개뿐이었을 뿐이다. 후보를 실측해 되는 것만 넣었다(3→6).
+      | 매체 | 결과 |
+      |---|---|
+      | Hipertextual · TechCabal · MySmartPrice | 2022년 기사 정상 → **채택** |
+      | MobileSyrup | 200 인데 기간 필터 무시, 최신만 반환 → 제외 |
+      | SamsungFans · Ausdroid · PhoneArena · XatakaMX | 403 → 제외 |
+      | Tecnoblog | 검색 0건 → 제외 |
+- [x] **기간 필터 무시 감지** — MobileSyrup 처럼 정상처럼 보이며 최신만 주는
+      경우를 걸러낸다. 못 걸러내면 과거를 긁는 줄 알고 헛돈다.
+- [ ] 403 매체(PhoneArena·XatakaMX 등)에 다른 수단이 있는지 — sitemap / Wayback
+- [ ] 나머지 wp-json 보유 크롤러 검토 (arageek · jagatreview · mobile_review · techinafrica)
 
 ## R4 — Wayback (유형 D)
 
@@ -69,4 +81,6 @@
 | R1 | 2026-09-15 | reddit_rss 2023 | 0 | **492** | r/samsung 5 페이지분. 커서 2023-12-27 에서 이어받는다 |
 | R2 | 2026-09-15 | ppomppu p80~83 | — | **3** (2018년) | 커서 틀 구축. 20건 중 3건 신규 = 그 구간은 거의 보유 중 |
 | R2 | 2026-09-15 | dogdrip 셀렉터 | 날짜 12% | **100%** | 수집 시점. 넉 달간 88%를 버리고 있었다 |
-| R2 | 2026-09-15 | dogdrip 소급복구 | NULL 9,211 | **6,791** | 150 URL 로 2,326건. 매일 자동 전진 |
+| R2 | 2026-09-15 | dogdrip 소급복구 | NULL 9,211 | **6,791** | 150 URL 로 2,326건. 남은 667 URL, 매일 150씩 |
+| R2 | 2026-09-15 | 글로벌 포럼 | 대상 8 | **11** | kaskus 실측 126건. 불가 2종 사유 기록 |
+| R3 | 2026-09-15 | WP 매체 | 3 | **6** | 실측으로 가려 채택. 무시형 1종 차단 |
