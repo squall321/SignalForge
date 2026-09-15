@@ -37,6 +37,7 @@ import httpx
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from base.crawler import BaseCrawler, RawVOC
+from base.wp_window import read_window, window_params, window_respected, warn_ignored
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +171,9 @@ class HipertextualCrawler(BaseCrawler):
     ) -> List[dict]:
         """`search=` 쿼리로 페이지네이션. 403/410 발생 시 Firefox UA 재시도."""
         out: List[dict] = []
+        # 역사 백필이 기간 창을 주면 얹는다. 창이 없으면 평소대로 최신을 긁는다.
+        after, before = read_window("HIPERTEXTUAL")
+        _win = window_params(after, before)
         for page in range(1, LIST_PAGES + 1):
             try:
                 resp = await client.get(
@@ -179,6 +183,7 @@ class HipertextualCrawler(BaseCrawler):
                         "per_page": SEARCH_PER_PAGE,
                         "page": page,
                         "_fields": "id,date_gmt,date,link,title,content,excerpt,categories,comment_status",
+                        **_win,
                     },
                 )
                 if resp.status_code in (403, 410):
@@ -190,6 +195,9 @@ class HipertextualCrawler(BaseCrawler):
                             "per_page": SEARCH_PER_PAGE,
                             "page": page,
                             "_fields": "id,date_gmt,date,link,title,content,excerpt,categories,comment_status",
+                            # 재시도에도 창을 얹어야 한다 — 빠뜨리면 403 이 난
+                            # 요청만 조용히 최신을 긁는다.
+                            **_win,
                         },
                         headers={"User-Agent": FIREFOX_UA},
                     )
@@ -204,6 +212,11 @@ class HipertextualCrawler(BaseCrawler):
                     break
                 data = resp.json()
                 if not isinstance(data, list) or not data:
+                    break
+                # 기간 필터를 무시하는 사이트가 있다 — 그러면 과거를 긁는 줄 알고
+                # 최신만 되풀이 수집한다(실측 전례 MobileSyrup).
+                if not window_respected(data, after, before):
+                    warn_ignored(f"hipertextual '{term}'", after, before)
                     break
                 out.extend(data)
                 if len(data) < SEARCH_PER_PAGE:

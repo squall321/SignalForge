@@ -36,6 +36,7 @@ run_step wayback-backfill.sh                        # Wayback 아카이브 옛�
 run_step reddit-backfill.sh                         # Reddit 역사(Arctic Shift, sub별 커서 이어받기) 매일
 run_step deep-page-backfill.sh                       # 포럼 깊이(커서 전진) 월~금 요일별
 run_step repair-dogdrip.sh                          # dogdrip 옛 댓글 날짜 복구(끝나면 자동 skip)
+run_step wp-source-backfill.sh                      # WP REST 개별 소스 역사(자기 코드로) 화/목/토
 [ "$dow" = "7" ] && run_step kr-backfill.sh        # 일요일: KR 깊이(앞 50p 재확인 — 신선도용)
 [ "$dow" = "6" ] && run_step global-backfill.sh    # 토요일: 글로벌 깊이
 echo "$(date '+%F %T') ===== backfill 러너 끝 =====" >> "$LOG"

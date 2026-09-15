@@ -29,6 +29,7 @@ import httpx
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from base.crawler import BaseCrawler, RawVOC
+from base.wp_window import read_window, window_params, window_respected, warn_ignored
 
 logger = logging.getLogger(__name__)
 
@@ -102,10 +103,17 @@ class JagatReviewCrawler(BaseCrawler):
         self, client: httpx.AsyncClient, keyword: str
     ) -> List[RawVOC]:
         url = f"{WP_BASE}/posts?search={keyword}&per_page={PER_PAGE}&_fields=id,date_gmt,link,title,excerpt"
-        resp = await client.get(url)
+        # 역사 백필이 기간 창을 주면 얹는다. 창이 없으면 평소대로 최신을 긁는다.
+        after, before = read_window("JAGATREVIEW")
+        resp = await client.get(url, params=window_params(after, before))
         resp.raise_for_status()
         data = resp.json()
         if not isinstance(data, list):
+            return []
+        # 기간 필터를 무시하는 사이트가 있다(실측 MobileSyrup). 그걸 못 걸러내면
+        # 과거를 긁는 줄 알고 최신만 되풀이 수집한다.
+        if not window_respected(data, after, before):
+            warn_ignored("jagatreview", after, before)
             return []
         return [self._to_voc(p) for p in data if p]
 

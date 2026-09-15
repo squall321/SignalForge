@@ -35,6 +35,7 @@ import httpx
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from base.crawler import BaseCrawler, RawVOC
+from base.wp_window import read_window, window_params, window_respected, warn_ignored
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +161,9 @@ class MobileReviewCrawler(BaseCrawler):
             "orderby": "date",
             "order": "desc",
         }
+        # 역사 백필이 기간 창을 주면 얹는다. 창이 없으면 평소대로 최신을 긁는다.
+        _after, _before = read_window("MOBILE_REVIEW")
+        params.update(window_params(_after, _before))
         resp = await client.get(
             url,
             params=params,
@@ -182,6 +186,11 @@ class MobileReviewCrawler(BaseCrawler):
             logger.debug(f"MobileReview REST JSON 파싱 실패: {e}")
             return []
         if not isinstance(data, list):
+            return []
+        # 기간 필터를 무시하는 사이트가 있다 — 그러면 과거를 긁는 줄 알고
+        # 최신만 되풀이 수집한다(실측 전례 MobileSyrup).
+        if not window_respected(data, _after, _before):
+            warn_ignored(f"mobile_review {post_type}", _after, _before)
             return []
         return [v for v in (self._parse_post(p, post_type) for p in data) if v]
 
