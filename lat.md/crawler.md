@@ -79,3 +79,58 @@ Source: [[crawler/base/crawler.py#USER_AGENTS]]
 실패 시 `max_retries=3`, 5분 간격 재시도.
 
 Source: [[crawler/tasks.py#crawl_platform]]
+
+## 시간 예산 (Time Budget)
+
+celery soft time limit 이 600초다. 이걸 넘기면 `SoftTimeLimitExceeded` 로 죽고
+**그때까지 긁은 것이 통째로 버려진다**. 그래서 두 겹으로 막는다.
+
+### 1. 수집 예산 — HTTP 길목에서 끊는다
+
+크롤러마다 루프에 `budget_exceeded()` 를 손으로 넣는 방식은 실패했다.
+AST 감사(2026-09-15) 결과 96개 중 88개는 호출이 아예 없었고, 있는 8개도
+최내곽이 아닌 바깥 루프에 둬서 안쪽 루프 한 바퀴가 통째로 돈 뒤에야 발화했다
+(appstore·telepolis·mobile_review 에서 같은 실수를 세 번 반복했다).
+
+지금은 `_BudgetTransport` 가 모든 httpx 요청을 지난다. 예산(`CRAWL_BUDGET_SEC`,
+기본 330초)이 끝나면 **요청을 보내지 않고 508 을 즉시 돌려준다**.
+호출자는 이미 "200 아니면 건너뛴다"이므로 남은 반복이 네트워크 없이 소진되고,
+`crawl()` 은 그때까지 모은 것을 정상 반환한다. 예외를 던지면 수집분이 전량
+유실되므로 던지지 않는다. `_random_delay()` 도 예산 초과 시 즉시 반환한다.
+
+**새 크롤러는 반드시 `self._make_httpx_client()` 로 클라이언트를 만들어야 한다.**
+직접 `httpx.AsyncClient(...)` 를 만든다면 `transport=self._budget_transport()`
+를 넘겨야 하며, `test_budget_transport.py` 가 AST 로 이를 강제한다.
+
+### 2. 번역 마감 — 건당 추정은 불가능하다
+
+NLP 비용을 "최악 0.667s/건"으로 잡았다가 틀렸다. 실측 telepolis 는 150건 NLP 에
+426초(2.84s/건)를 썼다 — Google 레이트리밋에 걸리면 백오프가 최대 30초씩 붙어
+건당 비용에 상한이 없다. 청크 사이에서만 확인하면 청크 하나가 통째로 넘긴다.
+
+그래서 건수가 아니라 시각으로 끊는다. `run()` 이 `_started + RUN_BUDGET_SEC`
+(기본 430초)를 마감으로 넘기고, `translate_to_english` 가 마감을 넘기면 번역을
+건너뛰고 원문을 남긴다. 원문은 저장되므로 6시간 주기 `translate_backlog` 이
+나중에 메운다 — 통째로 죽는 것보다 낫다.
+
+Source: [[crawler/base/crawler.py#_BudgetTransport]]
+Source: [[crawler/nlp/translator.py#translate_to_english]]
+
+## 차단벽 감지 (Bot Wall Detection)
+
+"실패 기록 없이 0건"은 원인을 감춘다. 0건은 "할 말이 없었다"와 "막혔다"를
+구분하지 못하는데 둘 다 `done` 으로 기록됐다. androidcentral 은 그렇게 35일간
+"정상인데 조용함"으로 묻혔다 — 실제로는 stile 챌린지 벽(HTTP 200 인데 내용은
+챌린지 페이지)이었다.
+
+`_BudgetTransport` 가 모든 응답의 벽 서명(stile·Cloudflare·PerimeterX·Imperva)
+을 센다. **아무것도 못 긁었는데** 요청 절반 이상이 벽이면 `status="blocked"` 로
+남긴다. 한 건이라도 긁혔으면 `done` 이다(상세 페이지 일부 403 은 차단이 아니다).
+404 도 차단이 아니다 — 사라진 게시판은 대응이 다르다.
+
+주의: transport 안의 응답은 아직 읽기 전이라 `resp.content` 가
+`ResponseNotRead` 로 터진다. 그래서 `aread()` 로 본문을 확정한 뒤 판정하고,
+`content-encoding`/`content-length` 를 뗀 새 응답을 돌려준다(안 떼면 httpx 가
+한 번 더 압축을 풀려다 `DecodingError`).
+
+Source: [[crawler/base/crawler.py#_looks_walled]]
