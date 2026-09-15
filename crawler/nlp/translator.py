@@ -11,6 +11,7 @@ import asyncio
 import logging
 import random
 import re
+import contextvars
 import threading
 import time
 
@@ -44,6 +45,24 @@ _MAX_RETRIES = 4
 
 _throttle_lock = threading.Lock()
 _last_call = 0.0
+
+# 번역 마감시각(time.monotonic 기준). 번역 비용은 건당 추정이 불가능하다 —
+# Google 레이트리밋이 걸리면 백오프가 최대 30초씩 붙어 실측 2.84s/건까지
+# 튄다(telepolis 150건 NLP 426초). 그래서 "몇 건까지"가 아니라 "언제까지"로
+# 끊는다. 마감을 넘기면 번역을 건너뛰고 원문을 그대로 둔다 —
+# 저장은 되므로 나중에 backfill 로 메울 수 있다. 통째로 죽는 것보다 낫다.
+_deadline: "contextvars.ContextVar[float | None]" = contextvars.ContextVar(
+    "translate_deadline", default=None)
+
+
+def set_deadline(monotonic_ts):
+    """이 컨텍스트의 번역 마감시각을 지정한다. None 이면 무제한."""
+    _deadline.set(monotonic_ts)
+
+
+def past_deadline() -> bool:
+    d = _deadline.get()
+    return d is not None and time.monotonic() >= d
 
 
 def _is_rate_limit(err: Exception) -> bool:
@@ -115,6 +134,11 @@ async def translate_to_english(text: str, source_lang: str = "auto") -> str:
     if source_lang in SKIP_LANGS:
         return text
 
+    # 마감을 넘겼으면 번역을 건너뛴다. 원문은 그대로 저장되므로 나중에
+    # backfill 로 메울 수 있다 — 통째로 타임아웃 나는 것보다 낫다.
+    if past_deadline():
+        return text
+
     text = text[:_MAX_CHARS]
     src = LANG_MAP.get(source_lang, source_lang)
 
@@ -124,6 +148,9 @@ async def translate_to_english(text: str, source_lang: str = "auto") -> str:
     parts = _split_chunks(text, _CHUNK)
     outs, any_ok = [], False
     for p in parts:
+        if past_deadline():
+            outs.append(p)          # 남은 조각은 원문 유지
+            continue
         r = await _translate_chunk(p, source_lang, src)
         if r and r != p:
             any_ok, r_out = True, r

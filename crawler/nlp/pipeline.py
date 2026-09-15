@@ -17,8 +17,16 @@ logger = logging.getLogger(__name__)
 
 
 # @lat: process_voc_list — [[voc-pipeline#Flow]] 참조.
-async def process_voc_list(vocs) -> list:
-    """StandardVOC 리스트에 NLP 처리 적용"""
+async def process_voc_list(vocs, translate_deadline=None) -> list:
+    """StandardVOC 리스트에 NLP 처리 적용.
+
+    translate_deadline: time.monotonic 기준 번역 마감시각. 넘기면 번역을
+    건너뛰고 원문을 남긴다(저장은 되므로 backfill 로 메울 수 있다).
+    번역 비용은 건당 추정이 불가능해서 건수가 아니라 시각으로 끊는다.
+    """
+    if translate_deadline is not None:
+        from nlp.translator import set_deadline
+        set_deadline(translate_deadline)
     tasks = [process_single(voc) for voc in vocs]
     return await asyncio.gather(*tasks, return_exceptions=False)
 

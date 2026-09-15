@@ -486,7 +486,12 @@ class BaseCrawler(ABC):
             done_n = 0
             for i in range(0, len(raw_vocs), self.NLP_CHUNK):
                 part = raw_vocs[i:i + self.NLP_CHUNK]
-                processed = await process_voc_list([self.normalize(r) for r in part])
+                # 번역 마감 — 실행 예산까지. NLP 비용은 건당 추정이 안 된다
+                # (실측 telepolis 150건 426초 = 2.84s/건, 가정치 0.667 의 4배).
+                # 청크 사이에서만 확인하면 청크 하나가 통째로 넘긴다.
+                processed = await process_voc_list(
+                    [self.normalize(r) for r in part],
+                    translate_deadline=self._started + self.RUN_BUDGET_SEC)
                 saved += await self.save(processed)
                 done_n += len(part)
                 if done_n < len(raw_vocs) and self.run_budget_exceeded():
