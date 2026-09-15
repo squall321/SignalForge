@@ -78,3 +78,41 @@ def test_zero_yield_metric_namespace_separate():
 def test_zero_yield_empty_when_no_runs():
     from insight.collection_health import evaluate_zero_yield
     assert evaluate_zero_yield([]) == []
+
+
+def test_zero_yield_names_the_block_cause():
+    """원인을 이름으로 불러야 대응이 나온다.
+
+    androidcentral 은 "34회 실행 0건" 으로만 35일간 리포트에 떠 있었고 아무도
+    움직이지 않았다. 실제 원인은 stile 챌린지 벽이었고 재시도로는 안 뚫린다.
+    """
+    from insight.collection_health import evaluate_zero_yield
+    out = evaluate_zero_yield([{
+        "code": "androidcentral", "runs": 34, "failed": 34, "items": 0,
+        "blocked": 34,
+        "blocked_detail": "blocked: 요청 36건 중 18건이 차단 응답 (50%)",
+    }])
+    assert len(out) == 1
+    reason = out[0]["reason"]
+    assert "차단됨" in reason, reason
+    assert "18건이 차단 응답" in reason, reason
+    assert "접근 방식을 바꿔야" in reason, reason
+    assert "은퇴가 아니라 고장" not in reason
+
+
+def test_zero_yield_without_block_keeps_old_wording():
+    from insight.collection_health import evaluate_zero_yield
+    out = evaluate_zero_yield([{
+        "code": "somesite", "runs": 5, "failed": 0, "items": 0,
+        "blocked": 0, "blocked_detail": None,
+    }])
+    reason = out[0]["reason"]
+    assert "전부 0건 반환" in reason
+    assert "은퇴가 아니라 고장이다" in reason
+
+
+def test_zero_yield_tolerates_missing_block_fields():
+    """옛 호출부가 blocked 키 없이 넘겨도 깨지지 않아야 한다."""
+    from insight.collection_health import evaluate_zero_yield
+    out = evaluate_zero_yield([{"code": "x", "runs": 5, "failed": 2, "items": 0}])
+    assert "2회 실패" in out[0]["reason"]

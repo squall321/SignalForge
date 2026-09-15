@@ -183,6 +183,9 @@ async def collect_zero_yield(conn: asyncpg.Connection) -> List[Dict[str, Any]]:
         SELECT p.code,
                count(j.id) AS runs,
                count(j.id) FILTER (WHERE j.status = 'failed') AS failed,
+               count(j.id) FILTER (WHERE j.error_message LIKE 'blocked:%') AS blocked,
+               max(j.error_message) FILTER (WHERE j.error_message LIKE 'blocked:%')
+                 AS blocked_detail,
                coalesce(sum(j.items_collected), 0) AS items
         FROM platforms p
         JOIN crawl_jobs j ON j.platform_id = p.id
@@ -195,13 +198,24 @@ async def collect_zero_yield(conn: asyncpg.Connection) -> List[Dict[str, Any]]:
         """
     )
     return [{"code": r["code"], "runs": int(r["runs"]),
-             "failed": int(r["failed"]), "items": int(r["items"])} for r in rows]
+             "failed": int(r["failed"]), "items": int(r["items"]),
+             "blocked": int(r["blocked"] or 0),
+             "blocked_detail": r["blocked_detail"]} for r in rows]
 
 
 def evaluate_zero_yield(zy: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     for z in zy:
-        how = (f"{z['failed']}회 실패" if z["failed"] else "전부 0건 반환")
+        # **원인을 이름으로 부른다.** "N회 실패"로만 적으면 대응이 안 나온다 —
+        # androidcentral 은 그렇게 35일간 리포트에 떠 있었는데 아무도 움직이지
+        # 않았다. 실제 원인은 stile 챌린지 벽이었고 그건 재시도로 안 뚫린다.
+        if z.get("blocked"):
+            detail = (z.get("blocked_detail") or "blocked").removeprefix("blocked:").strip()
+            how = f"차단됨 — {detail}"
+        elif z["failed"]:
+            how = f"{z['failed']}회 실패"
+        else:
+            how = "전부 0건 반환"
         out.append({
             "code": z["code"],
             # metric 을 분리해야 collection.* 쿨다운과 섞이지 않는다
@@ -211,7 +225,8 @@ def evaluate_zero_yield(zy: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "threshold": float(ZERO_YIELD_MIN_RUNS),
             "reason": (f"{z['code']}: 최근 {ZERO_YIELD_WINDOW_H}h 동안 "
                        f"{z['runs']}회 실행했으나 수집 0건 ({how}) "
-                       f"— 은퇴가 아니라 고장이다"),
+                       + ("— 접근 방식을 바꿔야 한다(재시도로 안 뚫린다)"
+                          if z.get("blocked") else "— 은퇴가 아니라 고장이다")),
         })
     return out
 
