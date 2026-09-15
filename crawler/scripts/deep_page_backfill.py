@@ -20,7 +20,7 @@
   차단이 있어 창이 겹쳐도 손해가 없다(멱등).
 
 env:
-  DEEP_SITES            콤마 구분 (기본 dcinside,clien,ppomppu)
+  DEEP_SITES            콤마 구분 (기본 SITES 전체)
   DEEP_PAGES_PER_RUN    실행당 site 당 페이지 수 (기본 12)
   DEEP_EMPTY_LIMIT      연속 0건 허용 횟수 (기본 3)
   DEEP_STATE            상태 파일 경로
@@ -43,8 +43,13 @@ log = logging.getLogger("deep_page")
 # (site, 모듈, 클래스, env 접두, 최소 페이지)
 SITES = {
     "dcinside": ("platforms.dcinside", "DCInsideCrawler", "DCINSIDE", 1),
-    "clien": ("platforms.clien", "ClienCrawler", "CLIEN", 0),
+    "clien": ("platforms.clien", "ClienCrawler", "CLIEN", 0),   # 0-indexed
     "ppomppu": ("platforms.ppomppu", "PpomppuCrawler", "PPOMPPU", 1),
+    "theqoo": ("platforms.theqoo", "TheqooCrawler", "THEQOO", 1),
+    "instiz": ("platforms.instiz", "InstizCrawler", "INSTIZ", 1),
+    "dogdrip": ("platforms.dogdrip", "DogdripCrawler", "DOGDRIP", 1),
+    "ruliweb": ("platforms.ruliweb", "RuliwebCrawler", "RULIWEB", 1),
+    "bobaedream": ("platforms.bobaedream", "BobaeDreamCrawler", "BOBAEDREAM", 1),
 }
 
 PAGES_PER_RUN = int(os.getenv("DEEP_PAGES_PER_RUN", "12"))

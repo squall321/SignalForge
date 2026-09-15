@@ -49,6 +49,8 @@ def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
 # 검색 페이지 수 (per board × per keyword)
 # BACKFILL_PAGES 환경변수로 옛 글 백카탈로그 수집 시 10~30 까지 확장
 LIST_PAGES = _env_int("DOGDRIP_BACKFILL_PAGES", 2)
+# 목록 스캔 시작 페이지 — 역사 백필이 올려 더 깊이 내려간다.
+PAGE_START = _env_int("DOGDRIP_PAGE_START", 1)
 # 상세 수집 게시물 상한
 MAX_POSTS = _env_int("DOGDRIP_MAX_POSTS", 150)
 
@@ -72,7 +74,7 @@ class DogdripCrawler(BaseCrawler):
         async with self._make_httpx_client() as client:
             for mid, board_name in DOGDRIP_BOARDS:
                 for kw in SEARCH_KEYWORDS:
-                    for page in range(1, LIST_PAGES + 1):
+                    for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                         try:
                             posts = await self._fetch_search_page(client, mid, kw, page)
                             # URL 중복 제거 (키워드 교차)
@@ -230,8 +232,15 @@ class DogdripCrawler(BaseCrawler):
                 if not ctext or len(ctext) < 3:
                     continue
 
-                # 작성자: .comment-bar-author 내부 첫 a.link-reset (img alt 제외하고 텍스트만)
-                author_el = c.select_one(".comment-bar-author a.link-reset")
+                # 작성자·날짜는 .comment-bar 안에 있다.
+                # **셀렉터가 낡아 둘 다 통째로 실패하고 있었다.** 사이트가
+                # `.comment-bar-author` → `.comment-bar` 로 바뀐 것을 못 따라가
+                # 모든 댓글이 작성자 '익명' + 발행일 NULL 로 저장됐다 —
+                # 실측(2026-09-15) dogdrip 10,431행 중 9,211행(88%)이 그렇다.
+                # 그러면 그 댓글은 시계열 분석에서 통째로 빠진다.
+                # 옛 셀렉터도 폴백으로 남겨 구조가 되돌아가도 견딘다.
+                author_el = (c.select_one(".comment-bar a.link-reset")
+                             or c.select_one(".comment-bar-author a.link-reset"))
                 if author_el:
                     # img 제거 후 텍스트만
                     for img in author_el.select("img"):
@@ -241,7 +250,8 @@ class DogdripCrawler(BaseCrawler):
                     cauthor = "익명"
 
                 # 댓글 시간 (상대시간)
-                cdate_el = c.select_one(".comment-bar-author .text-muted")
+                cdate_el = (c.select_one(".comment-bar .text-muted")
+                            or c.select_one(".comment-bar-author .text-muted"))
                 cdate = self._parse_relative_date(
                     cdate_el.get_text(strip=True)
                 ) if cdate_el else None
@@ -286,7 +296,11 @@ class DogdripCrawler(BaseCrawler):
         return [body_voc] + comment_vocs
 
     def _parse_relative_date(self, text: str) -> Optional[datetime]:
-        """'1 일 전', '3 시간 전', '5 분 전', '방금 전', '2026.05.20' 처리"""
+        """상대·절대 시각 모두 처리.
+
+        '방금 전' · 'N분/시간/일/주/달/개월/년 전' · 'YYYY.MM.DD' · 'YY.MM.DD' ·
+        'HH:MM'(오늘). 형식 하나를 빠뜨리면 그 글은 시계열에서 통째로 빠진다.
+        """
         if not text:
             return None
         text = text.strip()
@@ -306,11 +320,28 @@ class DogdripCrawler(BaseCrawler):
             m = re.match(r"(\d+)\s*달\s*전", text) or re.match(r"(\d+)\s*개월\s*전", text)
             if m:
                 return (now - timedelta(days=30 * int(m.group(1)))).astimezone(timezone.utc)
+            m = re.match(r"(\d+)\s*년\s*전", text)
+            if m:
+                return (now - timedelta(days=365 * int(m.group(1)))).astimezone(timezone.utc)
+            m = re.match(r"(\d+)\s*주\s*전", text)
+            if m:
+                return (now - timedelta(weeks=int(m.group(1)))).astimezone(timezone.utc)
             # 절대일자 'YYYY.MM.DD' or 'YYYY-MM-DD'
             m = re.match(r"(\d{4})[.\-](\d{1,2})[.\-](\d{1,2})", text)
             if m:
                 y, mo, d = map(int, m.groups())
                 return datetime(y, mo, d, tzinfo=KST).astimezone(timezone.utc)
+            # 'YY.MM.DD' — 4자리 연도 패턴이 먼저 걸리므로 그 뒤에 둔다
+            m = re.match(r"(\d{2})[.\-](\d{1,2})[.\-](\d{1,2})$", text)
+            if m:
+                y, mo, d = map(int, m.groups())
+                return datetime(2000 + y, mo, d, tzinfo=KST).astimezone(timezone.utc)
+            # 'HH:MM' — 오늘 글
+            m = re.match(r"^(\d{1,2}):(\d{2})$", text)
+            if m:
+                h, mi = map(int, m.groups())
+                return now.replace(hour=h, minute=mi, second=0,
+                                   microsecond=0).astimezone(timezone.utc)
         except Exception:
             pass
         return None

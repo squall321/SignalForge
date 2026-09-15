@@ -34,7 +34,20 @@ BASE_URL = "https://bbs.ruliweb.com"
 BOARD_LIST_URL = "{base}/community/board/{board}?page={page}"
 
 MAX_POSTS = 80
-LIST_PAGES = 5
+def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
+    """env 정수 읽기. 값이 이상하면 기본값으로 — 백필이 잘못된 값에 죽지 않게."""
+    try:
+        v = int(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return v if v >= min_value else default
+
+
+LIST_PAGES = _env_int("RULIWEB_BACKFILL_PAGES", 5)
+# 목록 스캔 **시작** 페이지. 기본은 기존 동작 그대로(맨 앞부터).
+# 역사 백필이 이 값을 올려 더 깊이 내려간다 — 앞 N페이지만 다시
+# 긁으면 제자리걸음이다.
+PAGE_START = _env_int("RULIWEB_PAGE_START", 1)
 MIN_DELAY = 1.5
 MAX_DELAY = 3.5
 
@@ -62,7 +75,7 @@ class RuliwebCrawler(BaseCrawler):
 
         async with self._make_httpx_client() as client:
             for board_id, board_name in RULIWEB_BOARDS:
-                for page in range(1, LIST_PAGES + 1):  # Ruliweb은 1-indexed
+                for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                     try:
                         posts = await self._fetch_board_page(client, board_id, page)
                         filtered = [p for p in posts if self._is_galaxy_related(p)]

@@ -132,3 +132,30 @@ def test_backfill_translation_can_be_enabled(monkeypatch, tmp_path):
     m = _load(monkeypatch, tmp_path, BACKFILL_TRANSLATE=1)
     assert m.SKIP_TRANSLATE is False
     assert m._nlp_deadline() is None
+
+
+def test_every_site_entry_resolves(monkeypatch, tmp_path):
+    """SITES 의 모듈·클래스·env 접두가 실재해야 한다.
+
+    오타 하나면 그 소스만 조용히 백필에서 빠진다 — 실제로 BobaedreamCrawler 로
+    적었다가 잡혔다(실제는 BobaeDreamCrawler).
+    """
+    import importlib
+    m = _load(monkeypatch, tmp_path)
+    for site, (mod_path, cls_name, prefix, floor) in m.SITES.items():
+        mod = importlib.import_module(mod_path)
+        assert hasattr(mod, cls_name), f"{site}: {mod_path}.{cls_name} 없음"
+        assert hasattr(mod, "PAGE_START"), f"{site}: PAGE_START 가 없다 — 깊이 못 간다"
+        assert hasattr(mod, "LIST_PAGES"), f"{site}: LIST_PAGES 가 없다"
+        assert floor in (0, 1), f"{site}: 바닥이 {floor}"
+
+
+def test_every_site_loop_uses_page_start(monkeypatch, tmp_path):
+    """상수만 있고 루프가 안 쓰면 무의미하다."""
+    import pathlib as _p
+    m = _load(monkeypatch, tmp_path)
+    root = _p.Path(__file__).resolve().parents[1]
+    for site, (mod_path, _, _, _) in m.SITES.items():
+        src = (root / (mod_path.replace(".", "/") + ".py")).read_text()
+        assert "range(PAGE_START, PAGE_START + LIST_PAGES)" in src, \
+            f"{site}: 목록 루프가 PAGE_START 를 쓰지 않는다"
