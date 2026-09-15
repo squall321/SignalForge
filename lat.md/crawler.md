@@ -146,3 +146,25 @@ Source: [[crawler/nlp/translator.py#translate_to_english]]
 한 번 더 압축을 풀려다 `DecodingError`).
 
 Source: [[crawler/base/crawler.py#_looks_walled]]
+
+## 0건 소스 진단 결과 (2026-09-15)
+
+헬스 체크가 "수집 0건"으로 지목한 27종을 전부 직접 돌려 분류했다.
+**대부분은 고장이 아니었다.**
+
+| 분류 | 소스 | 실체 |
+|---|---|---|
+| 정상 (긁는데 신규가 없음) | arageek 70 · danawa 20 · dpreview 8 · engadget 25 · gizmodo_au 61 · hackerone 9 · **ifixit 700** · mobile_review 150 · resetera 18 · sanook 16 · stackexchange 41 · techcabal 150 · techinafrica 85 | 전부 중복. 경보가 잘못이었다 |
+| 구조적 차단 | androidcentral (stile 챌린지 18/36) · quora (Cloudflare) | 재시도로 안 뚫린다 |
+| Playwright 챌린지 실패 | fmkorea | **감지 밖** — Playwright 경로는 `_BudgetTransport` 를 지나지 않아 벽으로 잡히지 않는다 |
+| 자격증명 없음 | bluesky · reddit · twitter | `.env` 에 키가 비어 있다 |
+| 사이트 도달 불가 | slrclub | DNS 는 되는데 80·443 모두 connection refused |
+| 일시적 | computerbase (429) · iphoneincanada · ithome (RSS 빈 응답) | 다음 주기에 회복 |
+
+교훈 — **"수집 0건"은 진단명이 아니다.** ifixit 는 700건을 긁고도 0건으로
+경보됐고, 그 소음 속에서 정말로 막혀 있던 androidcentral 이 35일간 묻혔다.
+그래서 `items_fetched` 를 따로 기록해 "못 긁었다"와 "긁었는데 신규가 없다"를
+가른다(alembic 0043).
+
+남은 감지 공백 — Playwright 로 챌린지를 푸는 크롤러(fmkorea 등)는 httpx 를
+지나지 않아 차단 감지가 닿지 않는다.
