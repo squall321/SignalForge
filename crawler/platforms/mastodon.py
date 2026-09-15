@@ -177,6 +177,7 @@ class MastodonCrawler(BaseCrawler):
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(
+            transport=self._budget_transport(),
             headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
             timeout=20.0,
             follow_redirects=True,

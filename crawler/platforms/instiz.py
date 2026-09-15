@@ -79,6 +79,7 @@ class InstizCrawler(BaseCrawler):
     def _make_httpx_client(self) -> httpx.AsyncClient:
         # mobile=0 쿠키로 데스크탑 뷰 강제 (모바일 뷰는 구조 다름)
         return httpx.AsyncClient(
+            transport=self._budget_transport(),
             headers={
                 "User-Agent": self._random_ua(),
                 "Referer": BASE_URL + "/",

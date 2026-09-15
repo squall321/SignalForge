@@ -165,6 +165,7 @@ class MisskeyCrawler(BaseCrawler):
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(
+            transport=self._budget_transport(),
             headers={
                 "User-Agent": USER_AGENT,
                 "Accept": "application/json",

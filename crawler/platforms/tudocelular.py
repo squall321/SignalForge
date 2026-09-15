@@ -91,6 +91,7 @@ class TudoCelularCrawler(BaseCrawler):
     def _make_httpx_client(self) -> httpx.AsyncClient:
         # Cloudflare Turnstile 우회 — Firefox UA + pt-BR Accept-Language
         return httpx.AsyncClient(
+            transport=self._budget_transport(),
             headers={
                 "User-Agent": FIREFOX_UA,
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",

@@ -94,6 +94,7 @@ class FMKoreaCrawler(BaseCrawler):
         # env 미설정/probe 실패 시 proxy_kwargs 는 빈 dict → 직접 호출 폴백.
         proxy_kwargs = build_proxy_client_kwargs(prefix="FMKOREA")
         async with httpx.AsyncClient(
+            transport=self._budget_transport(),
             headers=headers, timeout=30.0, follow_redirects=True, **proxy_kwargs,
         ) as client:
             for mid, cat, name in FMK_BOARDS:

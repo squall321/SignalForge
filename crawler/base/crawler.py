@@ -90,6 +90,41 @@ ACCEPT_LANGUAGES = [
 ]
 
 
+# 예산이 끝나면 **네트워크를 타지 않는** transport.
+#
+# 가드를 크롤러마다 손으로 넣는 방식은 실패했다 — 96개 중 88개는 가드가 아예
+# 없었고, 있는 8개도 바깥 루프에 두는 실수를 반복했다(appstore·telepolis·
+# mobile_review). 사람이 루프 중첩을 눈으로 보고 최내곽을 고르는 일이라
+# 반복해서 틀린다.
+#
+# 그래서 길목에서 막는다. 예산이 끝나면 요청을 실제로 보내지 않고 508 응답을
+# 즉시 돌려준다. 호출자는 이미 "200 아니면 건너뛴다"로 되어 있으므로 남은
+# 반복은 네트워크 없이 순식간에 소진되고, crawl() 은 **그때까지 모은 것을
+# 정상 반환**한다. 예외를 던지면 수집분이 통째로 날아가므로 던지지 않는다.
+#
+# 508(Loop Detected)을 쓰는 이유 — fetch() 의 재시도 대상(403/429/503)이
+# 아니어서 백오프 sleep 을 유발하지 않는다.
+class _BudgetTransport(httpx.AsyncBaseTransport):
+    def __init__(self, crawler: "BaseCrawler", inner: httpx.AsyncBaseTransport):
+        self._crawler = crawler
+        self._inner = inner
+        self._blocked = 0
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        if self._crawler.budget_exceeded():
+            self._blocked += 1
+            if self._blocked == 1:
+                self._crawler.logger.warning(
+                    "수집 예산 소진 — 이후 요청은 네트워크 없이 종료한다"
+                    " (여기까지 모은 것은 유지)")
+            return httpx.Response(508, request=request,
+                                  content=b"", headers={"x-sf-budget": "exceeded"})
+        return await self._inner.handle_async_request(request)
+
+    async def aclose(self) -> None:
+        await self._inner.aclose()
+
+
 # @lat: BaseCrawler — [[crawler#BaseCrawler]] 참조.
 class BaseCrawler(ABC):
     """모든 크롤러의 추상 기반 클래스"""
@@ -440,6 +475,10 @@ class BaseCrawler(ABC):
             self.logger.warning(f"job 상태 업데이트 실패: {e}")
 
     async def _random_delay(self):
+        # 예산이 끝난 뒤의 예의상 대기는 의미가 없다. 남은 반복을 빨리
+        # 소진시켜야 crawl() 이 모은 것을 들고 제때 빠져나온다.
+        if self.budget_exceeded():
+            return
         delay = random.uniform(self.MIN_DELAY, self.MAX_DELAY)
         await asyncio.sleep(delay)
 
@@ -451,11 +490,21 @@ class BaseCrawler(ABC):
     def _random_accept_language() -> str:
         return random.choice(ACCEPT_LANGUAGES)
 
-    def _make_httpx_client(self) -> httpx.AsyncClient:
+    def _budget_transport(self) -> httpx.AsyncBaseTransport:
+        """자체 AsyncClient 를 만드는 크롤러가 transport= 로 끼워 넣는다."""
+        return _BudgetTransport(self, httpx.AsyncHTTPTransport(retries=0))
+
+    def _make_httpx_client(self, **kw) -> httpx.AsyncClient:
+        """예산 가드가 걸린 httpx 클라이언트. 크롤러는 항상 이걸로 만들어야 한다."""
+        timeout = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0)
+        headers = {"User-Agent": self._random_ua()}
+        headers.update(kw.pop("headers", None) or {})
         return httpx.AsyncClient(
-            headers={"User-Agent": self._random_ua()},
-            timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0),
-            follow_redirects=True,
+            headers=headers,
+            timeout=kw.pop("timeout", timeout),
+            follow_redirects=kw.pop("follow_redirects", True),
+            transport=_BudgetTransport(self, httpx.AsyncHTTPTransport(retries=0)),
+            **kw,
         )
 
     # Harvest 3 트랙 A: 매 요청마다 UA + Accept-Language 회전.

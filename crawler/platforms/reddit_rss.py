@@ -296,6 +296,7 @@ class RedditRSSCrawler(BaseCrawler):
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(
+            transport=self._budget_transport(),
             headers={"User-Agent": RSS_USER_AGENT},
             timeout=30.0,
             follow_redirects=True,

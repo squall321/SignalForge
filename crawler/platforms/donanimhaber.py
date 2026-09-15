@@ -86,6 +86,7 @@ class DonanimHaberCrawler(BaseCrawler):
         seen_urls: set = set()
 
         async with httpx.AsyncClient(
+            transport=self._budget_transport(),
             headers={
                 "User-Agent": FIREFOX_UA,
                 "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.5",

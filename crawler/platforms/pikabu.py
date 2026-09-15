@@ -180,6 +180,7 @@ class PikabuCrawler(BaseCrawler):
     def _client(self) -> httpx.AsyncClient:
         # 단일 client 세션 = DDoS-Guard 쿠키 자동 재사용.
         return httpx.AsyncClient(
+            transport=self._budget_transport(),
             headers={
                 "User-Agent": _ua(),
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
