@@ -121,23 +121,24 @@ _WALL_SIGNS = (
 )
 
 
-def _looks_walled(resp: httpx.Response) -> bool:
-    """봇 차단벽 페이지인지 — 본문이 작고 서명이 보이면 벽으로 본다."""
+def _looks_walled(resp: httpx.Response, url: str = "", body: bytes = b"") -> bool:
+    """봇 차단벽 페이지인지 — URL·상태·본문 서명으로 판정.
+
+    url/body 는 호출자가 넘긴다. transport 안의 응답은 아직 읽기 전이라
+    resp.content 접근이 ResponseNotRead 로 터지기 때문이다 — 그걸 try 로
+    삼키면 본문 판정이 조용히 죽는다(실측: 벽 0건으로 나왔다).
+    """
     if resp.status_code in (401, 403, 429):
         return True
     if resp.status_code != 200:
         return False
-    url = str(resp.url).lower()
-    if any(sig in url for sig in _WALL_SIGNS):
+    if any(sig in (url or str(resp.request.url)).lower() for sig in _WALL_SIGNS):
         return True
-    # 챌린지 페이지는 대개 아주 작다. 본문을 읽지 못하는 스트리밍 응답은 건너뛴다.
-    try:
-        if len(resp.content) > 20_000:
-            return False
-        body = resp.content[:20_000].decode("utf-8", "ignore").lower()
-    except Exception:
+    # 챌린지 페이지는 대개 아주 작다. 긴 본문은 정상 페이지로 본다.
+    if not body or len(body) > 20_000:
         return False
-    return any(sig in body for sig in _WALL_SIGNS)
+    text = body[:20_000].decode("utf-8", "ignore").lower()
+    return any(sig in text for sig in _WALL_SIGNS)
 
 
 class _BudgetTransport(httpx.AsyncBaseTransport):
@@ -158,12 +159,34 @@ class _BudgetTransport(httpx.AsyncBaseTransport):
 
         resp = await self._inner.handle_async_request(request)
         self._crawler._wall_total += 1
+
+        # 본문을 여기서 다 읽어 확정 응답으로 바꿔 돌려준다. 크롤러 중
+        # 스트리밍(.stream/aiter_bytes)을 쓰는 곳은 없어서 의미 차이가 없고,
+        # 이렇게 해야 챌린지 페이지 본문을 볼 수 있다.
+        body = b""
         try:
-            if _looks_walled(resp):
+            body = await resp.aread()
+        except Exception:
+            return resp
+        finally:
+            try:
+                await resp.aclose()
+            except Exception:
+                pass
+
+        try:
+            if _looks_walled(resp, url=str(request.url), body=body):
                 self._crawler._wall_hits += 1
         except Exception:
             pass
-        return resp
+
+        # aread() 가 이미 압축을 풀었다. 원래 헤더를 그대로 붙이면 httpx 가
+        # 한 번 더 풀려다 DecodingError 를 낸다 — 그 두 헤더는 떼고 돌려준다.
+        headers = [(k, v) for k, v in resp.headers.raw
+                   if k.lower() not in (b"content-encoding", b"content-length")]
+        return httpx.Response(resp.status_code, headers=headers,
+                              content=body, request=request,
+                              extensions=resp.extensions)
 
     async def aclose(self) -> None:
         await self._inner.aclose()

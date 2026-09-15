@@ -7,12 +7,18 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from base.crawler import BaseCrawler, _looks_walled
+from base.crawler import BaseCrawler
 
 
 def _resp(status=200, body=b"", url="https://example.invalid/"):
     return httpx.Response(status, content=body,
                           request=httpx.Request("GET", url))
+
+
+def _walled(status=200, body=b"", url="https://example.invalid/"):
+    """transport 가 부르는 방식 그대로 — url/body 를 밖에서 넘긴다."""
+    from base.crawler import _looks_walled as f
+    return f(_resp(status, body, url), url=url, body=body)
 
 
 class _Stub(BaseCrawler):
@@ -35,33 +41,32 @@ class _Stub(BaseCrawler):
 
 # ── 벽 판정 ────────────────────────────────────────────────────────────
 def test_stile_challenge_redirect_is_a_wall():
-    r = _resp(200, b"<html>redirecting</html>",
-              "https://forums.androidcentral.com/.stile/challenge?rung=nojs")
-    assert _looks_walled(r)
+    assert _walled(200, b"<html>redirecting</html>",
+                   "https://forums.androidcentral.com/.stile/challenge?rung=nojs")
 
 
 def test_cloudflare_body_is_a_wall():
-    assert _looks_walled(_resp(200, b"<title>Just a moment...</title>"))
+    assert _walled(200, b"<title>Just a moment...</title>")
 
 
 def test_403_is_a_wall():
-    assert _looks_walled(_resp(403))
+    assert _walled(403)
 
 
 def test_normal_page_is_not_a_wall():
-    assert not _looks_walled(_resp(200, b"<html><body>normal forum thread</body></html>"))
+    assert not _walled(200, b"<html><body>normal forum thread</body></html>")
 
 
 def test_large_page_is_not_a_wall():
     """본문이 크면 챌린지 페이지가 아니다 — 긴 글에 'are you a robot' 이
     우연히 섞여도 벽으로 오인하면 안 된다."""
     body = b"x" * 30_000 + b"are you a robot"
-    assert not _looks_walled(_resp(200, body))
+    assert not _walled(200, body)
 
 
 def test_404_is_not_a_wall():
     """사라진 게시판은 차단이 아니다 — 대응이 다르다."""
-    assert not _looks_walled(_resp(404, b"not found"))
+    assert not _walled(404, b"not found")
 
 
 # ── run() 의 보고 ──────────────────────────────────────────────────────
@@ -100,3 +105,73 @@ async def test_few_requests_do_not_trigger_blocked():
     c = _Stub(raw=[])
     c._wall_total, c._wall_hits = 2, 2
     assert (await c.run())["status"] == "done"
+
+
+# ── transport 실제 경로 ─────────────────────────────────────────────────
+# 앞의 시험들은 content= 로 만든 Response 라 .content 가 이미 읽혀 있었다.
+# 실제 transport 응답은 읽기 전이라 .content 가 ResponseNotRead 로 터진다 —
+# 그걸 try 로 삼키는 바람에 본문 판정이 조용히 죽어 있었다(실측 벽 0건).
+# 그래서 진짜 transport 를 통과시켜 본다.
+class _FakeInner(httpx.AsyncBaseTransport):
+    """본문을 스트림으로만 주는 전송 — 실제 네트워크 전송과 같은 상태."""
+
+    def __init__(self, status=200, body=b"", headers=None):
+        self.status, self.body, self.headers = status, body, headers or {}
+
+    async def handle_async_request(self, request):
+        async def stream():
+            yield self.body
+        return httpx.Response(self.status, headers=self.headers,
+                              stream=_Gen(stream()), request=request)
+
+
+class _Gen(httpx.AsyncByteStream):
+    def __init__(self, agen):
+        self._agen = agen
+
+    async def __aiter__(self):
+        async for chunk in self._agen:
+            yield chunk
+
+
+@pytest.mark.asyncio
+async def test_transport_detects_wall_in_streamed_body():
+    from base.crawler import _BudgetTransport
+    c = _Stub()
+    c.CRAWL_BUDGET_SEC = 9999
+    inner = _FakeInner(200, b"<title>Just a moment...</title>")
+    async with httpx.AsyncClient(transport=_BudgetTransport(c, inner)) as cl:
+        r = await cl.get("https://example.invalid/")
+    assert r.status_code == 200
+    assert c._wall_hits == 1, "스트림 본문에서 벽을 못 잡았다"
+    # 본문이 호출자에게 온전히 전달돼야 한다
+    assert b"Just a moment" in r.content
+
+
+@pytest.mark.asyncio
+async def test_transport_passes_normal_body_through():
+    from base.crawler import _BudgetTransport
+    c = _Stub()
+    c.CRAWL_BUDGET_SEC = 9999
+    payload = b"<html><body>" + b"real content " * 100 + b"</body></html>"
+    inner = _FakeInner(200, payload)
+    async with httpx.AsyncClient(transport=_BudgetTransport(c, inner)) as cl:
+        r = await cl.get("https://example.invalid/")
+    assert r.content == payload, "본문이 변형됐다"
+    assert c._wall_hits == 0
+
+
+@pytest.mark.asyncio
+async def test_transport_handles_gzip_without_double_decode():
+    """aread() 가 이미 압축을 풀었는데 Content-Encoding 을 그대로 붙이면
+    httpx 가 한 번 더 풀려다 DecodingError 를 낸다."""
+    import gzip
+    from base.crawler import _BudgetTransport
+    raw = b"<html>normal page</html>"
+    inner = _FakeInner(200, gzip.compress(raw),
+                       headers={"content-encoding": "gzip"})
+    c = _Stub()
+    c.CRAWL_BUDGET_SEC = 9999
+    async with httpx.AsyncClient(transport=_BudgetTransport(c, inner)) as cl:
+        r = await cl.get("https://example.invalid/")
+    assert r.content == raw
