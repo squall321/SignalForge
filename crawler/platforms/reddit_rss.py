@@ -262,6 +262,48 @@ def parse_comment_feed(xml_bytes: bytes, parent_post_url: str, subreddit: str) -
     return out
 
 
+def arctic_items_to_posts(items, sub: str) -> List[_ParsedPost]:
+    """Arctic Shift 응답 항목 → _ParsedPost 리스트.
+
+    실시간 폴백(_fetch_arctic)과 역사 백필(scripts/reddit_arctic_backfill.py)이
+    **같은 변환을 쓴다.** 각자 복제하면 반드시 갈라진다 — 그러면 같은 글이
+    external_id 가 달라 중복 저장된다.
+    """
+    if not isinstance(items, list):
+        return []
+    out: List[_ParsedPost] = []
+    for d in items:
+        if not isinstance(d, dict):
+            continue
+        permalink = d.get("permalink") or ""
+        url = (
+            permalink if permalink.startswith("http")
+            else f"{RSS_BASE}{permalink}"
+        )
+        if not url:
+            continue
+        created = d.get("created_utc")
+        pub = (
+            datetime.fromtimestamp(int(created), tz=timezone.utc)
+            if created else None
+        )
+        title = d.get("title") or ""
+        selftext = d.get("selftext") or ""
+        composite = (title + "\n" + selftext).strip()
+        rid = d.get("name") or f"t3_{d.get('id') or ''}"
+        out.append(_ParsedPost(
+            reddit_id=rid,
+            post_id_raw=d.get("id") or "",
+            permalink=url,
+            title=title,
+            content_text=composite,
+            author=d.get("author") or "[deleted]",
+            published=pub,
+            subreddit=sub,
+        ))
+    return out
+
+
 def post_to_rawvoc(p: _ParsedPost) -> RawVOC:
     external_id = hashlib.md5(f"reddit_rss::{p.reddit_id}".encode()).hexdigest()[:16]
     return RawVOC(
@@ -453,36 +495,7 @@ class RedditRSSCrawler(BaseCrawler):
         data = resp.json()
         # Arctic Shift 응답 구조: {"data": [...]}
         items = data.get("data") if isinstance(data, dict) else data
-        if not isinstance(items, list):
-            return []
-        out: List[_ParsedPost] = []
-        for d in items:
-            permalink = d.get("permalink") or ""
-            url = (
-                permalink if permalink.startswith("http")
-                else f"{RSS_BASE}{permalink}"
-            )
-            if not url:
-                continue
-            created = d.get("created_utc")
-            pub = (
-                datetime.fromtimestamp(int(created), tz=timezone.utc)
-                if created else None
-            )
-            title = d.get("title") or ""
-            selftext = d.get("selftext") or ""
-            composite = (title + "\n" + selftext).strip()
-            rid = d.get("name") or f"t3_{d.get('id') or ''}"
-            out.append(_ParsedPost(
-                reddit_id=rid,
-                post_id_raw=d.get("id") or "",
-                permalink=url,
-                title=title,
-                content_text=composite,
-                author=d.get("author") or "[deleted]",
-                published=pub,
-                subreddit=sub,
-            ))
+        out = arctic_items_to_posts(items, sub)
         self.stats["arctic_posts"] += len(out)
         return out
 
