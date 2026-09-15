@@ -139,9 +139,15 @@ def _looks_walled(resp: httpx.Response, url: str = "", body: bytes = b"") -> boo
     # 돌려주는데, 상태코드만 보고 차단으로 적었다(실측 오탐).
     if len(body) > 20_000:
         return False
-    # 401/403 은 거절, 429 는 레이트리밋 — 대응은 다르지만 둘 다 "지금은 못
-    # 긁는다"이므로 함께 센다. 구분은 _wall_summary 가 문구로 남긴다.
-    if resp.status_code in (401, 403, 429):
+    # **429 는 벽이 아니다.** 레이트리밋은 일시적이고 기존 백오프·재시도가
+    # 다루는 정상 운영 상황이다. 이걸 blocked 로 올리면 건강한 소스에 오경보가
+    # 난다 — computerbase 는 누적 3,445건·30일 574건을 수집하는 정상 소스인데
+    # 짧은 시간에 반복 호출하자 429 를 내놨고, 그걸 차단으로 적었다.
+    # blocked 는 "구조적으로 막혔다"는 뜻이어야 한다(35일 은폐된 androidcentral).
+    # 429 는 _throttle_hits 로만 세어 로그에 남긴다.
+    if resp.status_code == 429:
+        return False
+    if resp.status_code in (401, 403):
         return True
     if resp.status_code != 200:
         return False
@@ -190,10 +196,10 @@ class _BudgetTransport(httpx.AsyncBaseTransport):
                 pass
 
         try:
-            if _looks_walled(resp, url=str(request.url), body=body):
+            if resp.status_code == 429:
+                self._crawler._throttle_hits += 1
+            elif _looks_walled(resp, url=str(request.url), body=body):
                 self._crawler._wall_hits += 1
-                if resp.status_code == 429:
-                    self._crawler._throttle_hits += 1
         except Exception:
             pass
 
@@ -284,13 +290,8 @@ class BaseCrawler(ABC):
         ratio = self._wall_hits / self._wall_total
         if ratio < self.WALL_RATIO:
             return None
-        # 429 가 대부분이면 차단이 아니라 레이트리밋이다 — 대응이 다르므로
-        # (차단은 접근 방식을 바꿔야 하고, 레이트리밋은 주기를 늦추면 된다)
-        # 문구로 구분해 남긴다.
-        kind = ("레이트리밋(429)" if self._throttle_hits > self._wall_hits / 2
-                else "차단 응답")
         return (f"요청 {self._wall_total}건 중 {self._wall_hits}건이 "
-                f"{kind} ({ratio:.0%})")
+                f"차단 응답 ({ratio:.0%})")
 
     def budget_left(self) -> float:
         return max(0.0, self.CRAWL_BUDGET_SEC - (time.monotonic() - self._started))
@@ -553,6 +554,10 @@ class BaseCrawler(ABC):
             # androidcentral 처럼 35일간 "정상인데 조용함"으로 묻힌다.
             # 한 건이라도 긁었다면 소스는 동작한 것이다 — 상세 페이지 일부가
             # 403 이어도 막힌 게 아니다. 아무것도 못 긁었을 때만 차단으로 본다.
+            if not raw_vocs and self._throttle_hits:
+                self.logger.warning(
+                    f"  레이트리밋 관측 — 요청 {self._wall_total}건 중 "
+                    f"{self._throttle_hits}건이 429. 일시적이므로 done 으로 둔다")
             wall_note = self._wall_summary() if not raw_vocs else None
             if wall_note:
                 self.logger.warning(f"  차단벽 관측 — {wall_note}")

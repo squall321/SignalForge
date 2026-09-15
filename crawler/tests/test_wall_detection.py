@@ -190,22 +190,28 @@ def test_large_body_is_never_a_wall_regardless_of_status():
     assert not _walled(403, real_page)
 
 
-def test_short_429_is_still_counted():
-    assert _walled(429, b"http 429 too many requests")
+def test_429_is_not_a_wall():
+    """레이트리밋은 일시적이고 백오프가 다루는 정상 상황이다.
+
+    이걸 벽으로 치면 건강한 소스에 오경보가 난다 — computerbase 는 30일
+    574건을 수집하는 정상 소스인데 반복 호출로 429 가 나자 차단으로 적혔다.
+    """
+    assert not _walled(429, b"http 429 too many requests")
 
 
 @pytest.mark.asyncio
-async def test_summary_says_rate_limit_when_429_dominates():
+async def test_rate_limited_run_stays_done():
+    """429 뿐이면 blocked 가 아니라 done — 다음 주기에 다시 하면 된다."""
     c = _Stub(raw=[])
-    c._wall_total, c._wall_hits, c._throttle_hits = 10, 9, 9
-    out = await c.run()
-    assert out["status"] == "blocked"
-    assert "레이트리밋" in out["detail"], out["detail"]
+    c._wall_total, c._wall_hits, c._throttle_hits = 10, 0, 10
+    assert (await c.run())["status"] == "done"
 
 
 @pytest.mark.asyncio
-async def test_summary_says_blocked_when_not_429():
+async def test_structural_wall_still_blocks():
+    """403·챌린지는 구조적이라 blocked 여야 한다(35일 은폐된 androidcentral)."""
     c = _Stub(raw=[])
     c._wall_total, c._wall_hits, c._throttle_hits = 10, 9, 0
     out = await c.run()
+    assert out["status"] == "blocked"
     assert "차단 응답" in out["detail"], out["detail"]

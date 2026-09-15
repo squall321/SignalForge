@@ -132,6 +132,14 @@ Source: [[crawler/nlp/translator.py#translate_to_english]]
 남긴다. 한 건이라도 긁혔으면 `done` 이다(상세 페이지 일부 403 은 차단이 아니다).
 404 도 차단이 아니다 — 사라진 게시판은 대응이 다르다.
 
+**429 는 벽이 아니다.** 레이트리밋은 일시적이고 기존 백오프·재시도가 다루는
+정상 운영 상황이라 `_throttle_hits` 로만 세고 로그에 남긴다. `blocked` 는
+"구조적으로 막혔다"는 뜻이어야 한다(403·챌린지). 429 를 벽으로 치면 건강한
+소스에 오경보가 난다 — computerbase 는 30일 574건을 수집하는 정상 소스인데
+검증하느라 짧은 시간에 반복 호출하자 429 를 내놨고 그게 차단으로 기록됐다.
+같은 이유로 **본문이 20KB 를 넘으면 상태코드와 무관하게 거절이 아니다**
+(computerbase 는 429 와 함께 32KB 짜리 정상 HTML 을 돌려주기도 한다).
+
 주의: transport 안의 응답은 아직 읽기 전이라 `resp.content` 가
 `ResponseNotRead` 로 터진다. 그래서 `aread()` 로 본문을 확정한 뒤 판정하고,
 `content-encoding`/`content-length` 를 뗀 새 응답을 돌려준다(안 떼면 httpx 가
