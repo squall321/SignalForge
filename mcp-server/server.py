@@ -511,16 +511,6 @@ async def lifecycle_compare(
     return await lifecycle_compare_tool(product_code, max_week, defect_only)
 
 
-if __name__ == "__main__":
-    _token = os.getenv("SF_MCP_TOKEN", "").strip()
-    if _token:
-        import uvicorn
-        uvicorn.run(_BearerGate(mcp.streamable_http_app(), _token),
-                    host=mcp.settings.host, port=mcp.settings.port)
-    else:
-        mcp.run(transport="streamable-http")
-
-
 # ── 결함 시나리오 도출 ────────────────────────────────────────────────────
 # 결함 "시나리오"는 숫자 하나로 서지 않는다. 아래 도구들은 **같은 필터 축**을 받아
 # 한 슬라이스를 여러 관점으로 보게 한다. 권장 조합 —
@@ -748,3 +738,20 @@ async def voc_breakdown(
         by=by, days=days, limit=limit, keyword=keyword,
         product_code=product_code, brand=brand, category=category,
         country=country, platform=platform, sentiment=sentiment)
+
+
+# ── 서버 기동 ─────────────────────────────────────────────────────────────
+# **이 블록은 반드시 파일 맨 아래에 있어야 한다.** uvicorn.run 은 블로킹이라
+# 여기서 실행이 멈춘다. 중간에 두면 그 아래 @mcp.tool() 정의가 아예 실행되지
+# 않아 도구가 조용히 사라진다 — 실측(2026-09-15): 이 블록이 514줄에 있어서
+# 뒤에 정의된 결함 5종·통계 4종이 tools/list 에 나오지 않았다(34개 중 25개만).
+# import 로 열면 이 블록을 건너뛰어 34개가 다 보이는 탓에 시험으로는 안 잡혔다.
+# test_server_entrypoint_is_last 가 이걸 지킨다.
+if __name__ == "__main__":
+    _token = os.getenv("SF_MCP_TOKEN", "").strip()
+    if _token:
+        import uvicorn
+        uvicorn.run(_BearerGate(mcp.streamable_http_app(), _token),
+                    host=mcp.settings.host, port=mcp.settings.port)
+    else:
+        mcp.run(transport="streamable-http")
