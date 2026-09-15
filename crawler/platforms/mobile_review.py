@@ -84,13 +84,22 @@ class MobileReviewCrawler(BaseCrawler):
             client.headers["Accept-Language"] = "ru-RU,ru;q=0.9,en;q=0.8"
             client.headers["Accept-Encoding"] = "gzip, deflate"
 
+            stop = False
             for post_type in WP_POST_TYPES:
+                if stop:
+                    break
                 for term in SEARCH_TERMS:
-                    # 3중 루프(타입×검색어×페이지)라 항목이 늘수록 선형으로 길어진다
-                    if self.budget_exceeded(len(items)):
-                        logger.warning("Mobile-review 예산 초과 — 조기 종료")
+                    if stop:
                         break
                     for page in range(1, LIST_PAGES + 1):
+                        # 가드는 **가장 안쪽**에 둬야 한다. term 레벨에 두면 그 안의
+                        # 페이지 루프 한 바퀴가 통째로 돌아 발화가 늦다
+                        # (실측 622초로 soft limit 600초 초과).
+                        if self.budget_exceeded(len(items)):
+                            logger.warning(
+                                f"Mobile-review 예산 초과 — {post_type}/{term} p{page} 에서 종료")
+                            stop = True
+                            break
                         try:
                             page_items = await self._fetch_rest_page(
                                 client, post_type, term, page

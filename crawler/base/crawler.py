@@ -128,9 +128,13 @@ class BaseCrawler(ABC):
     CRAWL_BUDGET_SEC: float = float(os.getenv("CRAWL_TIME_BUDGET_SEC", "330"))
     CRAWL_MAX_ITEMS: int = int(os.getenv("CRAWL_MAX_ITEMS", "500"))
     # NLP→저장 청크. 이 단위로 커밋하므로 타임아웃 시 잃는 것은 마지막 청크뿐이다.
-    NLP_CHUNK: int = int(os.getenv("NLP_CHUNK", "200"))
-    # 실행 전체 예산(crawl + NLP + save). soft limit 600s 의 85%.
-    RUN_BUDGET_SEC: float = float(os.getenv("CRAWL_RUN_BUDGET_SEC", "510"))
+    NLP_CHUNK: int = int(os.getenv("NLP_CHUNK", "150"))
+    # 실행 전체 예산(crawl + NLP + save).
+    # **마지막 청크가 경계를 넘긴다**는 것을 계산에 넣어야 한다. 예산을 확인한 뒤
+    # 시작한 청크는 끝까지 돌기 때문이다 — 510s 예산에 청크 200건(최악 0.667s/건
+    # = 133s)이면 643s 로 soft limit 600s 를 넘는다(실측 mobile_review 602.8s).
+    # 430 + 150×0.667 = 530s 로 여유를 둔다.
+    RUN_BUDGET_SEC: float = float(os.getenv("CRAWL_RUN_BUDGET_SEC", "430"))
 
     def budget_exceeded(self, collected: int = 0) -> bool:
         """시간 또는 수집량 상한 초과. 긴 루프는 반복마다 확인하고 break 하라."""

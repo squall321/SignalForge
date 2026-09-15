@@ -93,11 +93,12 @@ def test_run_budget_under_soft_limit():
     청크 커밋이 담보하고, 이 예산은 마지막 청크 하나만 잃도록 하는 장치다.
     """
     from base.crawler import BaseCrawler
-    assert BaseCrawler.RUN_BUDGET_SEC < 600
-    # 마지막 청크가 최악 단가로 돌아도 hard limit(780s) 전에는 끝나야 한다
     WORST_PER_ITEM = 0.667        # 실측 mlbpark 368.8s / 553건
-    assert (BaseCrawler.RUN_BUDGET_SEC
-            + BaseCrawler.NLP_CHUNK * WORST_PER_ITEM) < 780
+    # **soft limit 기준으로 봐야 한다.** 예산을 확인한 뒤 시작한 청크는 끝까지
+    # 돌므로 예산 + 청크 1개가 실제 상한이다. hard limit 만 보다가 602.8초를
+    # 놓쳤다(mobile_review).
+    worst = BaseCrawler.RUN_BUDGET_SEC + BaseCrawler.NLP_CHUNK * WORST_PER_ITEM
+    assert worst < 600, f"최악 {worst:.0f}s 가 soft limit 600s 를 넘는다"
 
 
 def test_chunked_commit_wired():
@@ -108,3 +109,38 @@ def test_chunked_commit_wired():
     assert "NLP_CHUNK" in src and "run_budget_exceeded" in src
     # save 가 루프 안에 있어야 한다 — 루프 밖 단일 호출이면 의미가 없다
     assert src.index("for i in range(0, len(raw_vocs)") < src.index("await self.save(")
+
+
+# ── 예산 가드 위치 — 가장 안쪽 루프에 있어야 한다 ─────────────────────
+# 실수를 세 번 반복했다. 가드를 바깥 루프에 두면 그 안쪽이 통째로 돌아 발화가 늦다 —
+#   appstore     마켓 루프에만 → 31/32 실패
+#   telepolis    기사 루프에만 → 목록이 예산을 다 먹어 694.6초, 수집 10건
+#   mobile_review term 루프에만 → 622.0초
+# 아래는 "가드가 존재하는지"만 보는 최소 방어다. 위치까지 정적으로 검증할 수는
+# 없지만, 타임아웃 이력이 있는 소스에 가드가 **빠지는 것**은 막는다.
+_TIMEOUT_PRONE = [
+    "clien", "dogdrip", "kaskus", "dcinside", "donanimhaber",
+    "mlbpark", "appstore", "bestbuy",
+    "telepolis", "hardware_fr", "mobile_review", "computerbase",
+]
+
+
+@pytest.mark.parametrize("module_name", _TIMEOUT_PRONE)
+def test_timeout_prone_crawlers_have_budget_guard(module_name):
+    """SoftTimeLimitExceeded 이력이 있는 크롤러는 예산 가드를 가져야 한다."""
+    import pathlib
+    src = pathlib.Path(__file__).parent.parent / "platforms" / f"{module_name}.py"
+    if not src.exists():
+        pytest.skip(f"{module_name} 없음")
+    text = src.read_text()
+    assert "budget_exceeded" in text, (
+        f"{module_name} 에 예산 가드가 없다 — 타임아웃 시 수집분이 전량 버려진다")
+
+
+def test_multi_loop_crawlers_guard_inner_loop():
+    """3중 루프 크롤러는 가장 안쪽에서 확인해야 한다(mobile_review 622초 사례)."""
+    import pathlib
+    src = (pathlib.Path(__file__).parent.parent / "platforms" / "mobile_review.py").read_text()
+    guard_at = src.index("budget_exceeded")
+    page_loop_at = src.index("for page in range(1, LIST_PAGES + 1)")
+    assert page_loop_at < guard_at, "가드가 페이지 루프 바깥에 있다"
