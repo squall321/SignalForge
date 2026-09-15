@@ -327,7 +327,14 @@ def crawl_platform(
     try:
         crawler = CrawlerClass(platform_code=platform_code, product_code=product_code, job_id=job_id)
         result = asyncio.run(crawler.run())
-        logger.info(f"[{platform_code}] 크롤링 완료: {result.get('items_collected', 0)}건")
+        # blocked 는 예외가 아니라 재시도를 부르지 않는다(벽은 재시도로 안 뚫린다).
+        # 다만 "완료"로 찍으면 차단이 로그에서도 가려지므로 구분해서 남긴다.
+        if result.get("status") == "blocked":
+            logger.warning(
+                f"[{platform_code}] 차단됨: {result.get('detail')} "
+                f"(저장 {result.get('items_collected', 0)}건)")
+        else:
+            logger.info(f"[{platform_code}] 크롤링 완료: {result.get('items_collected', 0)}건")
         return result
     except Exception as exc:
         logger.exception(f"[{platform_code}] 크롤링 실패: {exc}")
