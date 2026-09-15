@@ -34,7 +34,8 @@ run_step hn-backfill.sh
 run_step wpnews-backfill.sh                         # WP뉴스 옛기사(연도 롤링) 매일
 run_step wayback-backfill.sh                        # Wayback 아카이브 옛뉴스(연도 롤링, 느림) 매일
 run_step reddit-backfill.sh                         # Reddit 역사(Arctic Shift, sub별 커서 이어받기) 매일
-run_step deep-page-backfill.sh                       # 포럼 깊이(커서 전진) 월/화/수 각 1 site
+run_step deep-page-backfill.sh                       # 포럼 깊이(커서 전진) 월~금 요일별
+run_step repair-dogdrip.sh                          # dogdrip 옛 댓글 날짜 복구(끝나면 자동 skip)
 [ "$dow" = "7" ] && run_step kr-backfill.sh        # 일요일: KR 깊이(앞 50p 재확인 — 신선도용)
 [ "$dow" = "6" ] && run_step global-backfill.sh    # 토요일: 글로벌 깊이
 echo "$(date '+%F %T') ===== backfill 러너 끝 =====" >> "$LOG"
