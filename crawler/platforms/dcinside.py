@@ -53,6 +53,10 @@ MAX_POSTS = _env_int("DCINSIDE_MAX_POSTS", 150)
 # 목록 스캔 페이지 수 (1-indexed range 상한 = LIST_PAGES+1)
 # BACKFILL_PAGES 환경변수로 옛 글 백카탈로그 수집 시 50~100 까지 확장
 LIST_PAGES = _env_int("DCINSIDE_BACKFILL_PAGES", 12)
+# 목록 스캔 **시작** 페이지. 기본값은 기존 동작 그대로(맨 앞부터).
+# 역사 백필은 이 값을 올려 더 깊이 내려간다 — 매번 앞 N페이지만 다시 긁으면
+# 제자리걸음이다(실측 2026-09-13: KR 백필 36분에 clien 0·ppomppu 3·dcinside 2건).
+PAGE_START = _env_int("DCINSIDE_PAGE_START", 1)
 
 GALAXY_KEYWORDS = [
     "갤럭시", "Galaxy", "S25", "S26", "S24", "S23", "S22",
@@ -78,7 +82,7 @@ class DCInsideCrawler(BaseCrawler):
         async with self._make_httpx_client() as client:
             client.headers["Referer"] = BASE_URL
             for prefix, gid, name in DC_GALLERIES:
-                for page in range(1, LIST_PAGES + 1):  # 최근 N페이지
+                for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                     try:
                         posts = await self._fetch_list_page(client, prefix, gid, page)
                         filtered = [p for p in posts if self._is_galaxy_related(p)]

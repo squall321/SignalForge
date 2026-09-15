@@ -46,6 +46,10 @@ MAX_POSTS = _env_int("CLIEN_MAX_POSTS", 150)
 # 목록 스캔 페이지 수 (0-indexed range 상한)
 # BACKFILL_PAGES 환경변수로 옛 글 백카탈로그 수집 시 50~100 까지 확장
 LIST_PAGES = _env_int("CLIEN_BACKFILL_PAGES", 12)
+# 목록 스캔 **시작** 페이지. 기본값은 기존 동작 그대로(맨 앞부터).
+# 역사 백필은 이 값을 올려 더 깊이 내려간다 — 매번 앞 N페이지만 다시 긁으면
+# 제자리걸음이다(실측 2026-09-13: KR 백필 36분에 clien 0·ppomppu 3·dcinside 2건).
+PAGE_START = _env_int("CLIEN_PAGE_START", 0)
 
 # 게시판 → 페이지 URL 패턴
 BOARD_LIST_URL = "{base}/service/board/{board}?&od=T31&po={page}"
@@ -77,7 +81,7 @@ class ClienCrawler(BaseCrawler):
 
         async with self._make_httpx_client() as client:
             for board_code, board_name in CLIEN_BOARDS:
-                for page in range(0, LIST_PAGES):  # 최근 N페이지
+                for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                     if self.budget_exceeded(len(list_posts)):
                         logger.warning("Clien 예산 초과 — 리스트 수집 조기 종료")
                         break

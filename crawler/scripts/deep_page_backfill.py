@@ -1,0 +1,159 @@
+# 목록 페이지를 매 실행 더 깊이 내려가며 과거 글을 소급 수집한다 (커서 방식).
+"""deep_page_backfill — 포럼형 소스의 역사 수집.
+
+배경:
+  기존 historical_kr_backfill.py 는 매 실행 **같은 앞 50페이지**를 다시 긁었다.
+  실측(2026-09-13) — 36분을 돌고 clien 0건·ppomppu 3건·dcinside 2건 저장.
+  제자리걸음이다. 그 결과 dcinside 는 99,868건 중 2026년 이전이 16건뿐이다.
+
+  Reddit 백필에서 겪은 것과 같은 함정이다. 창을 고정하면 꼬리만 긁는다.
+  여기서는 **페이지 커서**를 남겨 매 실행 다음 구간으로 내려간다.
+
+동작:
+  site 별로 `<state>/deep-page-state.json` 에 다음 시작 페이지를 적는다.
+    {"dcinside": {"page": 61, "empty_rounds": 0} , ...}
+  한 실행은 site 당 PAGES_PER_RUN 페이지만 훑고 커서를 그만큼 전진시킨다.
+  연속으로 EMPTY_LIMIT 번 신규 0건이면 바닥으로 보고 커서를 1 로 되돌린다
+  (사이트가 과거를 더 안 내주거나 우리가 이미 다 가진 것이다).
+
+  저장은 크롤러 save() 를 그대로 쓴다 — external_id + content_hash 2단 중복
+  차단이 있어 창이 겹쳐도 손해가 없다(멱등).
+
+env:
+  DEEP_SITES            콤마 구분 (기본 dcinside,clien,ppomppu)
+  DEEP_PAGES_PER_RUN    실행당 site 당 페이지 수 (기본 12)
+  DEEP_EMPTY_LIMIT      연속 0건 허용 횟수 (기본 3)
+  DEEP_STATE            상태 파일 경로
+  DEEP_BUDGET_SEC       site 당 시간 상한 (기본 900)
+  DRY_RUN=1             저장하지 않는다
+"""
+import asyncio
+import importlib
+import json
+import logging
+import os
+import sys
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+log = logging.getLogger("deep_page")
+
+# (site, 모듈, 클래스, env 접두, 최소 페이지)
+SITES = {
+    "dcinside": ("platforms.dcinside", "DCInsideCrawler", "DCINSIDE", 1),
+    "clien": ("platforms.clien", "ClienCrawler", "CLIEN", 0),
+    "ppomppu": ("platforms.ppomppu", "PpomppuCrawler", "PPOMPPU", 1),
+}
+
+PAGES_PER_RUN = int(os.getenv("DEEP_PAGES_PER_RUN", "12"))
+EMPTY_LIMIT = int(os.getenv("DEEP_EMPTY_LIMIT", "3"))
+BUDGET_SEC = float(os.getenv("DEEP_BUDGET_SEC", "900"))
+DRY_RUN = os.getenv("DRY_RUN", "0") == "1"
+STATE_PATH = os.getenv(
+    "DEEP_STATE",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                 "..", "logs", "deep-page-state.json"))
+
+
+def _load_state() -> dict:
+    try:
+        with open(STATE_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_state(st: dict) -> None:
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(STATE_PATH)), exist_ok=True)
+        tmp = STATE_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(st, f, ensure_ascii=False, indent=1, sort_keys=True)
+        os.replace(tmp, STATE_PATH)
+    except Exception as e:
+        log.warning("상태 저장 실패: %s", e)
+
+
+def _selected():
+    raw = os.getenv("DEEP_SITES", "").strip()
+    names = [s.strip() for s in raw.split(",") if s.strip()] if raw else list(SITES)
+    return [n for n in names if n in SITES]
+
+
+async def _run_site(site: str, start_page: int) -> int:
+    """지정 구간을 훑어 신규 저장 건수를 돌려준다."""
+    mod_path, cls_name, prefix, _ = SITES[site]
+    # 크롤러 상수는 import 시점에 굳으므로 **import 전에** env 를 심는다.
+    os.environ[f"{prefix}_PAGE_START"] = str(start_page)
+    os.environ[f"{prefix}_BACKFILL_PAGES"] = str(PAGES_PER_RUN)
+    mod = importlib.reload(importlib.import_module(mod_path))
+    crawler = getattr(mod, cls_name)()
+    crawler.CRAWL_BUDGET_SEC = BUDGET_SEC
+    crawler.RUN_BUDGET_SEC = BUDGET_SEC
+
+    log.info("%s p%d~p%d 시작", site, start_page, start_page + PAGES_PER_RUN - 1)
+    raw = await crawler.crawl()
+    if DRY_RUN:
+        log.info("%s: %d건 수집 (DRY_RUN — 저장 안 함)", site, len(raw))
+        return 0
+    if not raw:
+        return 0
+
+    from nlp.pipeline import process_voc_list
+    saved = 0
+    for i in range(0, len(raw), crawler.NLP_CHUNK):
+        part = raw[i:i + crawler.NLP_CHUNK]
+        processed = await process_voc_list([crawler.normalize(r) for r in part])
+        saved += await crawler.save(processed)
+    log.info("%s: %d건 수집 → %d건 신규 저장", site, len(raw), saved)
+    return saved
+
+
+async def main():
+    state = _load_state()
+    sites = _selected()
+    log.info("깊이 백필 — 대상 %s, 실행당 %d페이지%s",
+             ",".join(sites), PAGES_PER_RUN, " [DRY_RUN]" if DRY_RUN else "")
+
+    total = 0
+    for site in sites:
+        _, _, _, floor = SITES[site]
+        st = state.setdefault(site, {})
+        page = int(st.get("page", floor))
+        if page < floor:
+            page = floor
+        t0 = time.monotonic()
+        try:
+            saved = await _run_site(site, page)
+        except Exception as e:
+            log.warning("%s 실패 — %s: %s", site, type(e).__name__, str(e)[:120])
+            continue                     # 커서를 옮기지 않는다 → 다음 실행이 재시도
+        total += saved
+
+        if DRY_RUN:
+            continue
+        if saved == 0:
+            st["empty_rounds"] = int(st.get("empty_rounds", 0)) + 1
+            if st["empty_rounds"] >= EMPTY_LIMIT:
+                log.info("%s: 신규 0건 %d회 연속 — 바닥으로 보고 p%d 부터 재순회",
+                         site, st["empty_rounds"], floor)
+                st["page"] = floor
+                st["empty_rounds"] = 0
+            else:
+                st["page"] = page + PAGES_PER_RUN
+        else:
+            st["empty_rounds"] = 0
+            st["page"] = page + PAGES_PER_RUN
+        st["last_run"] = int(time.time())
+        st["last_saved"] = saved
+        _save_state(state)
+        log.info("%s 커서 → p%d (%.0fs)", site, st["page"], time.monotonic() - t0)
+
+    log.info("깊이 백필 완료 — 신규 저장 %d건", total)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(asyncio.run(main()) or 0)

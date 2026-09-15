@@ -53,6 +53,10 @@ MAX_POSTS = _env_int("PPOMPPU_MAX_POSTS", 150)
 # 목록 스캔 페이지 수 (1-indexed range 상한 = LIST_PAGES+1)
 # BACKFILL_PAGES 환경변수로 옛 글 백카탈로그 수집 시 50~100 까지 확장
 LIST_PAGES = _env_int("PPOMPPU_BACKFILL_PAGES", 12)
+# 목록 스캔 **시작** 페이지. 기본값은 기존 동작 그대로(맨 앞부터).
+# 역사 백필은 이 값을 올려 더 깊이 내려간다 — 매번 앞 N페이지만 다시 긁으면
+# 제자리걸음이다(실측 2026-09-13: KR 백필 36분에 clien 0·ppomppu 3·dcinside 2건).
+PAGE_START = _env_int("PPOMPPU_PAGE_START", 1)
 
 
 # @lat: PpomppuCrawler — [[crawler#Platform Strategy]] 참조.
@@ -69,7 +73,7 @@ class PpomppuCrawler(BaseCrawler):
 
         async with self._make_httpx_client() as client:
             for board_code, board_name in PPOMPPU_BOARDS:
-                for page in range(1, LIST_PAGES + 1):  # 최근 N페이지
+                for page in range(PAGE_START, PAGE_START + LIST_PAGES):
                     try:
                         posts = await self._fetch_board_page(client, board_code, page)
                         filtered = [p for p in posts if self._is_galaxy_related(p)]
