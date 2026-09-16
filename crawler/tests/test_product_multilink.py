@@ -203,7 +203,10 @@ def test_buds_pro_reversed_alias():
 # samsung 으로 해석되면 그것은 **경쟁사 접두사를 _CODE_BRAND_PREFIX 에 등록하지
 # 않은 것**이다. 삼성 라인을 새로 추가할 때는 이 목록에도 넣어야 한다.
 _SAMSUNG_PREFIXES = ("GS", "GA", "GW", "GB", "GZ", "GN", "GM", "GJ", "GF",
-                     "GR", "GO", "GX", "GV", "GG", "TAB", "WIDE", "JUMP")
+                     "GR", "GO", "GX", "GV", "GG", "TAB", "WIDE", "JUMP",
+                     # 2026-09-16 Tab 라인 패턴 추가분 (GTABS10/S11/A11/Active5).
+                     # 이 시험이 등록 누락을 정확히 잡아줬다 — 주석대로다.
+                     "GTAB", "GTS")
 
 
 def test_new_codes_resolve_to_own_brand():

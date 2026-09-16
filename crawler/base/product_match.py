@@ -99,6 +99,40 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"z\s*플립\s*7", r"플립7", r"플립\s*7" + _E, r"\b플7" + _E,
                r"갤럭시\s*z\s*플립\s*7"]),
 
+    # ── Galaxy Tab ── (2026-09-16 실측: 카탈로그엔 있는데 패턴이 통째로 없어
+    # Tab 라인 전체가 미태깅이었다. **구체적인 것을 먼저** 둬야 구간 선점이
+    # 올바르다 — 'Tab S11 Ultra' 가 'Tab S11' 보다 앞서야 한다.)
+    ("GTABS11U", [r"tab\s*s11\s*ultra" + _E, r"탭\s*s11\s*울트라",
+                  r"갤럭시\s*탭\s*s11\s*울트라"]),
+    ("GTS11P",   [r"tab\s*s11\s*\+", r"tab\s*s11\s*plus" + _E, r"탭\s*s11\s*플러스"]),
+    ("GTABS11",  [r"tab\s*s11" + _E, r"탭\s*s11" + _E, r"갤럭시\s*탭\s*s11" + _E]),
+    ("GTABS10U", [r"tab\s*s10\s*ultra" + _E, r"탭\s*s10\s*울트라"]),
+    ("GTS10FP",  [r"tab\s*s10\s*fe\s*\+", r"tab\s*s10\s*fe\s*plus" + _E,
+                  r"탭\s*s10\s*fe\s*플러스"]),
+    ("GTABS10F", [r"tab\s*s10\s*fe" + _E, r"탭\s*s10\s*fe" + _E]),
+    ("GTABS10P", [r"tab\s*s10\s*\+", r"tab\s*s10\s*plus" + _E, r"탭\s*s10\s*플러스"]),
+    ("GTABS10",  [r"tab\s*s10" + _E, r"탭\s*s10" + _E, r"갤럭시\s*탭\s*s10" + _E]),
+    ("GTABACT5", [r"tab\s*active\s*5" + _E, r"탭\s*액티브\s*5" + _E]),
+    ("GTABA11",  [r"tab\s*a11" + _E, r"탭\s*a11" + _E]),
+
+    # ── Galaxy A / M / F / XCover / Wide / Jump ── (보급형. 판매량이 가장 큰
+    # 라인인데 A16·A17·A36 등이 패턴 없이 비어 있었다.)
+    ("GA36",   [r"galaxy\s*a36" + _E, r"\ba36" + _E, r"갤럭시\s*a36"]),
+    ("GA35",   [r"galaxy\s*a35" + _E, r"\ba35" + _E, r"갤럭시\s*a35"]),
+    ("GA26",   [r"galaxy\s*a26" + _E, r"\ba26" + _E, r"갤럭시\s*a26"]),
+    ("GA17",   [r"galaxy\s*a17" + _E, r"\ba17" + _E, r"갤럭시\s*a17"]),
+    ("GA16",   [r"galaxy\s*a16" + _E, r"\ba16" + _E, r"갤럭시\s*a16"]),
+    ("GA07",   [r"galaxy\s*a07" + _E, r"\ba07" + _E, r"갤럭시\s*a07"]),
+    ("GM55",   [r"galaxy\s*m55" + _E, r"\bm55" + _E, r"갤럭시\s*m55"]),
+    ("GF55",   [r"galaxy\s*f55" + _E, r"갤럭시\s*f55"]),
+    ("GXC7",   [r"xcover\s*7" + _E, r"엑스커버\s*7" + _E]),
+    ("GWIDE8", [r"galaxy\s*wide\s*8" + _E, r"갤럭시\s*와이드\s*8" + _E]),
+    ("GJUMP4", [r"galaxy\s*jump\s*4" + _E, r"갤럭시\s*점프\s*4" + _E]),
+
+    # ── Galaxy Watch FE / Fit ──
+    ("GWFE",   [r"watch\s*fe" + _E, r"galaxy\s*watch\s*fe" + _E, r"워치\s*fe" + _E]),
+    ("GFIT3",  [r"galaxy\s*fit\s*3" + _E, r"\bfit\s*3" + _E, r"갤럭시\s*핏\s*3" + _E]),
+
     # ── Galaxy A / F ── (신모델 2026: A57/A37/A27, F25 — 카탈로그엔 있었으나 패턴 누락)
     ("GA57",  [r"galaxy\s*a57" + _E, r"\ba57" + _E, r"갤럭시\s*a57"]),
     ("GA56",  [r"galaxy\s*a56" + _E, r"\ba56" + _E, r"갤럭시\s*a56"]),
