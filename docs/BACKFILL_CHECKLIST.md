@@ -82,9 +82,22 @@
       실측 hipertextual 2022 상반기 62건 — 이전 과거 0건.
 - [ ] arageek · techcabal · mysmartprice · mobilesyrup 등 나머지 wp-json 검토
 
-## R4 — Wayback (유형 D)
+## R4 — 피드 전용 6종 (유형 C/D)
 
-- [ ] 위 수단이 없는 뉴스 소스를 Wayback 으로 소급 (`wayback_kr_backfill.py` 확장)
+분류에서 '피드 전용'으로 묶였지만 **실제로는 각자 다른 수단이 있었다.**
+코드만 보고 Wayback 으로 넘기지 않고 하나씩 실측했다.
+
+- [x] **arxiv** — arXiv API 가 `submittedDate:[YYYYMMDDHHMM TO ...]` 범위를
+      지원한다. 실측 2022 상반기 50건(이전 과거 0). 겸사겸사 **API URL 이 http 라
+      301 로 죽던 것**도 발견해 https 로 고쳤다.
+- [x] **xataka_mx** — 태그 목록이 `/tag/<tag>/record/<offset>` 로 페이지네이션된다
+      (20건 단위, `rel=next` 로 명시). `/pagina/N` 같은 흔한 패턴은 404 라
+      추측했으면 틀렸을 것이다. 첫 페이지만 보던 것을 여러 페이지로 열었다.
+- [ ] pikabu — `/search?q=` 한 페이지만 받는다. 페이지네이션 수단 확인 필요
+- [ ] zdnet_kr — `/search.html?word=` 한 페이지만 받는다. 동일
+- [ ] 4pda — 피드 전용. Wayback 검토
+- [ ] macrumors — 피드 전용이지만 포럼이 있다. 포럼 경로 검토
+- [ ] lemmy — federated API. 수단 확인
 
 ## R5 — 불가 판정
 

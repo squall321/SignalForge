@@ -43,7 +43,22 @@ from base.crawler import BaseCrawler, RawVOC
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://www.xataka.com.mx"
+def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
+    """env 정수 읽기. 값이 이상하면 기본값으로."""
+    try:
+        v = int(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return v if v >= min_value else default
+
+
 RSS_URL = f"{BASE_URL}/feedburner.xml"
+
+# 태그 목록 페이지네이션 — `/tag/<tag>/record/<offset>` (20건 단위).
+# 기본은 첫 페이지 하나로 기존 동작을 유지하고, 역사 백필이 env 로 올린다.
+RECORDS_PER_PAGE = 20
+TAG_PAGES = _env_int("XATAKA_MX_TAG_PAGES", 1)
+TAG_START = _env_int("XATAKA_MX_TAG_START", 0, min_value=0)
 
 # Samsung/Galaxy 관련 태그 페이지
 XATAKA_MX_TAGS = [
@@ -156,20 +171,47 @@ class XatakaMXCrawler(BaseCrawler):
     async def _fetch_tag_listing(
         self, client: httpx.AsyncClient, tag: str
     ) -> List[str]:
-        url = f"{BASE_URL}/tag/{tag}"
-        resp = await client.get(url, headers={"Referer": BASE_URL + "/"})
-        resp.raise_for_status()
+        """태그 목록을 **여러 페이지** 훑는다.
+
+        페이지네이션은 `/tag/<tag>/record/<offset>` 형태다(20건 단위). 사이트가
+        `rel=next` 로 명시해 준다 — 실측(2026-09-15)으로 확인했다. `/pagina/N`
+        같은 흔한 패턴은 404 라 추측하면 틀린다.
+
+        기존에는 첫 페이지만 봐서 과거가 0건이었다. TAG_PAGES 를 올리면
+        더 깊이 내려간다(역사 백필이 env 로 올린다).
+        """
         seen: set = set()
         out: List[str] = []
-        for m in ARTICLE_PATTERN.finditer(resp.text):
-            u = m.group(1)
-            # 카테고리/태그/저자/특수 페이지 제외
-            if re.search(r"/(?:tag|autor|categoria|archivos|edicion|seleccion)/", u):
-                continue
-            if u in seen:
-                continue
-            seen.add(u)
-            out.append(u)
+        for i in range(TAG_PAGES):
+            offset = (TAG_START + i) * RECORDS_PER_PAGE
+            url = f"{BASE_URL}/tag/{tag}" if offset == 0 else \
+                  f"{BASE_URL}/tag/{tag}/record/{offset}"
+            try:
+                resp = await client.get(url, headers={"Referer": BASE_URL + "/"})
+            except Exception as e:
+                logger.debug("XatakaMX tag %s offset %d 실패: %s", tag, offset, e)
+                break
+            if resp.status_code == 404:
+                break                      # 페이지 끝
+            if resp.status_code != 200:
+                logger.debug("XatakaMX tag %s offset %d HTTP %d",
+                             tag, offset, resp.status_code)
+                break
+
+            before = len(out)
+            for m in ARTICLE_PATTERN.finditer(resp.text):
+                u = m.group(1)
+                # 카테고리/태그/저자/특수 페이지 제외
+                if re.search(r"/(?:tag|autor|categoria|archivos|edicion|seleccion)/", u):
+                    continue
+                if u in seen:
+                    continue
+                seen.add(u)
+                out.append(u)
+            if len(out) == before:
+                break                      # 새 글이 없다 = 끝
+            if i + 1 < TAG_PAGES:
+                await self._random_delay()
         return out
 
     async def _fetch_rss(self, client: httpx.AsyncClient) -> List[dict]:
