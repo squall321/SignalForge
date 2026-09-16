@@ -51,6 +51,20 @@ SELECT_SQL = text(r"""
 """)
 
 # keyset 커서판 — translate_backlog 가 실패 행을 건너뛰며 backlog 전체를 1회 통과할 때 사용.
+# 우선순위 패스용 — 특정 언어를 제외하고 고른다.
+SELECT_CURSOR_EXCL_SQL = text(r"""
+    SELECT id, content_original, language_detected
+    FROM voc_records
+    WHERE language_detected IS NOT NULL
+      AND language_detected NOT IN ('en', 'und')
+      AND language_detected <> ALL(:excl)
+      AND (content_translated IS NULL OR content_translated = content_original)
+      AND content_original !~ '^[\x00-\x7F]*$'
+      AND id > :after
+    ORDER BY id
+    LIMIT :batch
+""")
+
 SELECT_CURSOR_SQL = text(r"""
     SELECT id, content_original, language_detected
     FROM voc_records
@@ -234,34 +248,53 @@ async def translate_backlog(limit: int = 1000) -> dict:
     engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     fixed = skipped = seen = 0
-    after = 0   # id 커서 — 성공/실패 무관하게 전진해 backlog 전체를 1회 통과.
+    # **한국어를 뒤로 미룬다.** 백로그의 52%가 한국어인데(실측 2026-09-16
+    # 13,585건 중 7,016건) 한국어는 감성 분석이 원문에서 직접 이뤄지고 검색도
+    # 원문 부분일치를 쓰므로 번역 없이도 대부분 동작한다. 반면 es/pt/tl/id 등은
+    # 번역이 없으면 감성 품질이 떨어진다.
+    # 이 태스크는 celery 시간 제한에 잘리므로 **무엇을 먼저 하느냐가 곧 처리량**
+    # 이다. 이득이 큰 쪽을 먼저 한다. 한국어도 버리지 않는다 — 남는 시간에 한다
+    # (영어 질의로 한국어 글을 찾으려면 번역본이 필요하다).
+    deprio = [x.strip() for x in
+              os.getenv("TRANSLATE_DEPRIORITIZE", "ko").split(",") if x.strip()]
     try:
         # 이전 offset=0 고정 방식은 배치 하나가 전부 실패(일시 rate-limit 등)하면 그 즉시
         # break → 뒤 수천 건을 방치했다. keyset 커서로 실패 행을 건너뛰며 끝까지 스캔하고,
         # 실패분은 다음 스케줄 실행(레이트리밋 해소 후)에 재시도한다.
-        while True:
-            async with Session() as db:
-                rows = (await db.execute(SELECT_CURSOR_SQL,
-                                         {"batch": 15, "after": after})).all()
-                if not rows:
-                    break   # backlog 전체 1회 통과 완료
-                for r in rows:
-                    seen += 1
-                    after = r.id   # 성공하면 WHERE 에서 빠지고, 실패해도 id>after 로 건너뜀
-                    try:
-                        if await _reprocess_row(db, r):
-                            fixed += 1
-                        else:
-                            skipped += 1
-                        await db.commit()   # 행 단위 커밋 — time limit 에 잘려도 진행 보존
-                    except Exception as e:
-                        skipped += 1
-                        await db.rollback()
-                        log.warning(f"행 {r.id} 번역 실패: {e}")
-                    if limit and seen >= limit:
-                        break
+        for _pass, _excl in ((1, deprio), (2, [])):
+            after = 0   # 패스마다 커서를 새로 — 성공/실패 무관하게 전진한다
+            if _pass == 1 and not _excl:
+                continue        # 미루는 언어가 없으면 1패스는 건너뛴다
             if limit and seen >= limit:
                 break
+            while True:
+                async with Session() as db:
+                    if _excl:
+                        rows = (await db.execute(
+                            SELECT_CURSOR_EXCL_SQL,
+                            {"batch": 15, "after": after, "excl": _excl})).all()
+                    else:
+                        rows = (await db.execute(SELECT_CURSOR_SQL,
+                                                 {"batch": 15, "after": after})).all()
+                    if not rows:
+                        break   # backlog 전체 1회 통과 완료
+                    for r in rows:
+                        seen += 1
+                        after = r.id   # 성공하면 WHERE 에서 빠지고, 실패해도 id>after 로 건너뜀
+                        try:
+                            if await _reprocess_row(db, r):
+                                fixed += 1
+                            else:
+                                skipped += 1
+                            await db.commit()   # 행 단위 커밋 — time limit 에 잘려도 진행 보존
+                        except Exception as e:
+                            skipped += 1
+                            await db.rollback()
+                            log.warning(f"행 {r.id} 번역 실패: {e}")
+                        if limit and seen >= limit:
+                            break
+                if limit and seen >= limit:
+                    break
     finally:
         await engine.dispose()
     log.info(f"[translate_backlog] 복구 {fixed} / 시도 {seen} (건너뜀 {skipped})")

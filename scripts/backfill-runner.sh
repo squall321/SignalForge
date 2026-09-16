@@ -24,7 +24,13 @@ dow="$(date +%u)"   # 1=월 .. 7=일
 run_step() {  # $1 = 자식 스크립트명
   local s="$1"
   echo "$(date '+%F %T') ▶ $s 시작" >> "$LOG"
-  bash "$HERE/$s" >> "$LOG" 2>&1 || echo "$(date '+%F %T') ⚠ $s 실패(rc=$?)" >> "$LOG"
+  # **$? 를 먼저 붙잡아야 한다.** `echo "$(date ...) rc=$?"` 는 $(date) 가 먼저
+  # 실행되며 $? 를 0 으로 덮어써, 실패했는데 rc=0 으로 찍힌다(실측 2026-09-16).
+  bash "$HERE/$s" >> "$LOG" 2>&1
+  local rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "$(date '+%F %T') ⚠ $s 실패(rc=$rc)" >> "$LOG"
+  fi
   echo "$(date '+%F %T') ■ $s 끝" >> "$LOG"
 }
 

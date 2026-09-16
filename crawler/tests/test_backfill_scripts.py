@@ -159,3 +159,22 @@ def test_backfill_mode_is_honoured_by_crawler():
     src = (SCRIPTS.parent / "crawler" / "base" / "crawler.py").read_text()
     assert 'os.getenv("BACKFILL_MODE"' in src
     assert "_translate_deadline" in src
+
+
+def test_runner_captures_exit_code_before_date():
+    """`echo "$(date ...) rc=$?"` 는 $(date) 가 먼저 실행되며 $? 를 0 으로 덮는다.
+
+    실패했는데 rc=0 으로 찍혀 원인 추적이 막힌다(실측 2026-09-16 —
+    youtube-backfill 이 '실패(rc=0)' 로 남았다).
+    """
+    src = (SCRIPTS / "backfill-runner.sh").read_text()
+    assert "local rc=$?" in src, "종료코드를 즉시 붙잡지 않는다"
+    assert 'rc=$?)"' not in src, "$(date) 뒤에서 $? 를 읽고 있다"
+
+
+def test_runner_logs_end_even_on_failure():
+    """실패해도 '끝' 을 남겨야 죽은 건지 도는 건지 구분된다."""
+    src = (SCRIPTS / "backfill-runner.sh").read_text()
+    body = src.split("run_step() {", 1)[1].split("\n}", 1)[0]
+    assert "■" in body, "종료 로그가 run_step 안에 없다"
+    assert body.index("rc=$?") < body.index("■"), "종료 로그 전에 rc 를 잡아야 한다"
