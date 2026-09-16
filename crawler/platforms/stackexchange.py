@@ -28,6 +28,10 @@ SE_BASE = "https://api.stackexchange.com/2.3"
 SE_SITE = "android"
 SE_QUESTION_URL = "https://android.stackexchange.com/questions"
 
+class QuotaExhausted(Exception):
+    """SE API 일일 할당량 소진. 남은 요청을 계속 던져도 전부 429 라 즉시 접는다."""
+
+
 QUERY_TERMS = [
     "Galaxy S25",
     "Samsung Galaxy issue",
@@ -37,7 +41,13 @@ QUERY_TERMS = [
     "Galaxy camera",
 ]
 
-MAX_QUESTIONS = 40
+# 요청 예산 — 키 없이 **300/day** 다(IP 단위). 실행당 요청 수는
+#   검색 len(QUERY_TERMS) + 질문 MAX_QUESTIONS × 2(답변·코멘트)
+# 이전 값(40)은 실행당 86요청 × 6시간마다(4회) = 344/day 로 **구조적으로 초과**였다.
+# 그래서 매일 할당량이 바닥났고, 바닥난 뒤의 429 는 조용히 삼켜져
+# "done, 0건"으로 찍혔다 — 13일간 수확 0(2026-09-16 발견).
+# 지금: 검색 6 + 25×2 = 56요청 × 12시간마다(2회) = 112/day. 여유 3배.
+MAX_QUESTIONS = 25
 PAGESIZE = 30
 
 
@@ -50,6 +60,20 @@ class StackExchangeCrawler(BaseCrawler):
 
     async def crawl(self) -> List[RawVOC]:
         raw_vocs: List[RawVOC] = []
+        try:
+            await self._collect(raw_vocs)
+        except QuotaExhausted:
+            # 할당량이 죽어도 **그때까지 모은 건 버리지 않는다.** 하루 300요청을
+            # 다 쓰고 한 건도 못 건지는 게 지금까지의 동작이었다.
+            logger.warning(
+                f"SE 할당량 소진 — 여기까지 모은 {len(raw_vocs)}건으로 접는다")
+
+        before = len(raw_vocs)
+        raw_vocs = [v for v in raw_vocs if is_mx_relevant(v.content)]
+        logger.info(f"SE 수집 완료: {len(raw_vocs)}/{before} (MX 필터)")
+        return raw_vocs
+
+    async def _collect(self, raw_vocs: List[RawVOC]) -> None:
         seen_qids: set = set()
         questions: List[dict] = []
 
@@ -65,6 +89,8 @@ class StackExchangeCrawler(BaseCrawler):
                             continue
                         seen_qids.add(qid)
                         questions.append(item)
+                except QuotaExhausted:
+                    raise
                 except Exception as e:
                     logger.warning(f"  SE search '{q}' 실패: {e}")
                 await self._random_delay()
@@ -96,6 +122,8 @@ class StackExchangeCrawler(BaseCrawler):
                     answers = await self._fetch_answers(client, qid)
                     raw_vocs.extend(answers)
                     answer_total += len(answers)
+                except QuotaExhausted:
+                    raise
                 except Exception as e:
                     logger.warning(f"  SE 답변 수집 실패 (q={qid}): {e}")
 
@@ -104,16 +132,15 @@ class StackExchangeCrawler(BaseCrawler):
                     comments = await self._fetch_comments(client, qid)
                     raw_vocs.extend(comments)
                     comment_total += len(comments)
+                except QuotaExhausted:
+                    raise
                 except Exception as e:
                     logger.warning(f"  SE 코멘트 수집 실패 (q={qid}): {e}")
 
-        before = len(raw_vocs)
-        raw_vocs = [v for v in raw_vocs if is_mx_relevant(v.content)]
         logger.info(
-            f"SE 수집 완료: 질문 {len(target_questions)}건 + 답변 {answer_total}건 + "
-            f"코멘트 {comment_total}건 = {len(raw_vocs)}/{before} (MX 필터)"
+            f"SE 원천 수집: 질문 {len(target_questions)}건 + 답변 {answer_total}건 + "
+            f"코멘트 {comment_total}건"
         )
-        return raw_vocs
 
     # ---------- API helpers ----------
 
@@ -123,6 +150,15 @@ class StackExchangeCrawler(BaseCrawler):
         url = f"{SE_BASE}{path}"
         merged = {"site": SE_SITE, **params}
         resp = await client.get(url, params=merged)
+        # 429 는 이 API 에서 "일시적 혼잡"이 아니라 **할당량 소진**이다. 키 없이
+        # 300/day 이고 한 번 바닥나면 그날은 /info 조차 429 를 준다.
+        # 그냥 raise 하면 호출부 try/except 가 삼켜 "done, 0건"으로 찍히고,
+        # 그 상태로 13일을 갔다(2026-09-16 발견). 사실을 남기고 즉시 중단한다.
+        if resp.status_code == 429:
+            self.report_blocked(
+                "SE API 할당량 소진 (429) — 키 없이 300/day. "
+                "stackapps.com 에서 무료 키를 받으면 10,000/day 로 오른다")
+            raise QuotaExhausted("SE API quota exhausted")
         resp.raise_for_status()
         payload = resp.json()
         # API quota / backoff 처리

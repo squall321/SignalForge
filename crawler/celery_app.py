@@ -116,7 +116,8 @@ app.conf.beat_schedule = {
     # 신규 글로벌·삼성·국내 (분산 주기 — 트래픽 분산으로 차단 회피)
     "crawl-samsung_community-4h": {"task":"tasks.crawl_platform","schedule":14400.0,"args":("samsung_community",None,None)},
     "crawl-hackernews-2h":        {"task":"tasks.crawl_platform","schedule": 7200.0,"args":("hackernews",None,None)},
-    "crawl-stackexchange-6h":     {"task":"tasks.crawl_platform","schedule":21600.0,"args":("stackexchange",None,None)},
+    # 6h(4회/일) 는 키 없는 300/day 할당량을 구조적으로 넘겼다 — platforms/stackexchange.py 의 요청 예산 주석 참조.
+    "crawl-stackexchange-12h":    {"task":"tasks.crawl_platform","schedule":43200.0,"args":("stackexchange",None,None)},
     "crawl-lemmy-4h":             {"task":"tasks.crawl_platform","schedule":14400.0,"args":("lemmy",None,None)},
     "crawl-ruliweb-3h":           {"task":"tasks.crawl_platform","schedule":10800.0,"args":("ruliweb",None,None)},
     # XDA: 4시간마다
@@ -155,9 +156,9 @@ app.conf.beat_schedule = {
     "crawl-tomsguide-4h":  {"task":"tasks.crawl_platform","schedule":14400.0,"args":("tomsguide",None,None)},
     "crawl-gizmodo-jp-4h": {"task":"tasks.crawl_platform","schedule":14400.0,"args":("gizmodo_jp",None,None)},
     # 2026-05-31 4차 신규 추가 (AU+IN+ES)
-    # [비활성 2026-08-13: 소스 폐쇄/봇차단·콘텐츠부재] "crawl-ausdroid-12h":  {"task":"tasks.crawl_platform","schedule":43200.0,"args":("ausdroid",None,None)},
+    # [비활성 2026-08-13 / 재확인 2026-09-16: 차단 — 6요청 6차단(100%), 모든 엔드포인트 403] "crawl-ausdroid-12h":  {"task":"tasks.crawl_platform","schedule":43200.0,"args":("ausdroid",None,None)},
     "crawl-gizmodo-au-4h": {"task":"tasks.crawl_platform","schedule":14400.0,"args":("gizmodo_au",None,None)},
-    # [비활성 2026-08-13: 소스 폐쇄/봇차단·콘텐츠부재] "crawl-gadgets360-4h": {"task":"tasks.crawl_platform","schedule":14400.0,"args":("gadgets360",None,None)},
+    # [비활성 2026-08-13 / 재확인 2026-09-16: 차단 — 8요청 8차단(100%), RSS·태그 모두 403] "crawl-gadgets360-4h": {"task":"tasks.crawl_platform","schedule":14400.0,"args":("gadgets360",None,None)},
     "crawl-xataka-3h":     {"task":"tasks.crawl_platform","schedule":10800.0,"args":("xataka",None,None)},
     # 2026-05-31 5차 신규 추가
     "crawl-tecnoblog-4h":    {"task":"tasks.crawl_platform","schedule":14400.0,"args":("tecnoblog",None,None)},
@@ -246,17 +247,17 @@ app.conf.beat_schedule = {
     "crawl-kaskus-6h":       {"task":"tasks.crawl_platform","schedule":21600.0,"args":("kaskus",None,None)},
     # 2026-06-08 Stage 5B R2: AnandTech Forums (US, XenForo 2.3 영문 IT 포럼) — 게스트 tag/thread page-N.
     # 코드 11KB 완성 (AnandTechCrawler, 2026-05-31 사장). 4pda 패턴 등록. 4h 주기 (영문 신호 빈도 보통).
-    # [비활성 2026-08-13: 소스 폐쇄/봇차단·콘텐츠부재] "crawl-anandtech-4h":    {"task":"tasks.crawl_platform","schedule":14400.0,"args":("anandtech",None,None)},
+    # [비활성 2026-08-13 / 재확인 2026-09-16: 차단 — 6요청 3차단(50%), 포럼 폐쇄 후 잔존] "crawl-anandtech-4h":    {"task":"tasks.crawl_platform","schedule":14400.0,"args":("anandtech",None,None)},
     # 2026-06-08 Stage 5B R5: DroidSans (TH, 태국 Android 전문 매체) — WordPress RSS sammobile 패턴.
     # 200 OK 무차단, TH voc 29 → 보강. 6h 주기 (TH 신호 빈도 보통, sanook 보조).
     "crawl-droidsans-6h":    {"task":"tasks.crawl_platform","schedule":21600.0,"args":("droidsans",None,None)},
     # 2026-06-08 Stage 5C T1: NL/CA/CN 공백 3국 보강 — 모두 직접 RSS 200 OK, 6h 주기 보수.
     # nu.nl: NL 종합지 Tech, tweakers GN 우회 보완.
-    # [비활성 2026-08-13: 소스 폐쇄/봇차단·콘텐츠부재] "crawl-nu-nl-6h":        {"task":"tasks.crawl_platform","schedule":21600.0,"args":("nu_nl",None,None)},
+    # [비활성 2026-08-13 / 재확인 2026-09-16: 차단 아님 — 피드 생존(200)이나 삼성 언급 0, 역대 수확 0건. 삼성 태그 피드 없음] "crawl-nu-nl-6h":        {"task":"tasks.crawl_platform","schedule":21600.0,"args":("nu_nl",None,None)},
     # iPhone in Canada: CA Apple/통신 매체, mobilesyrup 보완.
     "crawl-iphoneincanada-6h":{"task":"tasks.crawl_platform","schedule":21600.0,"args":("iphoneincanada",None,None)},
     # sspai: CN 디지털 매체, ithome 보완 (중·영문 매칭).
-    # [비활성 2026-08-13: 소스 폐쇄/봇차단·콘텐츠부재] "crawl-sspai-6h":        {"task":"tasks.crawl_platform","schedule":21600.0,"args":("sspai",None,None)},
+    # [비활성 2026-08-13 / 재확인 2026-09-16: 차단 아님 — 피드 생존(200)이나 삼성 언급 희박, 역대 수확 1건] "crawl-sspai-6h":        {"task":"tasks.crawl_platform","schedule":21600.0,"args":("sspai",None,None)},
     # 2026-06-08 Stage 5C T3: JagatReview (ID, kaskus 우회 ID 보강) — WP REST API 무차단. 6h.
     "crawl-jagatreview-6h":  {"task":"tasks.crawl_platform","schedule":21600.0,"args":("jagatreview",None,None)},
     # 2026-06-09 data_grow H4: Mastodon (Global fediverse) — 익명 hashtag API, Bluesky 보조.
