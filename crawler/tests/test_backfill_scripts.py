@@ -178,3 +178,34 @@ def test_runner_logs_end_even_on_failure():
     body = src.split("run_step() {", 1)[1].split("\n}", 1)[0]
     assert "■" in body, "종료 로그가 run_step 안에 없다"
     assert body.index("rc=$?") < body.index("■"), "종료 로그 전에 rc 를 잡아야 한다"
+
+
+def test_runner_caps_each_step():
+    """한 단계가 길어지면 뒤가 전부 굶는다.
+
+    실측(2026-09-16) — 러너 96분 중 reddit 이 62분이었고 그 뒤에 5단계가 남아
+    있었다. 모든 백필이 커서를 남기므로 잘려도 손실이 없다.
+    """
+    src = (SCRIPTS / "backfill-runner.sh").read_text()
+    assert "timeout" in src, "단계별 시간 상한이 없다"
+    assert "STEP_TIMEOUT" in src
+    assert "-eq 124" in src, "시간 초과(124)를 실패와 구분하지 않는다"
+
+
+def test_timeout_is_not_counted_as_failure():
+    """설계된 중단을 실패로 세면 경보가 소음이 된다."""
+    src = (SCRIPTS / "backfill-runner.sh").read_text()
+    block = src.split("-eq 124", 1)[1].split("fi", 1)[0]
+    assert "rc=0" in block, "시간 초과를 실패로 남긴다"
+
+
+@pytest.mark.parametrize("script,marker", [
+    ("reddit_arctic_backfill.py", "_save_state(state)"),
+    ("deep_page_backfill.py", "_save_state(state)"),
+    ("repair_dogdrip_dates.py", "_save_done(done)"),
+])
+def test_cursors_persist_incrementally(script, marker):
+    """중간에 잘려도 그 지점까지 남아야 한다 — 끝에서 한 번만 쓰면 다 잃는다."""
+    src = (SCRIPTS.parent / "crawler" / "scripts" / script).read_text()
+    body = src.split("async def main", 1)[1]
+    assert body.count(marker) >= 1, f"{script}: 진행 중 상태 저장이 없다"

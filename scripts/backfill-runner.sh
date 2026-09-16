@@ -20,14 +20,25 @@ exec 8>"/tmp/sf-backfill-runner.lock"
 flock -n 8 || { echo "$(date '+%F %T') 러너 이미 실행중 — skip" >> "$LOG"; exit 0; }
 
 dow="$(date +%u)"   # 1=월 .. 7=일
+# 단계 하나가 쓸 수 있는 최대 시간(초). 넘으면 TERM 으로 끊는다.
+STEP_TIMEOUT="${BACKFILL_STEP_TIMEOUT:-2700}"   # 45분
 
 run_step() {  # $1 = 자식 스크립트명
   local s="$1"
   echo "$(date '+%F %T') ▶ $s 시작" >> "$LOG"
   # **$? 를 먼저 붙잡아야 한다.** `echo "$(date ...) rc=$?"` 는 $(date) 가 먼저
   # 실행되며 $? 를 0 으로 덮어써, 실패했는데 rc=0 으로 찍힌다(실측 2026-09-16).
-  bash "$HERE/$s" >> "$LOG" 2>&1
+  # **단계별 시간 상한.** 한 단계가 길어지면 뒤가 전부 굶는다 — 실측(2026-09-16)
+  # 러너 96분 중 reddit 이 62분이었고 그 뒤에 5단계가 남아 있었다.
+  # 모든 백필이 커서/상태를 남기므로 **잘려도 손실이 없다** — 다음 실행이
+  # 그 자리에서 이어받는다. 상한이 없는 편이 오히려 위험하다.
+  timeout --signal=TERM --kill-after=60 "$STEP_TIMEOUT" \
+    bash "$HERE/$s" >> "$LOG" 2>&1
   local rc=$?
+  if [ "$rc" -eq 124 ]; then
+    echo "$(date '+%F %T') ⏱ $s 시간 상한(${STEP_TIMEOUT}s) — 커서는 남아 다음에 이어받는다" >> "$LOG"
+    rc=0                        # 설계된 중단이므로 실패로 치지 않는다
+  fi
   if [ "$rc" -ne 0 ]; then
     echo "$(date '+%F %T') ⚠ $s 실패(rc=$rc)" >> "$LOG"
   fi
