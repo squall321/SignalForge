@@ -188,3 +188,32 @@ def test_xataka_pagination_url_shape():
     joined = " ".join(code)
     assert "/record/" in joined, joined
     assert "/pagina/" not in joined, joined
+
+
+# ── pikabu 검색 페이지네이션 ──────────────────────────────────────────
+def test_pikabu_defaults_keep_current_behaviour(monkeypatch):
+    """기본은 1페이지 — 실시간 수집을 건드리면 안 된다."""
+    import importlib
+    monkeypatch.delenv("PIKABU_SEARCH_PAGES", raising=False)
+    monkeypatch.delenv("PIKABU_PAGE_START", raising=False)
+    import platforms.pikabu as pk
+    importlib.reload(pk)
+    assert pk.SEARCH_PAGES == 1
+    assert pk.PAGE_START == 1
+
+
+def test_pikabu_pagination_is_configurable(monkeypatch):
+    import importlib
+    monkeypatch.setenv("PIKABU_SEARCH_PAGES", "5")
+    monkeypatch.setenv("PIKABU_PAGE_START", "8")
+    import platforms.pikabu as pk
+    importlib.reload(pk)
+    assert (pk.PAGE_START, pk.SEARCH_PAGES) == (8, 5)
+
+
+def test_pikabu_has_no_dead_code():
+    """페이지네이션을 넣으며 옛 단일 페이지 경로를 남기지 않았는지."""
+    src = (ROOT / "platforms" / "pikabu.py").read_text()
+    assert "옛 단일 페이지 경로" not in src, "죽은 코드가 남아 있다"
+    assert src.count("parse_search_html(resp.text, q)") == 1, \
+        "검색 파싱 경로가 둘이면 한쪽만 고쳐져 갈라진다"

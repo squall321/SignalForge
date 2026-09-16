@@ -58,7 +58,19 @@ QUERIES: List[str] = [
 
 # Pikabu 검색은 페이지당 약 10 story 노출.  5 쿼리 × 10 = 50 정도.
 # MAX_POSTS 상한 보수 (NLP 단계 부하 방지, 4PDA 와 합쳐 RU 트래픽 견제).
+def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
+    """env 정수 읽기. 값이 이상하면 기본값으로."""
+    try:
+        v = int(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return v if v >= min_value else default
+
+
 MAX_POSTS = 80
+# 검색 페이지네이션 — `?page=N`. 기본은 1페이지로 기존 동작 유지.
+SEARCH_PAGES = _env_int("PIKABU_SEARCH_PAGES", 1)
+PAGE_START = _env_int("PIKABU_PAGE_START", 1)
 MIN_CONTENT_LEN = 30  # 너무 짧은 본문 (제목만 등) 제외
 
 
@@ -198,31 +210,47 @@ class PikabuCrawler(BaseCrawler):
             for q in QUERIES:
                 if len(raw_vocs) >= MAX_POSTS:
                     break
-                try:
-                    resp = await client.get(SEARCH_URL, params={"q": q})
+                # 검색 결과는 `?page=N` 으로 깊이 들어간다(실측 2026-09-15 —
+                # 페이지 안 링크에 page=100 까지 있다). 기본은 1페이지로 기존
+                # 동작을 유지하고, 역사 백필이 env 로 올린다.
+                for _pg in range(PAGE_START, PAGE_START + SEARCH_PAGES):
+                    if len(raw_vocs) >= MAX_POSTS:
+                        break
+                    params = {"q": q}
+                    if _pg > 1:
+                        params["page"] = str(_pg)
+                        await self._random_delay()
+                    try:
+                        resp = await client.get(SEARCH_URL, params=params)
+                    except Exception as e:
+                        logger.warning("  pikabu %r p%d 실패: %s", q, _pg, e)
+                        break
                     if resp.status_code != 200:
                         self.stats["blocked"].append(f"{q}:{resp.status_code}")
-                        logger.warning(f"  pikabu {q!r} HTTP {resp.status_code} — skip")
-                        continue
+                        logger.warning(
+                            f"  pikabu {q!r} p{_pg} HTTP {resp.status_code} — skip")
+                        break
                     items = parse_search_html(resp.text, q)
-                    new_n = 0
+                    if not items:
+                        break              # 결과 없음 = 끝
+                    _before = len(raw_vocs)
                     for v in items:
                         if v.source_url in seen_urls:
                             continue
                         seen_urls.add(v.source_url)
                         raw_vocs.append(v)
-                        new_n += 1
                         if len(raw_vocs) >= MAX_POSTS:
                             break
+                    new_n = len(raw_vocs) - _before
                     self.stats["fetched"] += len(items)
-                    self.stats["per_query"][q] = new_n
-                    logger.info(f"  pikabu {q!r}: {len(items)}건 parse / {new_n}건 신규")
-                except httpx.HTTPError as e:
-                    self.stats["blocked"].append(f"{q}:net")
-                    logger.warning(f"  pikabu {q!r} 네트워크 실패: {e}")
-                except Exception as e:
-                    logger.warning(f"  pikabu {q!r} 처리 실패: {e}")
+                    self.stats["per_query"][q] = \
+                        self.stats["per_query"].get(q, 0) + new_n
+                    logger.info("  pikabu %r p%d: %d건 parse / %d건 신규",
+                                q, _pg, len(items), new_n)
+                    if new_n == 0:
+                        break              # 새 글이 없다 = 끝
                 await self._random_delay()
+
 
         # MX 키워드 강제 필터 (Data Clean 4 정책).
         try:
