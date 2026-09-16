@@ -724,6 +724,7 @@ async def voc_breakdown(
     country: Optional[str] = None,
     platform: Optional[str] = None,
     sentiment: Optional[str] = None,
+    include_mentions: bool = False,
 ) -> dict:
     """전체 VOC 를 **임의 축으로 분해** — 결함에 한정되지 않습니다.
 
@@ -733,11 +734,17 @@ async def voc_breakdown(
         by: product | brand | category | country | platform | platform_kind |
             language | sentiment
         keyword: 키워드로 슬라이스 한정 — 선택 (한국어 가능)
+        include_mentions: 비교글에서 **언급만 된 제품**까지 셉니다 (기본 False).
+            기본값은 대표 제품 기준이라 "S26 vs iPhone 17" 같은 글에서 한쪽만
+            잡힙니다. 켜면 양쪽 다 잡히지만 한 글이 제품 수만큼 중복 계상됩니다.
+            경쟁 비교·신제품 화제성을 볼 때 켜세요 — 신제품일수록 비교 대상으로만
+            등장해 기본 기준에서 빠집니다(실측 GS27 361→1,714건).
     """
     return await voc_breakdown_tool(
         by=by, days=days, limit=limit, keyword=keyword,
         product_code=product_code, brand=brand, category=category,
-        country=country, platform=platform, sentiment=sentiment)
+        country=country, platform=platform, sentiment=sentiment,
+        include_mentions=include_mentions)
 
 
 # ── 서버 기동 ─────────────────────────────────────────────────────────────

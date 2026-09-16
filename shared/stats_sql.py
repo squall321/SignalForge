@@ -40,6 +40,10 @@ def _keyword_cond(keyword: str):
 
 # 전체 VOC 슬라이스 축 — 결함 도구(defects._FILTER_SPECS)와 같은 사고방식이다.
 _SLICE_SPECS = [
+    # 기본은 primary(v.product_id) 기준 — 기존 수치와 호환된다.
+    # include_mentions=True 면 **언급된 제품까지** 본다(비교글 포함).
+    # 실측(2026-09-16) 차이가 크다 — GS27 361→1,714건(4.7배), GZF7 6,456→9,879.
+    # 신제품일수록 비교 대상으로만 등장해 primary 기준에서 통째로 빠진다.
     ("product_code", "p.code = :product_code", lambda v: v.upper()),
     ("brand",        "p.brand = :brand", lambda v: v.lower()),
     ("category",     "p.category = :category", lambda v: v.lower()),
@@ -54,6 +58,25 @@ _SLICE_JOINS = """
     LEFT JOIN products p   ON p.id = v.product_id
     LEFT JOIN platforms pl ON pl.id = v.platform_id
 """
+
+# 언급 포함 모드 — voc_product_links 를 타고 compared/mentioned 까지 센다.
+# 한 글이 제품 여러 개를 언급하면 제품마다 1행이 되므로, 제품 축으로 집계할 때만
+# 쓴다(전체 건수 합계에는 쓰지 않는다 — 중복 계상이 된다).
+_SLICE_JOINS_MENTIONS = """
+    FROM voc_product_links l
+    JOIN voc_records v     ON v.id = l.voc_id
+    LEFT JOIN products p   ON p.id = l.product_id
+    LEFT JOIN platforms pl ON pl.id = v.platform_id
+"""
+
+
+def _joins(include_mentions: bool = False) -> str:
+    """집계에 쓸 FROM/JOIN 절.
+
+    include_mentions 는 **제품 축 집계 전용**이다. 비교글에서 언급만 된 제품도
+    세려면 링크 테이블을 타야 하는데, 그러면 한 글이 제품 수만큼 중복된다.
+    """
+    return _SLICE_JOINS_MENTIONS if include_mentions else _SLICE_JOINS
 
 
 def _slice_filters(days: Optional[int] = None, keyword: Optional[str] = None,
@@ -170,12 +193,19 @@ async def corpus_overview(execute, days: Optional[int] = None) -> dict:
 
 async def voc_breakdown(
     execute, by: str = "product", days: Optional[int] = 30, limit: int = 20,
-    keyword: Optional[str] = None, **filters,
+    keyword: Optional[str] = None, include_mentions: bool = False, **filters,
 ) -> dict:
     """전체 VOC 를 임의 축으로 분해. 결함에 한정되지 않는다.
 
     by: product | brand | category | country | platform | language |
         sentiment | platform_kind
+
+    include_mentions: 비교글에서 **언급만 된 제품**까지 센다(기본 False).
+      기본값은 primary(voc_records.product_id) 기준이라 기존 수치와 같다.
+      켜면 voc_product_links 를 타므로 한 글이 제품 수만큼 중복 계상된다 —
+      그래서 total 도 링크 기준으로 바뀌고, share_pct 는 그 안에서의 비중이다.
+      실측(2026-09-16) 차이가 크다 — GS27 361→1,714(4.7배), GZF7 6,456→9,879.
+      신제품일수록 비교 대상으로만 등장해 primary 기준에서 통째로 빠진다.
     """
     axes = {
         "product":  ("COALESCE(p.code,'(untagged)')", "product"),
@@ -197,19 +227,25 @@ async def voc_breakdown(
                round(100.0 * count(*) FILTER (WHERE v.sentiment_label='negative')
                      / NULLIF(count(*),0), 1)::float AS negative_pct,
                round(avg(v.sentiment_score)::numeric, 3)::float AS avg_sentiment
-        {_SLICE_JOINS}
+        {_joins(include_mentions)}
         WHERE {" AND ".join(conds)}
         GROUP BY 1 ORDER BY docs DESC LIMIT :limit
     """)
-    total_stmt = text(f"SELECT count(*)::int AS n {_SLICE_JOINS} WHERE {' AND '.join(conds)}")
+    total_stmt = text(
+        f"SELECT count(*)::int AS n {_joins(include_mentions)} "
+        f"WHERE {' AND '.join(conds)}")
     rows = (await execute(stmt, params)).mappings().all()
     total = (await execute(total_stmt, params)).scalar() or 0
     out = [dict(r) for r in rows]
     for r in out:
         r["share_pct"] = round(100.0 * r["docs"] / total, 1) if total else 0.0
+    note = "share_pct 는 이 슬라이스 전체(total) 대비 비중이다."
+    if include_mentions:
+        note += (" include_mentions=True — 비교글에서 언급만 된 제품도 셌다."
+                 " 한 글이 제품 수만큼 중복 계상되므로 total 은 링크 수다.")
     return {"by": label, "days": days, "keyword": keyword, "match": mode,
-            "total": total, "rows": out,
-            "note": "share_pct 는 이 슬라이스 전체(total) 대비 비중이다."}
+            "include_mentions": include_mentions,
+            "total": total, "rows": out, "note": note}
 
 
 async def keyword_stats(

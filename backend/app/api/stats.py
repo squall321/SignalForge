@@ -75,10 +75,15 @@ async def voc_breakdown(
     country: Optional[str] = None,
     platform: Optional[str] = None,
     sentiment: Optional[str] = None,
+    include_mentions: bool = Query(
+        False, description="비교글에서 언급만 된 제품까지 센다. 기본은 대표 제품 "
+                           "기준이라 'S26 vs iPhone 17' 에서 한쪽만 잡힌다. "
+                           "켜면 양쪽 다 잡히지만 한 글이 제품 수만큼 중복 계상된다."),
     db: AsyncSession = Depends(get_db),
 ):
     """전체 VOC 를 임의 축으로 분해 — share_pct·negative_pct 포함."""
     return await StatsService(db).voc_breakdown(
         by=by, days=days, limit=limit, keyword=keyword,
         product_code=product_code, brand=brand, category=category,
-        country=country, platform=platform, sentiment=sentiment)
+        country=country, platform=platform, sentiment=sentiment,
+        include_mentions=include_mentions)
