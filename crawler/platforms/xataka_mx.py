@@ -55,8 +55,12 @@ def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
 RSS_URL = f"{BASE_URL}/feedburner.xml"
 
 # 태그 목록 페이지네이션 — `/tag/<tag>/record/<offset>` (20건 단위).
+# **사이트가 깊이를 제한한다.** 실측(2026-09-15) offset 140 까지 200,
+# 200 부터 410 Gone. 그래서 이 소스로 갈 수 있는 과거는 태그당 약 160건이
+# 한계다 — 그보다 옛 글은 다른 수단(Wayback)이 필요하다.
 # 기본은 첫 페이지 하나로 기존 동작을 유지하고, 역사 백필이 env 로 올린다.
 RECORDS_PER_PAGE = 20
+MAX_OFFSET = _env_int("XATAKA_MX_MAX_OFFSET", 140, min_value=0)
 TAG_PAGES = _env_int("XATAKA_MX_TAG_PAGES", 1)
 TAG_START = _env_int("XATAKA_MX_TAG_START", 0, min_value=0)
 
@@ -184,6 +188,8 @@ class XatakaMXCrawler(BaseCrawler):
         out: List[str] = []
         for i in range(TAG_PAGES):
             offset = (TAG_START + i) * RECORDS_PER_PAGE
+            if offset > MAX_OFFSET:
+                break                      # 사이트 한계 — 더 요청해도 410
             url = f"{BASE_URL}/tag/{tag}" if offset == 0 else \
                   f"{BASE_URL}/tag/{tag}/record/{offset}"
             try:
@@ -191,8 +197,13 @@ class XatakaMXCrawler(BaseCrawler):
             except Exception as e:
                 logger.debug("XatakaMX tag %s offset %d 실패: %s", tag, offset, e)
                 break
-            if resp.status_code == 404:
-                break                      # 페이지 끝
+            if resp.status_code in (404, 410):
+                # 410 Gone — **사이트가 깊이를 제한한다.** 실측(2026-09-15)
+                # offset 140 까지는 200, 200 에서 410 이다. 404 만 보다가
+                # 410 을 못 잡으면 그 태그를 통째로 0건으로 만든다.
+                logger.debug("XatakaMX tag %s offset %d 한계(HTTP %d)",
+                             tag, offset, resp.status_code)
+                break
             if resp.status_code != 200:
                 logger.debug("XatakaMX tag %s offset %d HTTP %d",
                              tag, offset, resp.status_code)

@@ -146,3 +146,45 @@ def test_arxiv_garbage_window_is_ignored(monkeypatch):
     import platforms.arxiv as a
     importlib.reload(a)
     assert a._date_window()[0] == ""
+
+
+# ── xataka_mx 태그 페이지네이션 ────────────────────────────────────────
+def test_xataka_defaults_keep_current_behaviour(monkeypatch):
+    """기본은 첫 페이지 하나 — 실시간 수집을 건드리면 안 된다."""
+    import importlib
+    for k in ("XATAKA_MX_TAG_PAGES", "XATAKA_MX_TAG_START", "XATAKA_MX_MAX_OFFSET"):
+        monkeypatch.delenv(k, raising=False)
+    import platforms.xataka_mx as x
+    importlib.reload(x)
+    assert x.TAG_PAGES == 1
+    assert x.TAG_START == 0
+
+
+def test_xataka_stops_at_site_limit(monkeypatch):
+    """사이트가 offset 200 부터 410 Gone 을 준다(실측). 더 요청하면 낭비다."""
+    import importlib
+    monkeypatch.delenv("XATAKA_MX_MAX_OFFSET", raising=False)
+    import platforms.xataka_mx as x
+    importlib.reload(x)
+    assert x.MAX_OFFSET <= 180, f"한계가 {x.MAX_OFFSET} — 410 구간을 요청한다"
+    assert x.RECORDS_PER_PAGE == 20
+
+
+def test_xataka_treats_410_as_end():
+    """404 만 보다가 410 을 놓치면 그 태그가 통째로 0건이 된다."""
+    src = (ROOT / "platforms" / "xataka_mx.py").read_text()
+    assert "(404, 410)" in src, "410 Gone 을 종료 신호로 처리하지 않는다"
+
+
+def test_xataka_pagination_url_shape():
+    """`/pagina/N` 같은 흔한 패턴은 404 다 — 실측한 `/record/<offset>` 만 쓴다.
+
+    주석에는 그 사실을 적어두므로 **URL 을 조립하는 코드 줄만** 본다.
+    """
+    src = (ROOT / "platforms" / "xataka_mx.py").read_text()
+    code = [ln for ln in src.splitlines()
+            if "tag/" in ln and "f\"" in ln and not ln.strip().startswith("#")]
+    assert code, "태그 URL 조립 줄을 못 찾았다"
+    joined = " ".join(code)
+    assert "/record/" in joined, joined
+    assert "/pagina/" not in joined, joined
