@@ -230,3 +230,45 @@ def test_zdnet_search_uses_new_domain():
     assert "search.zdnet.co.kr" in SEARCH_URL, SEARCH_URL
     assert "search.html?word=" not in SEARCH_URL, "옛 404 경로가 남아 있다"
     assert "{kw}" in SEARCH_URL, "키워드 자리가 없다"
+
+
+# ── lemmy 검색 페이지네이션 ───────────────────────────────────────────
+def test_lemmy_defaults_keep_current_behaviour(monkeypatch):
+    import importlib
+    monkeypatch.delenv("LEMMY_SEARCH_PAGES", raising=False)
+    monkeypatch.delenv("LEMMY_PAGE_START", raising=False)
+    import platforms.lemmy as lm
+    importlib.reload(lm)
+    assert lm.SEARCH_PAGES == 1 and lm.PAGE_START == 1
+
+
+def test_lemmy_parse_posts_signature_matches_call():
+    """호출부의 try 가 예외를 삼켜 **고장이 0건으로 위장된다.**
+
+    페이지네이션을 넣으며 _parse_posts 를 분리했는데 query 인자를 빠뜨렸다.
+    NameError 가 나야 할 것이 호출부 try 에 먹혀 raw=0 으로 나왔고, 원래
+    2,285건을 모으던 소스라 이상해서 잡았다. 시그니처를 시험으로 묶는다.
+    """
+    import inspect
+    from platforms.lemmy import LemmyCrawler
+    sig = inspect.signature(LemmyCrawler._parse_posts)
+    params = list(sig.parameters)
+    assert params == ["self", "posts", "instance", "query", "seen_ids"], params
+
+    src = inspect.getsource(LemmyCrawler._search_posts)
+    assert "self._parse_posts(posts, instance, query, seen_ids)" in src, \
+        "호출 인자가 시그니처와 다르다"
+
+
+def test_lemmy_dedups_across_pages():
+    """페이지가 겹칠 수 있다 — 같은 글을 두 번 담으면 안 된다."""
+    from platforms.lemmy import LemmyCrawler
+    c = LemmyCrawler()
+    post = {"post": {"id": 1, "ap_id": "https://x/1", "name": "Galaxy S26",
+                     "published": "2026-01-01T00:00:00Z"},
+            "counts": {}, "creator": {}, "community": {}}
+    seen = set()
+    first = c._parse_posts([post], "lemmy.world", "samsung", seen)
+    again = c._parse_posts([post], "lemmy.world", "samsung", seen)
+    assert len(first) == 1
+    assert again == [], "같은 글을 두 번 담았다"

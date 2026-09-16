@@ -20,6 +20,19 @@ from base.crawler import BaseCrawler, RawVOC
 
 logger = logging.getLogger(__name__)
 
+def _env_int(name: str, default: int, *, min_value: int = 1) -> int:
+    """env 정수 읽기. 값이 이상하면 기본값으로."""
+    try:
+        v = int(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return v if v >= min_value else default
+
+
+# 검색 페이지네이션 — Lemmy API 의 `page`. 기본은 1페이지(기존 동작 유지).
+SEARCH_PAGES = _env_int("LEMMY_SEARCH_PAGES", 1)
+PAGE_START = _env_int("LEMMY_PAGE_START", 1)
+
 INSTANCES = [
     "lemmy.world",
     "beehaw.org",
@@ -118,18 +131,38 @@ class LemmyCrawler(BaseCrawler):
         self, client: httpx.AsyncClient, instance: str, query: str
     ) -> List[RawVOC]:
         url = f"https://{instance}/api/v3/search"
-        params = {
-            "q": query,
-            "type_": "Posts",
-            "sort": "New",
-            "limit": SEARCH_LIMIT,
-        }
-        resp = await client.get(url, params=params)
-        resp.raise_for_status()
-        payload = resp.json()
-
         results: List[RawVOC] = []
-        for pv in payload.get("posts") or []:
+        seen_ids: set = set()
+
+        # Lemmy API 는 `page` 를 지원한다(실측 2026-09-15 — page 3 이 다른
+        # 게시물을 돌려준다). 기본은 1페이지로 기존 동작을 유지하고, 역사
+        # 백필이 env 로 올린다. 이전에는 최신 한 페이지만 봐서 과거가 0건이었다.
+        for _pg in range(PAGE_START, PAGE_START + SEARCH_PAGES):
+            params = {
+                "q": query,
+                "type_": "Posts",
+                "sort": "New",
+                "limit": SEARCH_LIMIT,
+            }
+            if _pg > 1:
+                params["page"] = _pg
+                await self._random_delay()
+            resp = await client.get(url, params=params)
+            resp.raise_for_status()
+            payload = resp.json()
+            posts = payload.get("posts") or []
+            if not posts:
+                break                      # 더 없음
+            before = len(results)
+            results.extend(self._parse_posts(posts, instance, query, seen_ids))
+            if len(results) == before:
+                break                      # 새 글 없음 = 끝
+        return results
+
+    def _parse_posts(self, posts: list, instance: str, query: str,
+                     seen_ids: set) -> List[RawVOC]:
+        results: List[RawVOC] = []
+        for pv in posts:
             post = pv.get("post") or {}
             counts = pv.get("counts") or {}
             creator = pv.get("creator") or {}
@@ -139,6 +172,11 @@ class LemmyCrawler(BaseCrawler):
             ap_id = post.get("ap_id") or ""
             if not post_id:
                 continue
+            # 페이지가 겹칠 수 있다 — 같은 글을 두 번 담지 않는다.
+            key = ap_id or f"{instance}#{post_id}"
+            if key in seen_ids:
+                continue
+            seen_ids.add(key)
 
             title = post.get("name") or ""
             body = post.get("body") or ""
