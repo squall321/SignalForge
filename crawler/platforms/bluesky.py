@@ -112,6 +112,8 @@ class BlueskyCrawler(BaseCrawler):
 
     async def crawl(self) -> List[RawVOC]:
         if not _has_bluesky_keys():
+            self.report_blocked(
+                "자격증명 없음 — .env 의 BLUESKY_HANDLE / BLUESKY_PASSWORD 미설정")
             logger.warning(
                 "Bluesky 인증 키 미설정 — BLUESKY_HANDLE/PASSWORD 가 비어 있어 수집을 skip 합니다. "
                 "docs/dashboard/TWITTER_ALTERNATIVES.md 참조."

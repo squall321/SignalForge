@@ -178,8 +178,18 @@ class _BudgetTransport(httpx.AsyncBaseTransport):
                 headers={"x-sf-budget": "exceeded",
                          "content-type": "application/json"})
 
-        resp = await self._inner.handle_async_request(request)
+        # **시도를 먼저 센다.** 이 줄이 inner 호출 뒤에 있을 때는, 연결이
+        # 통째로 거부되는 사이트(slrclub: 80/443 refused)가 예외로 빠져나가
+        # 카운터를 0 으로 남겼다. 그러면 "접속이 안 되는 사이트"와 "요청을
+        # 시도조차 안 한 크롤러"가 똑같이 '요청 0' 으로 보인다 — 구분이 안 되니
+        # 아무도 손대지 않았다.
         self._crawler._wall_total += 1
+        try:
+            resp = await self._inner.handle_async_request(request)
+        except (httpx.ConnectError, httpx.ConnectTimeout) as e:
+            self._crawler._conn_fails += 1
+            self._crawler._conn_fail_reason = f"{type(e).__name__}: {e}"[:120]
+            raise
 
         # 본문을 여기서 다 읽어 확정 응답으로 바꿔 돌려준다. 크롤러 중
         # 스트리밍(.stream/aiter_bytes)을 쓰는 곳은 없어서 의미 차이가 없고,
@@ -238,6 +248,8 @@ class BaseCrawler(ABC):
         self._wall_hits = 0
         self._wall_total = 0
         self._throttle_hits = 0     # 429 — 레이트리밋. 차단과 대응이 다르다
+        self._conn_fails = 0        # 연결 거부/타임아웃 — 벽이 아니라 '문이 없음'
+        self._conn_fail_reason = ""
 
     # ── 수집 시간 예산 ────────────────────────────────────────────────
     # run() 은 crawl() 전량 → NLP 전량 → save() 를 **마지막에 한 번만** 한다.
@@ -297,6 +309,13 @@ class BaseCrawler(ABC):
         호출자(run)가 "수집 0건"일 때만 부른다 — 한 건이라도 긁혔으면
         벽이 좀 보여도 소스는 동작한 것이다(상세 페이지 일부만 403 등).
         """
+        # 연결 자체가 안 되는 건 '벽'과 다른 고장이다 — 벽은 UA·쿠키·브라우저로
+        # 넘볼 여지라도 있지만 이쪽은 포트가 닫혀 있거나 도메인이 사라진 것이다.
+        # 먼저 보지 않으면 _wall_hits 가 0 이라 조용히 None 이 되어 묻힌다.
+        if self._conn_fails and self._conn_fails >= self._wall_total * self.WALL_RATIO:
+            return (f"연결 실패 — 요청 {self._wall_total}건 중 {self._conn_fails}건이 "
+                    f"접속 불가 ({self._conn_fail_reason})")
+
         if self._wall_total < self.WALL_MIN_REQ or not self._wall_hits:
             return None
         ratio = self._wall_hits / self._wall_total

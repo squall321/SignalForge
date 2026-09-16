@@ -134,6 +134,8 @@ class RedditCrawler(BaseCrawler):
 
     async def crawl(self) -> List[RawVOC]:
         if not _has_reddit_keys():
+            self.report_blocked(
+                "자격증명 없음 — .env 의 REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET 미설정")
             logger.warning(
                 "Reddit OAuth 키 미설정 — REDDIT_CLIENT_ID/SECRET 가 비어 있어 수집을 skip 합니다. "
                 "docs/dashboard/REDDIT_OAUTH_GUIDE.md 참조."

@@ -42,6 +42,10 @@ class TwitterCrawler(BaseCrawler):
 
     async def crawl(self) -> List[RawVOC]:
         if not self.username or not self.password:
+            # 로그 경고만으로는 job 이 done/0건 으로 찍혀, 109일간 "새 글이 없는
+            # 소스"와 구별되지 않았다(2026-09-16 발견). 사실을 결과에 남긴다.
+            self.report_blocked(
+                "자격증명 없음 — .env 의 TWITTER_USERNAME / TWITTER_PASSWORD 미설정")
             logger.warning("TWITTER_USERNAME / TWITTER_PASSWORD 미설정. Twitter 크롤링 건너뜀.")
             return []
 

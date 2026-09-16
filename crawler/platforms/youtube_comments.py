@@ -123,6 +123,7 @@ class YouTubeCommentsCrawler(BaseCrawler):
 
     async def crawl(self) -> List[RawVOC]:
         if not self.api_key:
+            self.report_blocked("자격증명 없음 — .env 의 YOUTUBE_API_KEY 미설정")
             self.logger.warning(
                 "YOUTUBE_API_KEY 미설정 — YouTube 댓글 수집을 skip 합니다. "
                 "Google Cloud Console 에서 YouTube Data API v3 키(무료)를 발급해 .env 에 설정하세요."
