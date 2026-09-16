@@ -34,7 +34,13 @@ from base.crawler import BaseCrawler, RawVOC
 logger = logging.getLogger(__name__)
 
 BASE = "https://zdnet.co.kr"
-SEARCH_URL = f"{BASE}/search.html?word={{kw}}"
+# **검색이 별도 도메인으로 옮겨갔다.** 옛 `{BASE}/search.html?word=` 는 404 다
+# (실측 2026-09-15). 그래서 9월 11일 이후 수집이 멎어 있었다 — 크롤러가 단일
+# 경로라 그게 죽으면 소스가 통째로 멈춘다.
+# 새 경로는 사이트 검색 폼에서 직접 읽었다(추측 금지).
+SEARCH_URL = "https://search.zdnet.co.kr/?kwd={kw}"
+# 깊이 수집은 불가 — `&page=N` 을 붙여도 같은 내용이 온다(파라미터 무시).
+# 역사가 필요하면 다른 수단이 있어야 한다.
 ARTICLE_URL = f"{BASE}/view/?no={{no}}"
 
 # 키워드 (한글 + 영문 병행)

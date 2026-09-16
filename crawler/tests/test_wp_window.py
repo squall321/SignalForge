@@ -217,3 +217,16 @@ def test_pikabu_has_no_dead_code():
     assert "옛 단일 페이지 경로" not in src, "죽은 코드가 남아 있다"
     assert src.count("parse_search_html(resp.text, q)") == 1, \
         "검색 파싱 경로가 둘이면 한쪽만 고쳐져 갈라진다"
+
+
+# ── zdnet_kr 검색 도메인 이전 ─────────────────────────────────────────
+def test_zdnet_search_uses_new_domain():
+    """검색이 별도 도메인으로 옮겨갔다. 옛 경로는 404 다(실측 2026-09-15).
+
+    이 크롤러는 단일 경로라 그게 죽으면 소스가 통째로 멈춘다 — 실제로
+    9월 11일 이후 수집이 멎어 있었다.
+    """
+    from platforms.zdnet_kr import SEARCH_URL
+    assert "search.zdnet.co.kr" in SEARCH_URL, SEARCH_URL
+    assert "search.html?word=" not in SEARCH_URL, "옛 404 경로가 남아 있다"
+    assert "{kw}" in SEARCH_URL, "키워드 자리가 없다"
