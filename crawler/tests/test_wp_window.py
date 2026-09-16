@@ -107,3 +107,42 @@ def test_no_duplicated_window_logic():
     for name in WIRED:
         src = (ROOT / "platforms" / f"{name}.py").read_text()
         assert "def _window_respected" not in src, f"{name}: 자체 구현이 있다"
+
+
+# ── arXiv (WP 는 아니지만 같은 기간 창 규약) ──────────────────────────
+def test_arxiv_uses_https():
+    """http 는 301 로 리다이렉트된다 — 리다이렉트를 안 따르면 빈 본문이 와서
+    XML 파싱이 터진다(실측 2026-09-15)."""
+    from platforms.arxiv import ARXIV_API
+    assert ARXIV_API.startswith("https://"), ARXIV_API
+
+
+def test_arxiv_window_format(monkeypatch):
+    """arXiv 문법은 YYYYMMDDHHMM 이다."""
+    import importlib
+    monkeypatch.setenv("ARXIV_AFTER", "2022-01-01")
+    monkeypatch.setenv("ARXIV_BEFORE", "2022-07-01T00:00:00")
+    import platforms.arxiv as a
+    importlib.reload(a)
+    after, before = a._date_window()
+    assert after == "202201010000", after
+    assert before == "202207010000", before
+
+
+def test_arxiv_no_window_by_default(monkeypatch):
+    """창이 없으면 평소대로 최신을 긁어야 한다."""
+    import importlib
+    monkeypatch.delenv("ARXIV_AFTER", raising=False)
+    monkeypatch.delenv("ARXIV_BEFORE", raising=False)
+    import platforms.arxiv as a
+    importlib.reload(a)
+    assert a._date_window() == ("", "")
+
+
+def test_arxiv_garbage_window_is_ignored(monkeypatch):
+    """이상한 값에 죽지 않고 창 없음으로 떨어져야 한다."""
+    import importlib
+    monkeypatch.setenv("ARXIV_AFTER", "어제")
+    import platforms.arxiv as a
+    importlib.reload(a)
+    assert a._date_window()[0] == ""

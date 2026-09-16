@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# WP REST 를 쓰는 개별 소스의 역사 backfill — **자기 플랫폼 코드로** 쌓는다.
+# 기간 창(env)을 받는 개별 소스의 역사 backfill — **자기 플랫폼 코드로** 쌓는다.
+# WP REST(hipertextual·mobile_review·jagatreview) + arXiv API.
 #
 # wpnews 는 여러 매체를 'wpnews' 한 코드로 모은다(meta 로 매체 구분). 그건 그거대로
 # 쓸모가 있지만, 플랫폼별 분석에서는 hipertextual 의 역사가 hipertextual 에 있어야
@@ -20,7 +21,10 @@ exec 9>"/tmp/sf-backfill-global.lock"
 flock -n 9 || exit 0
 
 # 요일별 1소스 — 무겁지 않지만 다른 백필과 겹치지 않게 나눈다.
+# arxiv 는 WP 가 아니지만 **같은 '기간 창 env' 규약**을 쓰므로 여기서 함께 돈다
+# (arXiv API 는 submittedDate 범위를 지원한다).
 case "$(date +%u)" in
+  1) SRC="arxiv";        CLS="ArxivCrawler";        PFX="ARXIV" ;;
   2) SRC="hipertextual"; CLS="HipertextualCrawler"; PFX="HIPERTEXTUAL" ;;
   4) SRC="mobile_review"; CLS="MobileReviewCrawler"; PFX="MOBILE_REVIEW" ;;
   6) SRC="jagatreview";  CLS="JagatReviewCrawler";  PFX="JAGATREVIEW" ;;
