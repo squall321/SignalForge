@@ -103,7 +103,11 @@ def test_translate_deadline_is_wired():
     from base.crawler import BaseCrawler
     src = _i.getsource(BaseCrawler.run)
     assert "translate_deadline" in src, "run() 이 번역 마감을 넘기지 않는다"
-    assert "RUN_BUDGET_SEC" in src
+    # 마감 계산은 _translate_deadline 헬퍼로 옮겼다 — 백필 모드에서 번역을
+    # 통째로 건너뛰기 위함이다. 예산 참조는 그 헬퍼 안에 있다.
+    helper = _i.getsource(BaseCrawler._translate_deadline)
+    assert "RUN_BUDGET_SEC" in helper, "마감이 실행 예산과 무관해졌다"
+    assert "BACKFILL_MODE" in helper, "백필 모드에서 번역을 건너뛰지 않는다"
 
     from nlp.translator import past_deadline, set_deadline   # noqa: F401
     import nlp.translator as T

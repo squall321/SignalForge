@@ -36,6 +36,7 @@ DB="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-
 echo "$(date '+%F %T') HN backfill 연도 $YEAR (ts $AFTER~$BEFORE) 시작" >> "$LOG"
 apptainer exec --bind "$CRAWLER_DIR:/crawler" \
   --env DATABASE_URL="$DB" \
+  --env BACKFILL_MODE=1 \
   --env HN_BACKFILL_AFTER="$AFTER" --env HN_BACKFILL_BEFORE="$BEFORE" \
   "$APPT_DIR/sif/crawler.sif" python3 -c "
 import sys, asyncio; sys.path.insert(0, '/crawler')

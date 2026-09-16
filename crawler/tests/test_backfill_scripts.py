@@ -134,3 +134,28 @@ def test_rotate_logs_keeps_tail():
 def test_rotate_logs_skips_itself():
     src = (SCRIPTS / "rotate-logs.sh").read_text()
     assert "rotate-logs.log) continue" in src, "자기 로그를 자르면 기록이 사라진다"
+
+
+BACKFILL_COLLECTORS = [
+    "youtube-backfill.sh", "hn-backfill.sh", "wpnews-backfill.sh",
+    "wayback-backfill.sh", "kr-backfill.sh", "global-backfill.sh",
+]
+
+
+@pytest.mark.parametrize("name", BACKFILL_COLLECTORS)
+def test_collectors_run_in_backfill_mode(name):
+    """**역사 백필은 번역을 건너뛴다.**
+
+    대량 수집이 번역 서비스를 두드리면 레이트리밋을 유발해 실시간 파이프라인의
+    할당량까지 갉아먹는다(실측 — youtube 백필이 MyMemory 429 를 연달아 맞았다).
+    원문은 저장되고 12시간 주기 translation_reprocess 가 나중에 메운다.
+    """
+    src = (SCRIPTS / name).read_text()
+    assert "BACKFILL_MODE=1" in src, f"{name}: 수집 시점에 번역을 시도한다"
+
+
+def test_backfill_mode_is_honoured_by_crawler():
+    """크롤러가 그 플래그를 실제로 본다 — 셸에만 있으면 무의미하다."""
+    src = (SCRIPTS.parent / "crawler" / "base" / "crawler.py").read_text()
+    assert 'os.getenv("BACKFILL_MODE"' in src
+    assert "_translate_deadline" in src

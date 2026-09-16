@@ -32,6 +32,7 @@ DB="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-
 echo "$(date '+%F %T') wayback backfill 연도 $YEAR 시작" >> "$LOG"
 apptainer exec --bind "$CRAWLER_DIR:/crawler" \
   --env DATABASE_URL="$DB" --env WAYBACK_YEAR="$YEAR" \
+  --env BACKFILL_MODE=1 \
   "$APPT_DIR/sif/crawler.sif" python3 -c "
 import sys, asyncio; sys.path.insert(0, '/crawler')
 from platforms.wayback_news import WaybackNewsCrawler

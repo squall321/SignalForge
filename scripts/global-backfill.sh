@@ -22,6 +22,7 @@ echo "$(date '+%F %T') 글로벌 IT backfill 시작 (H1_FACTOR=$FACTOR)" >> "$LO
 # audit_path = 스크립트 3-up/audit → 컨테이너 /audit. host $ROOT/audit 를 bind.
 apptainer exec --bind "$CRAWLER_DIR:/crawler" --bind "$ROOT/audit:/audit" \
   --env DATABASE_URL="$DB" --env H1_FACTOR="$FACTOR" \
+  --env BACKFILL_MODE=1 \
   "$APPT_DIR/sif/crawler.sif" sh -c "cd /crawler && python3 scripts/global_it_backfill.py" \
   >> "$LOG" 2>&1
 echo "$(date '+%F %T') 글로벌 IT backfill 끝" >> "$LOG"

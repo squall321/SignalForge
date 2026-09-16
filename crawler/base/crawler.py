@@ -307,6 +307,12 @@ class BaseCrawler(ABC):
         return (f"요청 {self._wall_total}건 중 {self._wall_hits}건이 "
                 f"차단 응답 ({ratio:.0%})")
 
+    def _translate_deadline(self) -> float:
+        """번역 마감시각. 백필 모드면 이미 지난 값을 줘 번역을 건너뛴다."""
+        if os.getenv("BACKFILL_MODE", "0") == "1":
+            return time.monotonic() - 1
+        return self._started + self.RUN_BUDGET_SEC
+
     def budget_left(self) -> float:
         return max(0.0, self.CRAWL_BUDGET_SEC - (time.monotonic() - self._started))
 
@@ -551,9 +557,15 @@ class BaseCrawler(ABC):
                 # 번역 마감 — 실행 예산까지. NLP 비용은 건당 추정이 안 된다
                 # (실측 telepolis 150건 426초 = 2.84s/건, 가정치 0.667 의 4배).
                 # 청크 사이에서만 확인하면 청크 하나가 통째로 넘긴다.
+                #
+                # **역사 백필은 번역을 통째로 건너뛴다**(BACKFILL_MODE=1).
+                # 대량 수집이 번역 서비스를 두드리면 레이트리밋을 유발해
+                # 실시간 파이프라인의 할당량까지 갉아먹는다(실측 — youtube 백필이
+                # MyMemory 429 를 연달아 맞았다). 원문은 그대로 저장되고 12시간
+                # 주기 translation_reprocess 가 나중에 메운다.
                 processed = await process_voc_list(
                     [self.normalize(r) for r in part],
-                    translate_deadline=self._started + self.RUN_BUDGET_SEC)
+                    translate_deadline=self._translate_deadline())
                 saved += await self.save(processed)
                 done_n += len(part)
                 if done_n < len(raw_vocs) and self.run_budget_exceeded():

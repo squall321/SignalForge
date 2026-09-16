@@ -21,6 +21,7 @@ PAGES="${KR_BACKFILL_PAGES:-50}"   # 깊이(페이지). 기본 50 = 옛 글까�
 echo "$(date '+%F %T') KR backfill 시작 (BACKFILL_PAGES=$PAGES)" >> "$LOG"
 apptainer exec --bind "$CRAWLER_DIR:/crawler" \
   --env DATABASE_URL="$DB" --env BACKFILL_PAGES="$PAGES" \
+  --env BACKFILL_MODE=1 \
   "$APPT_DIR/sif/crawler.sif" sh -c "cd /crawler && python3 scripts/historical_kr_backfill.py" \
   >> "$LOG" 2>&1
 echo "$(date '+%F %T') KR backfill 끝" >> "$LOG"

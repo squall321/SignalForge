@@ -45,6 +45,7 @@ PREV="$(date -u -d "${CUR}-01 -1 month" +%Y-%m)"
 echo "$(date '+%F %T') wpnews backfill $CUR ($AFTER ~ $BEFORE) 시작" >> "$LOG"
 apptainer exec --bind "$CRAWLER_DIR:/crawler" \
   --env DATABASE_URL="$DB" \
+  --env BACKFILL_MODE=1 \
   --env WPNEWS_AFTER="$AFTER" \
   --env WPNEWS_BEFORE="$BEFORE" \
   "$APPT_DIR/sif/crawler.sif" python3 -c "

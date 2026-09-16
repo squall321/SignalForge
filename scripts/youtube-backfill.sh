@@ -41,6 +41,7 @@ BF_QUERIES="Samsung Galaxy S review,Samsung Galaxy Z Fold review,Samsung Galaxy 
 echo "$(date '+%F %T') backfill 연도 $YEAR 시작" >> "$LOG"
 apptainer exec --bind "$CRAWLER_DIR:/crawler" \
   --env YOUTUBE_API_KEY="$KEY" --env DATABASE_URL="$DB" \
+  --env BACKFILL_MODE=1 \
   --env YOUTUBE_QUERIES="$BF_QUERIES" \
   --env YOUTUBE_PUBLISHED_AFTER="${YEAR}-01-01T00:00:00Z" \
   --env YOUTUBE_PUBLISHED_BEFORE="${NEXT}-01-01T00:00:00Z" \
