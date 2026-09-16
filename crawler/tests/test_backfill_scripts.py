@@ -114,3 +114,23 @@ def test_unsupported_and_sites_do_not_overlap():
     unsup = set(re.findall(r'"([a-z_0-9]+)":', block))
     assert unsup, "불가 목록이 비었다"
     assert not (sites & unsup), f"양쪽에 있다: {sorted(sites & unsup)}"
+
+
+def test_rotate_logs_truncates_in_place():
+    """**파일을 지우면 안 된다.** 프로세스가 열어둔 fd 를 유지해야 한다 —
+    rm/mv 하면 celery 는 지워진 inode 에 계속 쓰고 디스크는 그대로 차 있다."""
+    src = (SCRIPTS / "rotate-logs.sh").read_text()
+    assert ": > \"$f\"" in src, "제자리 절단(`: > file`)을 쓰지 않는다"
+    assert "rm -f \"$f\"\n" not in src, "로그 파일 자체를 지운다"
+    assert "mv \"$f\"" not in src, "로그 파일을 옮긴다 — fd 가 끊긴다"
+
+
+def test_rotate_logs_keeps_tail():
+    """자르기 전 꼬리를 남겨야 한다 — 직전 상황을 잃으면 사고 조사가 안 된다."""
+    src = (SCRIPTS / "rotate-logs.sh").read_text()
+    assert "tail -n" in src and "KEEP_LINES" in src
+
+
+def test_rotate_logs_skips_itself():
+    src = (SCRIPTS / "rotate-logs.sh").read_text()
+    assert "rotate-logs.log) continue" in src, "자기 로그를 자르면 기록이 사라진다"

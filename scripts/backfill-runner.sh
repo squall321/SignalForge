@@ -29,6 +29,9 @@ run_step() {  # $1 = 자식 스크립트명
 }
 
 echo "$(date '+%F %T') ===== backfill 러너 시작 (dow=$dow) =====" >> "$LOG"
+# 로그 절단부터 — 무한히 자라는 로그가 디스크를 채우면 나머지가 다 멈춘다
+# (실측 2026-09-16: celery-worker.log 102MB, 로테이션 설정 없음).
+run_step rotate-logs.sh
 run_step youtube-backfill.sh
 run_step hn-backfill.sh
 run_step wpnews-backfill.sh                         # WP뉴스 옛기사(연도 롤링) 매일
