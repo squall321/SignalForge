@@ -79,6 +79,14 @@ UNSUPPORTED = {
     "computerbase": "MAX_THREAD_PAGES(스레드 내부 페이지) — 목록 깊이와 의미가 다름",
     "fourchan_g": "4chan 은 스레드가 만료돼 사라진다 — 역사가 존재하지 않는다",
     "fmkorea": "Playwright 봇 챌린지에 막혀 있다 — 그게 풀려야 깊이가 의미 있다",
+    # LIST_PAGES 상수는 있으나 **실제 page 루프가 없다.** 상수만 보고 '가능'으로
+    # 분류하면 안 된다 — 코드 주석이 진실을 말한다(2026-09-16 재확인).
+    "ithome": "RSS 단일 페이지(~60건)만 노출 — LIST_PAGES 는 의례적 상한",
+    "tweakers": "피드 기반 — page 루프가 없다",
+    "mobil_se": "실제 가용 ~50건 — LIST_PAGES 는 contract 준수용 상한",
+    "4pda": "탐색 시 403 — 차단 우회가 먼저 필요하다",
+    "macrumors": "RSS 3종뿐. /guide/ 는 제품 가이드라 VOC 성격이 다르다",
+    "zdnet_kr": "검색이 &page 를 무시한다(응답이 바이트 단위로 동일)",
 }
 
 PAGES_PER_RUN = int(os.getenv("DEEP_PAGES_PER_RUN", "12"))

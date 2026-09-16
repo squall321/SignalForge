@@ -175,3 +175,29 @@ def test_unsupported_sites_have_reasons(monkeypatch, tmp_path):
     for site, why in m.UNSUPPORTED.items():
         assert site not in m.SITES, f"{site} 가 양쪽에 다 있다"
         assert len(why) > 8, f"{site} 사유가 부실하다: {why!r}"
+
+
+def test_registered_sites_have_real_page_loops(monkeypatch, tmp_path):
+    """**LIST_PAGES 상수가 있다고 깊이 수집이 되는 게 아니다.**
+
+    실제 page 루프가 없는데 등록하면 그 소스는 매번 같은 첫 페이지만 다시 긁는다.
+    sweclockers·ithome·tweakers·mobil_se 가 그런 경우였다 — 상수만 보고 분류했다가
+    두 번 틀렸고, 코드 주석이 진실을 말하고 있었다("RSS 단일 페이지",
+    "contract 준수용 상한").
+    """
+    import pathlib as _p
+    m = _load(monkeypatch, tmp_path)
+    root = _p.Path(__file__).resolve().parents[1]
+    for site, (mod_path, _, _, _) in m.SITES.items():
+        src = (root / (mod_path.replace(".", "/") + ".py")).read_text()
+        assert "for page in range(PAGE_START, PAGE_START + LIST_PAGES)" in src, \
+            f"{site}: 등록됐는데 실제 page 루프가 없다 — 첫 페이지만 되풀이한다"
+
+
+def test_unsupported_reasons_are_specific(monkeypatch, tmp_path):
+    """'불가' 사유는 다음 사람이 재검토할 수 있을 만큼 구체적이어야 한다."""
+    m = _load(monkeypatch, tmp_path)
+    vague = {"불가", "안 됨", "없음", "미지원"}
+    for site, why in m.UNSUPPORTED.items():
+        assert why.strip() not in vague, f"{site}: 사유가 모호하다 — {why!r}"
+        assert len(why) >= 12, f"{site}: 사유가 너무 짧다 — {why!r}"
