@@ -11,12 +11,20 @@ voc_records.product_id 는 1행 1제품이라 "S26 Ultra vs Fold8" 비교글이 
 - keyset 커서(id > last)로 배치 처리 → 대용량에서도 일정한 성능.
 - 멱등: ON CONFLICT DO UPDATE 로 재실행 시 역할까지 갱신.
 
+- **커서 영속**: LINK_LIMIT 으로 하루치를 끊어도 다음 실행이 이어받는다.
+  이게 없을 때는 매 실행 after=0 으로 되돌아가 앞 6만 건만 반복해서 훑고
+  나머지 46만 건에 영영 닿지 않았다(2026-09-16 발견). 창을 고정하면 꼬리만 긁는다.
+  끝까지 가면 커서를 0 으로 되감아 그동안 쌓인 새 글을 다시 훑는다.
+
 실행: DATABASE_URL=... python3 -m scripts.backfill_product_links
-환경변수: LINK_BATCH(기본 2000), LINK_LIMIT(0=무제한)
+환경변수: LINK_BATCH(기본 2000), LINK_LIMIT(0=무제한),
+          LINK_STATE(커서 파일 경로, 기본 logs/product-links-state.json)
 """
 import asyncio
+import json
 import logging
 import os
+import pathlib
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -34,6 +42,27 @@ log = logging.getLogger("backfill_links")
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 BATCH = int(os.getenv("LINK_BATCH", "2000"))
 LIMIT = int(os.getenv("LINK_LIMIT", "0"))
+STATE_PATH = pathlib.Path(os.getenv(
+    "LINK_STATE",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                 "logs", "product-links-state.json")))
+
+
+def read_cursor() -> int:
+    """마지막으로 훑은 id. 파일이 깨졌거나 없으면 0 부터 — 멱등이라 손해가 없다."""
+    try:
+        return int(json.loads(STATE_PATH.read_text()).get("after", 0))
+    except Exception:
+        return 0
+
+
+def write_cursor(after: int, wrapped: bool) -> None:
+    try:
+        STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        STATE_PATH.write_text(json.dumps(
+            {"after": after, "wrapped": wrapped}, ensure_ascii=False))
+    except Exception as e:      # 커서를 못 써도 이번 회차 결과는 이미 DB 에 있다
+        log.warning("커서 저장 실패 — 다음 실행이 처음부터 간다: %s", e)
 
 SELECT_SQL = text("""
     SELECT id, product_id, content_original
@@ -86,7 +115,11 @@ async def main():
         ))).scalar_one()
     log.info(f"백필 대상 {total}건 (제품 사전 {len(pmap)}종, BATCH={BATCH})")
 
-    after = 0
+    after = read_cursor()
+    start_after = after
+    log.info(f"커서 {after} 에서 이어받는다 ({STATE_PATH})")
+
+    wrapped = False
     seen = links_written = multi = synced = 0
     try:
         while True:
@@ -94,7 +127,14 @@ async def main():
                 rows = (await db.execute(
                     SELECT_SQL, {"after": after, "batch": BATCH})).all()
                 if not rows:
-                    break
+                    # 코퍼스 끝. 상한이 걸린 회차라면 되감아 남은 예산으로 앞쪽
+                    # (그동안 쌓인 새 글)을 훑는다. 되감기는 **회차당 한 번만** —
+                    # 상한이 없으면 무한히 돌기 때문이다.
+                    if wrapped or not LIMIT or after == 0:
+                        break
+                    log.info(f"  id {after} 에서 코퍼스 끝 — 커서를 0 으로 되감는다")
+                    after, wrapped = 0, True
+                    continue
                 for r in rows:
                     seen += 1
                     after = r.id
@@ -114,8 +154,12 @@ async def main():
             if LIMIT and seen >= LIMIT:
                 break
     finally:
+        write_cursor(after, wrapped)
         await engine.dispose()
-    log.info(f"=== 완료: 스캔 {seen}, 링크 {links_written}, 다중제품 행 {multi}, product_id 보정 {synced} ===")
+    log.info(f"=== 완료: 스캔 {seen}, 링크 {links_written}, 다중제품 행 {multi}, "
+             f"product_id 보정 {synced} ===")
+    log.info(f"    커서 {start_after} → {after}"
+             f"{' (한 바퀴 돌아 되감음)' if wrapped else ''}")
 
 
 if __name__ == "__main__":
