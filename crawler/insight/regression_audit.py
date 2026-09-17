@@ -30,7 +30,7 @@ audit JSONL (``reports/backfill_audit.jsonl``) 라벨:
 
 환경변수
 ========
-SF_BACKEND_URL           기본 ``http://127.0.0.1:8000``
+SF_BACKEND_URL           기본 ``http://127.0.0.1:18000`` (base/backend_url.py)
 REGRESSION_AUDIT_STATE   상태 파일 경로 override (테스트용)
 REGRESSION_AUDIT_ROUND   audit env.round 라벨 (기본 ``harvest5``)
 REGRESSION_AUDIT_TIMEOUT 요청 timeout 초 (기본 20)
@@ -287,7 +287,8 @@ def run_once(
         }
     """
     if payload is None:
-        base = (base_url or os.getenv("SF_BACKEND_URL", "http://127.0.0.1:8000")).strip()
+        from base.backend_url import backend_base as _bb
+        base = (base_url or _bb("SF_BACKEND_URL")).strip()
         payload = _fetch(base, timeout)
 
     curr_sig = extract_signature(payload)

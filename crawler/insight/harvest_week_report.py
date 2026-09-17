@@ -63,7 +63,8 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = _CRAWLER_DIR.parent
 DEFAULT_REPORT_DIR = REPO_ROOT / "reports"
-DEFAULT_BASE = os.getenv("SIGNALFORGE_API", "http://127.0.0.1:8000")
+from base.backend_url import backend_base  # noqa: E402
+DEFAULT_BASE = backend_base()
 
 # Harvest 라운드 메타 (메모리/이번 5 시리즈 기준) ────────────────────────────
 # 변경 시 NOTE: 각 라운드의 voc_total 은 *시점 기록* 이라 시간이 지나도 고정.

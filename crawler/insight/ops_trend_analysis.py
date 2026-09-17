@@ -47,7 +47,8 @@ if str(_CRAWLER_DIR) not in sys.path:
 
 REPO_ROOT = _CRAWLER_DIR.parent
 DEFAULT_REPORT_DIR = REPO_ROOT / "reports"
-DEFAULT_API = os.getenv("SIGNALFORGE_API", "http://127.0.0.1:8000")
+from base.backend_url import backend_base  # noqa: E402
+DEFAULT_API = backend_base()
 
 # operations_monitor 와 동일한 임계 (단일 진실 원천 — 변경 시 양쪽 함께)
 THRESH_VOC_DAILY_DROP_PCT = 50.0

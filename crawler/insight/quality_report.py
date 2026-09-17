@@ -44,7 +44,8 @@ _CRAWLER_DIR = _THIS.parent.parent
 REPO_ROOT = _CRAWLER_DIR.parent
 DEFAULT_REPORT_DIR = REPO_ROOT / "reports"
 
-DEFAULT_BASE = os.getenv("SIGNALFORGE_API", "http://127.0.0.1:8000")
+from base.backend_url import backend_base  # noqa: E402
+DEFAULT_BASE = backend_base()
 
 # 모니터링할 MV — 신선도(분 단위 지연) 체크 대상
 WATCHED_MVS = (

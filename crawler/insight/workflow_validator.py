@@ -75,7 +75,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 REPORTS_DIR_DEFAULT = REPO_ROOT / "docs" / "dashboard"
 TOPIC_EVAL_DIR_DEFAULT = REPO_ROOT / "reports"
 
-DEFAULT_BACKEND = os.getenv("WORKFLOW_VALIDATOR_BACKEND", "http://localhost:8000")
+from base.backend_url import backend_base  # noqa: E402
+DEFAULT_BACKEND = backend_base("WORKFLOW_VALIDATOR_BACKEND")
 DEFAULT_THRESHOLD = 0.10  # ±10% (LoC 의 20% 보다 엄격 — 데이터 수치는 정확해야)
 
 # R25 트랙 B: 메타-루프 재귀 cap 환경변수화.
@@ -1295,7 +1296,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--reports-dir", default=str(REPORTS_DIR_DEFAULT),
                    help="기본: docs/dashboard")
     p.add_argument("--backend", default=DEFAULT_BACKEND,
-                   help="backend 베이스 URL (기본 http://localhost:8000).")
+                   help="backend 베이스 URL (기본 http://127.0.0.1:18000).")
     p.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD,
                    help="|drift%%| 임계치 (기본 0.10 = 10%%).")
     p.add_argument("--inject", action="store_true",

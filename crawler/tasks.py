@@ -980,7 +980,9 @@ def evaluate_alert_rules(self):
     import urllib.request
     import urllib.error
 
-    api_url = os.getenv("ALERTS_API_URL", "http://127.0.0.1:8000/api/v1/alerts/test?respect_cooldown=true")
+    from base.backend_url import backend_base
+    api_url = os.getenv("ALERTS_API_URL") or (
+        backend_base() + "/api/v1/alerts/test?respect_cooldown=true")
     t0 = time.time()
     try:
         req = urllib.request.Request(api_url, method="POST",
@@ -1229,7 +1231,7 @@ def warm_dashboard_cache(base_url: Optional[str] = None) -> dict:
     """/dashboard/overview 자주 쓰는 8 case 를 미리 호출해 Redis 캐시를 채운다.
 
     Args:
-        base_url: FastAPI base URL (기본 ``SIGNALFORGE_API`` env, 없으면 127.0.0.1:8000).
+        base_url: FastAPI base URL (기본 ``SIGNALFORGE_API`` env, 없으면 127.0.0.1:18000).
 
     Returns:
         {
@@ -1245,7 +1247,9 @@ def warm_dashboard_cache(base_url: Optional[str] = None) -> dict:
     import urllib.error
     import urllib.request
 
-    base = (base_url or os.getenv("SIGNALFORGE_API") or "http://127.0.0.1:8000").rstrip("/")
+    from base.backend_url import auth_headers, backend_base
+    base = (base_url or backend_base()).rstrip("/")
+    hdrs = auth_headers()
     # 자주 쓰는 case 8건. 운영 분석 후 조정 가능.
     targets = [
         "/api/v1/dashboard/overview?period=24h",
@@ -1266,7 +1270,8 @@ def warm_dashboard_cache(base_url: Optional[str] = None) -> dict:
         t0 = time.time()
         rc = 0
         try:
-            with urllib.request.urlopen(url, timeout=10.0) as resp:
+            req = urllib.request.Request(url, headers=hdrs)
+            with urllib.request.urlopen(req, timeout=10.0) as resp:
                 rc = int(resp.status)
                 _ = resp.read()  # body 소비 → 캐시 SET 보장
         except urllib.error.HTTPError as e:

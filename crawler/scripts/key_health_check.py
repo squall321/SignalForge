@@ -13,7 +13,7 @@ CLI::
 
     python -m scripts.key_health_check
     python -m scripts.key_health_check --json
-    python -m scripts.key_health_check --backend-url http://127.0.0.1:8000
+    python -m scripts.key_health_check --backend-url http://127.0.0.1:18000
     python -m scripts.key_health_check --skip-groq        # Slack 만 검증
     python -m scripts.key_health_check --skip-slack       # Groq 만 검증
 
@@ -51,7 +51,8 @@ except Exception:  # pragma: no cover
     pass
 
 
-DEFAULT_BACKEND = "http://127.0.0.1:8000"
+from base.backend_url import backend_base  # noqa: E402
+DEFAULT_BACKEND = backend_base()
 PING_PROMPT = "ping"
 PING_TIMEOUT_S = 10.0
 ENDPOINT_TIMEOUT_S = 15.0

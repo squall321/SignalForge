@@ -11,7 +11,7 @@
 CLI:
     python -m scripts.groq_health_check
     python -m scripts.groq_health_check --json
-    python -m scripts.groq_health_check --backend-url http://127.0.0.1:8000
+    python -m scripts.groq_health_check --backend-url http://127.0.0.1:18000
 
 종료 코드:
     0  skipped (키 미입력) 또는 정상
@@ -43,7 +43,8 @@ except Exception:  # pragma: no cover
     pass
 
 
-DEFAULT_BACKEND = "http://127.0.0.1:8000"
+from base.backend_url import backend_base  # noqa: E402
+DEFAULT_BACKEND = backend_base()
 PING_PROMPT = "ping"
 PING_TIMEOUT_S = 10.0
 ENDPOINT_TIMEOUT_S = 15.0
