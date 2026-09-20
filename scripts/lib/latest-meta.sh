@@ -107,8 +107,11 @@ _voc_count() {
              -t -A -c "SELECT count(*) FROM voc_records" 2>/dev/null) || v=""
     [[ -n "$v" ]] && { echo "$v"; return; }
   fi
+  # 파이프+조기종료(grep -q)는 pipefail 아래서 SIGPIPE(141) 오판을 만든다 — 목록을 먼저 받는다.
+  # 실측: 경합 중 600회 중 88회(14.7%)가 '떠 있는데 없다'로 읽혔다(HEAXHub _common.sh:instance_running 주석).
+  _il="$(apptainer instance list 2>/dev/null || true)"
   if command -v apptainer >/dev/null 2>&1 \
-     && apptainer instance list 2>/dev/null | awk '{print $1}' | grep -qx sf_postgres; then
+     && [[ $'\n'"$(printf '%s\n' "$_il" | awk '{print $1}')"$'\n' == *$'\n'sf_postgres$'\n'* ]]; then
     v=$(PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" \
         apptainer exec instance://sf_postgres \
         psql -h 127.0.0.1 -p "${POSTGRES_PORT:-5432}" \

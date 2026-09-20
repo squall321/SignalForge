@@ -145,7 +145,13 @@ require_port_free() {
 }
 
 instance_running() {
-  apptainer instance list 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "$1"
+  # **파이프를 쓰지 않는다** — `grep -q` 조기 종료가 pipefail 아래서 apptainer 를 SIGPIPE(141)로
+  # 죽여 떠 있는 인스턴스를 "없다" 로 읽는다(실측: 목록 조회 경합 중 600회 중 88회).
+  local _il
+  _il="$(apptainer instance list 2>/dev/null)" || return 1
+  case $'\n'"$(printf '%s\n' "$_il" | awk 'NR>1 {print $1}')"$'\n' in
+    *$'\n'"$1"$'\n'*) return 0 ;; *) return 1 ;;
+  esac
 }
 
 ensure_dirs() {

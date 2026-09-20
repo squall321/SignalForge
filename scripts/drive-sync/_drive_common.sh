@@ -99,7 +99,13 @@ psql_cmd() {
 
 instance_running() {
   command -v apptainer >/dev/null 2>&1 || return 1
-  apptainer instance list 2>/dev/null | awk '{print $1}' | grep -qx "$1"
+  # pipefail + 조기종료(grep -q)는 SIGPIPE(141) 오판을 만든다 — 목록을 먼저 받는다(실측 14.7%).
+  local _il
+  _il="$(apptainer instance list 2>/dev/null)" || return 1
+  case $'\n'"$(printf '%s\n' "$_il" | awk '{print $1}')"$'\n' in
+    *$'\n'"$1"$'\n'*) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 # ── 8. rclone 가용성 ────────────────────────────────────────────

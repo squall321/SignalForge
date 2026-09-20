@@ -117,7 +117,10 @@ if [[ $WITH_SIF -eq 1 ]]; then
   echo
   echo "▶ [1/3] SIF ← $REMOTE_ROOT/sif/latest/ (없으면 sif-* 최신)"
   SRC="$REMOTE_ROOT/sif/latest"
-  if ! rclone lsf "$SRC/" 2>/dev/null | grep -qE '\.sif$'; then
+  # 파이프+조기종료(grep -q)는 pipefail 아래서 SIGPIPE(141) 오판을 만든다 — 목록을 먼저 받는다.
+  # 실측: 경합 중 600회 중 88회(14.7%)가 '떠 있는데 없다'로 읽혔다(HEAXHub _common.sh:instance_running 주석).
+  _sif_listing="$(rclone lsf "$SRC/" 2>/dev/null || true)"
+  if [[ "$_sif_listing" != *.sif* ]]; then
     NEWEST="$(rclone lsf --dirs-only "$REMOTE_ROOT/" 2>/dev/null \
               | sed 's#/$##' | grep -E '^sif-' | sort | tail -n1 || true)"
     if [[ -z "$NEWEST" ]]; then

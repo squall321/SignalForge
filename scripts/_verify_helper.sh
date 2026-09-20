@@ -132,7 +132,9 @@ sf_snapshot_pre_restore() {
   path="$out_dir/sf-db-PRE-restore-${ts}.sql.gz"
   # apptainer 우선 (sf_postgres 가동 중)
   if command -v apptainer >/dev/null 2>&1 \
-       && apptainer instance list 2>/dev/null | awk '{print $1}' | grep -qx "sf_postgres"; then
+       && { _il="$(apptainer instance list 2>/dev/null || true)"; \
+            case $'\n'"$(printf '%s\n' "$_il" | awk '{print $1}')"$'\n' in \
+              *$'\n'sf_postgres$'\n'*) true ;; *) false ;; esac; }; then
     PGPASSWORD="${POSTGRES_PASSWORD:?}" \
       apptainer exec instance://sf_postgres \
       pg_dump -h 127.0.0.1 -p "${POSTGRES_PORT:?}" \
@@ -157,7 +159,9 @@ sf_rollback() {
   echo "[ROLLBACK] restoring from $safety"
   # DROP + CREATE 후 restore (DB 자체를 갈아끼움)
   if command -v apptainer >/dev/null 2>&1 \
-       && apptainer instance list 2>/dev/null | awk '{print $1}' | grep -qx "sf_postgres"; then
+       && { _il="$(apptainer instance list 2>/dev/null || true)"; \
+            case $'\n'"$(printf '%s\n' "$_il" | awk '{print $1}')"$'\n' in \
+              *$'\n'sf_postgres$'\n'*) true ;; *) false ;; esac; }; then
     PGPASSWORD="${POSTGRES_PASSWORD:?}" \
       apptainer exec instance://sf_postgres \
       psql -h 127.0.0.1 -p "${POSTGRES_PORT:?}" -U "${POSTGRES_USER:?}" -d postgres \
