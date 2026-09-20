@@ -5,13 +5,20 @@ SQL 과 결과 가공은 **전부 shared/stats_sql.py 에 있다.** backend REST
 (실제 전례: search 키워드 매칭이 갈라져 MCP 만 한국어 재현율 1.1% 였다).
 여기서는 DB 세션만 붙인다.
 """
+import pathlib
 import sys
 from typing import Optional
 
 from db import get_db_session
 
-# up.sh 가 /shared 로 마운트한다. 로컬 테스트를 위해 리포 경로도 폴백으로 둔다.
-for _p in ("/shared", "/app/../shared"):
+# `shared/stats_sql.py` 를 어디서 찾나 — 컨테이너는 `/shared` 로 마운트하고(up.sh), 호스트에서
+# 바로 띄우면 **리포 안**에서 찾아야 한다.
+# ⚠ 예전 폴백 `"/app/../shared"` 는 정규화하면 `/shared` 라 **두 항목이 같은 경로**였다(폴백이 아니었다).
+# dev 호스트엔 우연히 `/shared` 가 있어 드러나지 않았고, cae00 에서 `ModuleNotFoundError: stats_sql` 로
+# MCP 가 아예 안 떴다(2026-09-20 update-all). 박스마다 경로가 다르므로 **절대경로를 박지 않고 파일 위치에서
+# 리포 루트를 유도한다.**
+_SHARED_PATHS = ("/shared", str(pathlib.Path(__file__).resolve().parents[2] / "shared"))
+for _p in _SHARED_PATHS:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
