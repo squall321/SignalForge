@@ -3,13 +3,18 @@
 # - GET/POST/PUT/DELETE /api/* → http://127.0.0.1:18000/api/* 로 프록시 (dev proxy 동등)
 # - 그 외 경로: dist 내 실제 파일 있으면 그 파일, 없으면 index.html (BrowserRouter SPA)
 import os
+import pathlib
 import sys
 import http.server
 import socketserver
 import urllib.request
 import urllib.error
 
-DIST = "/home/koopark/claude/SignalForge/frontend/dist"
+# ⚠ **박스 절대경로를 박지 않는다.** 리포 루트가 박스마다 다르다(dev `~/claude`, cae00 `~/Projects`).
+# 예전엔 dev 경로가 박혀 있어, 다른 박스에서는 없는 디렉터리를 서빙 루트로 잡고도 **조용히** 떴다
+# (SPA 폴백이 index.html 을 못 찾아 빈 응답이 된다). 이 파일 위치에서 유도하고, 배포가 다른 곳에
+# 풀었으면 `FRONTEND_DIST` 로 주입한다.
+DIST = os.environ.get("FRONTEND_DIST") or str(pathlib.Path(__file__).resolve().parent / "dist")
 BACKEND = "http://127.0.0.1:18000"
 PORT = int(os.environ.get("FRONTEND_PORT", "17370"))
 # 이 호스트는 0.0.0.0:17370(전체 인터페이스) 바인딩을 보안정책상 SIGKILL 한다.
