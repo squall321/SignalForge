@@ -55,7 +55,11 @@ if [[ $DO_RESTORE -eq 1 ]]; then
   step "3. DB 복원"
   # `| head -1` + pipefail: head 가 파이프를 닫으면 앞 명령이 SIGPIPE(rc=141)를 받고
   # set -e 가 출력 한 줄 없이 스크립트를 죽인다(deploy-all 에서 실제로 그랬다).
-  LATEST_DUMP=$(ls -t backups/*-db-*.sql.gz 2>/dev/null | grep -v safety | head -1 || true)
+  # 빈 덤프 제외(-size +1M) — 실패한 pg_dump 가 남긴 0바이트 파일을 집으면
+  # 새 서버를 빈 DB 로 부트스트랩한다. 실측: 로컬에 0바이트 덤프 187개가 있었다.
+  LATEST_DUMP=$(find backups -maxdepth 1 -name '*-db-*.sql.gz' -size +1M \
+                  -not -name '*safety*' -printf '%T@ %p\n' 2>/dev/null \
+                | sort -rn | head -1 | cut -d' ' -f2- || true)
   [[ -n "$LATEST_DUMP" ]] || fail "backups/ 에 dump 없음 — sync-from-drive.sh 먼저"
   echo "  대상: $LATEST_DUMP"
 

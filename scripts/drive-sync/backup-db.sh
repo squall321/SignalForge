@@ -11,7 +11,7 @@ DUMP_FILE="$PROJ_DUMP_DIR/$(dump_name)"
 SUM_FILE="${DUMP_FILE}.sha256"
 
 echo "→ pg_dump → $DUMP_FILE"
-pg_dump_cmd | gzip -c > "$DUMP_FILE"
+dump_verified "$DUMP_FILE"
 
 SIZE=$(du -h "$DUMP_FILE" | cut -f1)
 SHA=$(file_sha256 "$DUMP_FILE")

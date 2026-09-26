@@ -15,7 +15,7 @@ SUM_FILE="${DUMP_FILE}.sha256"
 
 # 1) 로컬 dump
 echo "→ pg_dump → $DUMP_FILE"
-pg_dump_cmd | gzip -c > "$DUMP_FILE"
+dump_verified "$DUMP_FILE"
 SHA=$(file_sha256 "$DUMP_FILE")
 echo "$SHA  $(basename "$DUMP_FILE")" > "$SUM_FILE"
 SIZE=$(du -h "$DUMP_FILE" | cut -f1)
@@ -75,28 +75,7 @@ rclone copy "$GUIDE_FILE" "$DRIVE_PATH/"
 DRIVE_RETAIN_DAYS="${DRIVE_RETAIN_DAYS:-5}"
 echo "→ Drive 보존정책: 최근 24시간 전량 + 이후 일별 1개 (${DRIVE_RETAIN_DAYS}일)"
 mapfile -t ALL < <(rclone lsf "$DRIVE_PATH" --include "${PROJ_PREFIX}-db-*.sql.gz" 2>/dev/null | sort -r)
-mapfile -t DELS < <(printf '%s\n' "${ALL[@]}" | PFX="$PROJ_PREFIX" DAYS="$DRIVE_RETAIN_DAYS" python3 -c '
-import os, re, sys, datetime as dt
-pfx, days = os.environ["PFX"], int(os.environ["DAYS"])
-rx = re.compile(rf"^{re.escape(pfx)}-db-(\d{{8}})-(\d{{6}})Z\.sql\.gz$")
-# utcnow() 는 폐기 예정이라 aware 로 받고 naive 로 되돌린다(파일명이 UTC 라 비교 대상도 naive).
-now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None); keep_day = set()
-for name in (l.strip() for l in sys.stdin if l.strip()):
-    m = rx.match(name)
-    if not m:            # 이름 규칙이 다르면 건드리지 않는다(안전측)
-        continue
-    ts = dt.datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M%S")
-    age_h = (now - ts).total_seconds() / 3600
-    if age_h <= 24:                      # 최근 24시간은 전부 보존
-        continue
-    if age_h > days * 24:                # 보존기간 초과 → 삭제
-        print(name); continue
-    d = m.group(1)
-    if d in keep_day:                    # 그날 것 중 최신 하나만 남긴다(입력이 내림차순)
-        print(name)
-    else:
-        keep_day.add(d)
-')
+mapfile -t DELS < <(printf '%s\n' "${ALL[@]}" | thin_dumps "$DRIVE_RETAIN_DAYS")
 if [[ ${#DELS[@]} -gt 0 ]]; then
   del_fail=0
   for old in "${DELS[@]}"; do
@@ -118,15 +97,43 @@ fi
 #     기본 7일(다른 백업 스크립트의 RETAIN_DAYS 관례와 동일). LOCAL_RETAIN_DAYS 로 조정.
 LOCAL_RETAIN_DAYS="${LOCAL_RETAIN_DAYS:-7}"
 if [[ -d "$PROJ_DUMP_DIR" ]]; then
-  n_del=$(find "$PROJ_DUMP_DIR" -maxdepth 1 -name "${PROJ_PREFIX}-db-*.sql.gz" -mtime +"$LOCAL_RETAIN_DAYS" | wc -l)
-  if [[ "$n_del" -gt 0 ]]; then
-    echo "→ 로컬 보존정책: ${LOCAL_RETAIN_DAYS}일 초과 ${n_del}개 삭제"
-    find "$PROJ_DUMP_DIR" -maxdepth 1 -mtime +"$LOCAL_RETAIN_DAYS" \
-         \( -name "${PROJ_PREFIX}-db-*.sql.gz" -o -name "${PROJ_PREFIX}-db-*.sql.gz.sha256" \
-            -o -name "RESTORE-GUIDE-*.md" \) -delete
+  # Drive 와 **같은 규칙**으로 얇게 만든다 — 최근 24시간 전량 + 이후 하루 1개.
+  # 이전엔 로컬만 '7일 전량'이어서 30분×314MB×7일 = 105GB 가 쌓여 /home 이 95% 까지
+  # 찼다(2026-09-25 실측, 여유 114GB). 디스크가 차면 postgres 가 죽고 그게 이번
+  # 사고의 재발 경로다. 같은 규칙이면 48개+6개 ≈ 17GB 로 떨어지고,
+  # 실제 롤백 창(최근 24시간 30분 단위)은 그대로다.
+  mapfile -t LDELS < <(
+    find "$PROJ_DUMP_DIR" -maxdepth 1 -name "${PROJ_PREFIX}-db-*.sql.gz" -printf '%f\n' 2>/dev/null \
+      | sort -r | thin_dumps "$LOCAL_RETAIN_DAYS")
+  if [[ ${#LDELS[@]} -gt 0 ]]; then
+    freed=0
+    for old in "${LDELS[@]}"; do
+      [[ -n "$old" ]] || continue
+      f="$PROJ_DUMP_DIR/$old"
+      [[ -f "$f" ]] && freed=$((freed + $(stat -c %s "$f")))
+      rm -f "$f" "$f.sha256"
+    done
+    echo "→ 로컬 보존정책: ${#LDELS[@]}개 삭제 ($((freed / 1048576))MB 확보)"
   else
-    echo "→ 로컬 보존정책: ${LOCAL_RETAIN_DAYS}일 초과 없음"
+    echo "→ 로컬 보존정책: 삭제 대상 없음"
   fi
+  # 과거에 생긴 빈 덤프 정리 — dump_verified 이전에 만들어진 것들이 남아 있다.
+  # **바이트로 판정한다.** `-size -1M` 은 블록 반올림 규약이 얽혀 헷갈리기 쉽고,
+  # 실측에서 같은 조건이 187개를 한 번은 놓치고 한 번은 잡았다. 크기는 바이트로 본다.
+  purged=0
+  while read -r sz f; do
+    [ "${sz:-0}" -lt 1024 ] || continue
+    rm -f "$f" "$f.sha256"; purged=$((purged + 1))
+  done < <(find "$PROJ_DUMP_DIR" -maxdepth 1 -name "${PROJ_PREFIX}-db-*.sql.gz" -printf '%s %p\n' 2>/dev/null)
+  [ "$purged" -gt 0 ] && echo "→ 빈 덤프 ${purged}개 정리 (복원 후보에서 제외)"
+
+  # 짝 잃은 사이드카·중단된 .part 정리
+  find "$PROJ_DUMP_DIR" -maxdepth 1 -name "*.sql.gz.part" -mmin +120 -delete 2>/dev/null || true
+  for sc in "$PROJ_DUMP_DIR"/${PROJ_PREFIX}-db-*.sql.gz.sha256; do
+    [[ -e "$sc" ]] || continue
+    [[ -f "${sc%.sha256}" ]] || rm -f "$sc"
+  done
+  df -h "$PROJ_DUMP_DIR" | awk 'NR==2{printf "  디스크: %s 사용 (여유 %s)\n", $5, $4}'
 fi
 
 # 5) (옵션) 공유 링크

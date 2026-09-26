@@ -188,8 +188,16 @@ sf_up() {
   apptainer instance start "$@" "$name" > "$LOG_DIR/$name.log" 2>&1
 }
 
+# backend 는 _internal 운영 엔드포인트에서 crawler/insight 를 import 한다
+# (_ensure_crawler_on_path 가 /crawler 를 sys.path 에 넣는다). 그 바인드가 없어
+# 운영 엔드포인트 6종이 500 이었다 — 실측 2026-09-26:
+#   ModuleNotFoundError: No module named 'insight'
+#   ops-status / collection-trend / backfill-audit-summary / audit-critical
+#   / report-drift-audit / loc-audit
+# reports/ 도 같이 넘긴다 — 같은 모듈들이 리포트 파일을 읽고 쓴다.
 sf_up sf-backend "ss -tln 2>/dev/null | grep -E '[:.]${API_PORT:-8000}\b' >/dev/null" \
   --bind "$BACKEND_DIR:/app" --bind "$PROJECT_ROOT/shared:/shared" \
+  --bind "$CRAWLER_DIR:/crawler" --bind "$PROJECT_ROOT/reports:/reports" \
   --env API_PORT="${API_PORT:-8000}" --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" \
   "$SIF_DIR/backend.sif"
 
@@ -210,14 +218,23 @@ sf_up sf-mcp "ss -tln 2>/dev/null | grep -E '[:.]${MCP_PORT:-8001}\b' >/dev/null
 # 컨테이너에 도달하지 않았다. .env 에 키를 넣어도 수집이 안 되는 상태였다.
 # --env 는 순서와 무관하게 --env-file 을 항상 이기므로(실측) 아래의
 # DATABASE_URL 등 계산된 값은 그대로 유지된다.
+# reports/ 바인드가 빠져 있어 컨테이너화(2026-07-07) 이후 **감시·알림 계층 전체가
+# 매 tick 죽었다** — 81일간. 실측(2026-09-26 00:36~00:45 로그 28분 창) —
+#   OSError: [Errno 30] Read-only file system: '/reports'
+#   run_collection_health / run_alert_check / run_health_check / run_daily_report
+#   run_daily_insight / run_weekly_monitor / run_quality_report / run_collection_trend
+#   run_ops_history / run_ops_backlog_processor / run_backfill_audit_monitor  (11종)
+# 그중 run_collection_health 가 '수집이 멈췄다'를 잡는 유일한 룰이고
+# run_alert_check 가 알림 판정이다. 감시가 죽어 있었으니 그 뒤 무엇이 멈춰도
+# 아무 신호가 없었다 — 이번 일주일 서비스 다운이 그렇게 지나갔다.
 sf_up sf-crawler-worker "ps -eo args 2>/dev/null | grep -E '[c]elery -A celery_app worker' >/dev/null" \
-  --bind "$CRAWLER_DIR:/crawler" \
+  --bind "$CRAWLER_DIR:/crawler" --bind "$PROJECT_ROOT/reports:/reports" \
   --env-file "$PROJECT_ROOT/.env" \
   --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" --env CELERY_CONCURRENCY="${CELERY_CONCURRENCY:-4}" \
   "$SIF_DIR/crawler.sif"
 
 sf_up sf-crawler-beat "ps -eo args 2>/dev/null | grep -E '[c]elery -A celery_app beat' >/dev/null" \
-  --bind "$CRAWLER_DIR:/crawler" \
+  --bind "$CRAWLER_DIR:/crawler" --bind "$PROJECT_ROOT/reports:/reports" \
   --env-file "$PROJECT_ROOT/.env" \
   --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" --env CELERY_ROLE=beat \
   "$SIF_DIR/crawler.sif"

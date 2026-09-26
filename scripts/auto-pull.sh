@@ -203,7 +203,11 @@ if [[ $DO_RESTORE -eq 1 && $DRY -eq 0 ]]; then
   if [[ ! -f "$DUMP_PATH" && -L "$DUMP_PATH" ]]; then DUMP_PATH=$(readlink -f "$DUMP_PATH"); fi
   if [[ ! -f "$DUMP_PATH" ]]; then
     # symlink 가 없으면 최신 sf-db-*.sql.gz 직접 선택
-    DUMP_PATH=$(ls -t "$DUMP_DIR"/sf-db-*.sql.gz 2>/dev/null | head -1)
+    # **빈 덤프를 고르지 않는다.** 과거에 실패한 pg_dump 가 0바이트 파일을 남겼고
+    # (2026-09-21~25 187개), 그걸 최신으로 집으면 DB 를 DROP 하고 빈 것을 복원한다.
+    # -size +1M 로 사실상 빈 것을 후보에서 뺀다.
+    DUMP_PATH=$(find "$DUMP_DIR" -maxdepth 1 -name 'sf-db-*.sql.gz' -size +1M \
+                  -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
   fi
   if [[ -z "$DUMP_PATH" || ! -f "$DUMP_PATH" ]]; then
     log "restore 대상 dump 부재 — 단계 스킵"

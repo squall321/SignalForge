@@ -146,7 +146,8 @@ emit_entry() {
       "postgres_base:$SIF_DIR/postgres-base.sif" \
       "backend:$SIF_DIR/backend.sif" \
       "crawler:$SIF_DIR/crawler.sif" \
-      "mcp:$SIF_DIR/mcp.sif"; do
+      "mcp:$SIF_DIR/mcp.sif" \
+      "frontend:$SIF_DIR/frontend.sif"; do
     name="${entry%%:*}"; path="${entry#*:}"
     if [[ -f "$path" ]]; then
       [[ $first -eq 1 ]] && first=0 || echo ","

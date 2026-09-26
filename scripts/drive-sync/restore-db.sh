@@ -45,7 +45,8 @@ fi
 # 3) 안전백업 (직전 상태 보존)
 SAFETY="$PROJ_DUMP_DIR/${PROJ_PREFIX}-db-safety-$(ts_now).sql.gz"
 echo "→ 안전백업: $SAFETY"
-pg_dump_cmd | gzip -c > "$SAFETY"
+dump_verified "$SAFETY" --no-floor \
+  || { echo "[FAIL] 안전백업 실패 — DROP 하지 않고 중단한다" >&2; exit 1; }
 echo "[OK] $(du -h "$SAFETY" | cut -f1) 안전백업 완료"
 
 # 4) DROP + CREATE (postgres DB 에 연결해서 대상 DB 자체를 재생성)
