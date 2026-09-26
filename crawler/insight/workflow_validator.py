@@ -75,7 +75,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 REPORTS_DIR_DEFAULT = REPO_ROOT / "docs" / "dashboard"
 TOPIC_EVAL_DIR_DEFAULT = REPO_ROOT / "reports"
 
-from base.backend_url import backend_base  # noqa: E402
+from base.backend_url import auth_headers, backend_base  # noqa: E402
 DEFAULT_BACKEND = backend_base("WORKFLOW_VALIDATOR_BACKEND")
 DEFAULT_THRESHOLD = 0.10  # ±10% (LoC 의 20% 보다 엄격 — 데이터 수치는 정확해야)
 
@@ -241,7 +241,7 @@ def _http_get_json(url: str, timeout: float = 3.0) -> Optional[Dict[str, Any]]:
     에서만 동작 (운영 정책).
     """
     try:
-        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        req = urllib.request.Request(url, headers={"Accept": "application/json", **auth_headers()})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             if resp.status != 200:
                 return None

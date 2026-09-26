@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = _CRAWLER_DIR.parent
 DEFAULT_REPORT_DIR = REPO_ROOT / "reports"
-from base.backend_url import backend_base  # noqa: E402
+from base.backend_url import auth_headers, backend_base  # noqa: E402
 DEFAULT_BASE = backend_base()
 
 # ── 임계 (운영 정책 R14) ──────────────────────────────────────────────────
@@ -80,7 +80,9 @@ def _dsn() -> str:
 
 def _http_get_json(url: str, timeout: float = 6.0) -> Dict[str, Any]:
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
+        with urllib.request.urlopen(
+            urllib.request.Request(url, headers=auth_headers()),
+            timeout=timeout) as resp:
             return json.loads(resp.read())
     except Exception as e:
         return {"_error": str(e)}

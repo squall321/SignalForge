@@ -47,7 +47,7 @@ if str(_CRAWLER_DIR) not in sys.path:
 
 REPO_ROOT = _CRAWLER_DIR.parent
 DEFAULT_REPORT_DIR = REPO_ROOT / "reports"
-from base.backend_url import backend_base  # noqa: E402
+from base.backend_url import auth_headers, backend_base  # noqa: E402
 DEFAULT_API = backend_base()
 
 # operations_monitor 와 동일한 임계 (단일 진실 원천 — 변경 시 양쪽 함께)
@@ -62,7 +62,9 @@ THRESH_REGRESSION_OK_MIN = 1.0
 def _http_get_json(url: str, timeout: float = 6.0) -> Optional[Dict[str, Any]]:
     """endpoint 호출. 네트워크/HTTP 오류 시 None."""
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
+        with urllib.request.urlopen(
+            urllib.request.Request(url, headers=auth_headers()),
+            timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except (urllib.error.URLError, urllib.error.HTTPError, ValueError, TimeoutError) as exc:
         logger.warning("[ops-trend-analysis] endpoint 호출 실패 (%s): %s", url, exc)

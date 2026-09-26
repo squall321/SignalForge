@@ -16,6 +16,7 @@ DB products 테이블 시드 코드와 1:1 정합. 다음 카테고리를 커버
 """
 import math
 import re
+import unicodedata
 from typing import Dict, List, Optional, Tuple
 
 # 한글 friendly 경계: 다음 글자가 숫자/영문이 아닐 때만 매칭 (한글·공백·구두점 OK)
@@ -1340,12 +1341,34 @@ def _brand_of(code: str) -> str:
     return "samsung"
 
 
+def _norm_brand_key(s: str) -> str:
+    """브랜드 토큰을 사전 조회용 키로 정규화한다.
+
+    `.lower()` 만으로는 부족하다. re.IGNORECASE 는 터키어 대문자 İ(U+0130)를
+    `i` 에 매칭시키므로 'Pİxel' 이 pixel 패턴에 걸리는데, 'Pİxel'.lower() 는
+    'pi̇xel'(i + U+0307 결합 점) 이라 사전에 없다. 그 KeyError 로 Reddit 역사
+    수집이 2026-09-18~09-21 나흘간 매일 같은 자리에서 죽었다.
+
+    NFKD 로 분해해 결합 표시를 떼고 casefold 한다.
+    """
+    d = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in d if not unicodedata.combining(c)).casefold()
+
+
 def _rival_adjacent(text: str, code: str, start: int) -> bool:
     """매칭 구간 바로 앞에 **다른** 브랜드 토큰이 붙어 있으면 True."""
     m = _ADJ_RIVAL_RE.search(text[max(0, start - _ADJ_WINDOW):start])
     if not m:
         return False
-    return _WORD_BRAND[m.group(1).lower()] != _brand_of(code)
+    # **직접 인덱싱하지 않는다.** 정규식이 잡았는데 사전에 없는 토큰이면
+    # KeyError 가 크롤 전체를 죽인다(실측: 나흘 연속 수집 0). 정규식에 나열된
+    # 것은 모두 경쟁 브랜드이므로, 키를 못 찾으면 '경쟁 브랜드'로 보는 쪽이
+    # 안전하다 — 이 가드의 목적이 오귀속 방지이기 때문이다.
+    # (정규식 대안과 사전 키의 동기화는 test_rival_brand_sync 가 고정한다.)
+    brand = _WORD_BRAND.get(_norm_brand_key(m.group(1)))
+    if brand is None:
+        return True
+    return brand != _brand_of(code)
 
 
 def _first_clean_span(text: str, code: str,

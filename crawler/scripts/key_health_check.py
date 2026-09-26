@@ -51,7 +51,7 @@ except Exception:  # pragma: no cover
     pass
 
 
-from base.backend_url import backend_base  # noqa: E402
+from base.backend_url import auth_headers, backend_base  # noqa: E402
 DEFAULT_BACKEND = backend_base()
 PING_PROMPT = "ping"
 PING_TIMEOUT_S = 10.0
@@ -93,7 +93,7 @@ def ping_groq(triplet: Dict[str, str]) -> Dict[str, Any]:
         "temperature": 0,
     }
     try:
-        with httpx.Client(timeout=PING_TIMEOUT_S) as client:
+        with httpx.Client(timeout=PING_TIMEOUT_S, headers=auth_headers()) as client:
             r = client.post(url, headers=headers, json=payload)
         ok = 200 <= r.status_code < 300
         snippet: Optional[str] = None

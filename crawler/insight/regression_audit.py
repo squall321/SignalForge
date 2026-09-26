@@ -248,7 +248,7 @@ def diff_to_notes(diff: Dict[str, Any]) -> List[str]:
 
 def _fetch(base: str, timeout: float) -> Dict[str, Any]:
     url = base.rstrip("/") + "/api/v1/_internal/regression-baseline"
-    r = httpx.get(url, timeout=timeout)
+    r = httpx.get(url, timeout=timeout, headers=auth_headers())
     r.raise_for_status()
     return r.json()
 
@@ -287,7 +287,7 @@ def run_once(
         }
     """
     if payload is None:
-        from base.backend_url import backend_base as _bb
+        from base.backend_url import auth_headers, backend_base as _bb
         base = (base_url or _bb("SF_BACKEND_URL")).strip()
         payload = _fetch(base, timeout)
 

@@ -63,7 +63,7 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = _CRAWLER_DIR.parent
 DEFAULT_REPORT_DIR = REPO_ROOT / "reports"
-from base.backend_url import backend_base  # noqa: E402
+from base.backend_url import auth_headers, backend_base  # noqa: E402
 DEFAULT_BASE = backend_base()
 
 # ── 임계값 (R10 운영 정책) ────────────────────────────────────────────────
@@ -597,7 +597,7 @@ def post_slack_digest(
     req = urllib.request.Request(
         url,
         data=data,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", **auth_headers()},
         method="POST",
     )
     opener = _opener if _opener is not None else urllib.request.urlopen

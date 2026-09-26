@@ -63,7 +63,7 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = _CRAWLER_DIR.parent
 DEFAULT_REPORT_DIR = REPO_ROOT / "reports"
-from base.backend_url import backend_base  # noqa: E402
+from base.backend_url import auth_headers, backend_base  # noqa: E402
 DEFAULT_BASE = backend_base()
 
 # Harvest 라운드 메타 (메모리/이번 5 시리즈 기준) ────────────────────────────
@@ -402,7 +402,9 @@ def post_slack(
     digest = build_slack_digest(target, snapshot)
     data = json.dumps(digest, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"}, method="POST"
+        url, data=data,
+        headers={"Content-Type": "application/json", **auth_headers()},
+        method="POST"
     )
     opener = _opener if _opener is not None else urllib.request.urlopen
     try:

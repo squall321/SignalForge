@@ -93,5 +93,18 @@ else
   _no "경보 억제가 heartbeat 기준이라 매분 로그가 넘친다"
 fi
 
+# ── 6. worker 만이 아니라 beat 도 점검하는가 ──────────────────────────────
+# beat 이 죽으면 전 스케줄이 멈추는데 포트 3종과 worker 는 살아 있어 전부 초록이다.
+if grep -qE "celery_app beat" "$WD"; then
+  _ok "celery beat 도 점검한다"
+else
+  _no "beat 를 점검하지 않는다 — beat 만 죽으면 전 스케줄 정지에 신호 0"
+fi
+if grep -q 'celerybeat-schedule' "$WD"; then
+  _ok "beat 이 '살아있지만 일하지 않는' 상태도 본다"
+else
+  _no "beat 프로세스 존재만 보고 스케줄 진척은 보지 않는다"
+fi
+
 printf '\n  통과 %d / 실패 %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

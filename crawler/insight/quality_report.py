@@ -44,7 +44,7 @@ _CRAWLER_DIR = _THIS.parent.parent
 REPO_ROOT = _CRAWLER_DIR.parent
 DEFAULT_REPORT_DIR = REPO_ROOT / "reports"
 
-from base.backend_url import backend_base  # noqa: E402
+from base.backend_url import auth_headers, backend_base  # noqa: E402
 DEFAULT_BASE = backend_base()
 
 # 모니터링할 MV — 신선도(분 단위 지연) 체크 대상
@@ -161,7 +161,9 @@ def collect_cache_stats(base: str = DEFAULT_BASE, timeout: float = 5.0) -> Cache
     """backend /_internal/cache-stats 호출."""
     url = f"{base.rstrip('/')}/api/v1/_internal/cache-stats"
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
+        with urllib.request.urlopen(
+            urllib.request.Request(url, headers=auth_headers()),
+            timeout=timeout) as resp:
             data = json.loads(resp.read())
     except Exception as e:
         return CacheStats(error=str(e))
@@ -258,7 +260,9 @@ def collect_alert_ops(
     """backend /_internal/alert-trends 호출 — 활성 룰 발화 추이 + cooldown 위반."""
     url = f"{base.rstrip('/')}/api/v1/_internal/alert-trends?days={int(days)}"
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
+        with urllib.request.urlopen(
+            urllib.request.Request(url, headers=auth_headers()),
+            timeout=timeout) as resp:
             data = json.loads(resp.read())
     except Exception as e:
         return AlertOpsStats(days=days, error=str(e))
@@ -275,7 +279,9 @@ def collect_alert_monitor(
     """backend /_internal/alert-monitor 호출 — health 판정 + 권고 자동 생성."""
     url = f"{base.rstrip('/')}/api/v1/_internal/alert-monitor?days={int(days)}"
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
+        with urllib.request.urlopen(
+            urllib.request.Request(url, headers=auth_headers()),
+            timeout=timeout) as resp:
             data = json.loads(resp.read())
     except Exception as e:
         return AlertMonitorStats(days=days, error=str(e))

@@ -90,3 +90,22 @@ def test_warm_task_sends_the_auth_header():
     body = src.split("def warm_dashboard_cache", 1)[1].split("\n@app.task", 1)[0]
     assert "auth_headers()" in body, "워밍이 인증 헤더를 만들지 않는다"
     assert "urllib.request.Request(url, headers=" in body, "헤더를 요청에 싣지 않는다"
+
+
+def test_every_backend_caller_sends_auth():
+    """backend_base() 를 쓰는 모듈은 auth_headers() 도 보내야 한다.
+
+    포트만 고치면 401 이다. edf7507 이 헬퍼를 만들고 tasks.py 한 곳만 연결해,
+    인사이트·헬스체크 9개 모듈이 계속 401 을 받고 있었다(2026-09-26 발견) —
+    엔드포인트는 멀쩡하고 호출자가 문 앞에서 돌아선 상태다.
+    """
+    offenders = []
+    for py in list((ROOT / "insight").glob("*.py")) + list((ROOT / "scripts").glob("*.py")) + [ROOT / "tasks.py"]:
+        src = py.read_text()
+        if "backend_base" not in src:
+            continue
+        if "auth_headers" not in src:
+            offenders.append(py.name)
+    assert not offenders, (
+        "backend_base 는 쓰지만 auth_headers 를 안 보내는 모듈(전부 401 을 받는다): "
+        + ", ".join(sorted(offenders)))

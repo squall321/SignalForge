@@ -93,6 +93,20 @@ fi
 need=0
 for p in 18000 8013 17370; do _tcp "$p" || { need=1; _log "port $p down"; }; done
 ps -eo args 2>/dev/null | grep -E '[c]elery -A celery_app worker' >/dev/null || { need=1; _log "celery worker down"; }
+# **beat 도 본다.** worker 만 보던 탓에 beat 이 죽으면 전 스케줄(수집·MV 갱신·감시)이
+# 멈추는데도 포트 3종과 worker 가 살아 있어 전부 초록으로 보였다. 수집이 0 인데
+# '정상'으로 읽히는 조합이 바로 이것이다.
+ps -eo args 2>/dev/null | grep -E '[c]elery -A celery_app beat' >/dev/null || { need=1; _log "celery beat down"; }
+# beat 이 떠 있어도 스케줄을 실제로 내보내는지는 별 문제다. 스케줄 상태파일이
+# 오래 갱신되지 않으면 살아는 있으나 일을 안 하는 상태다(가장 조용한 고장).
+_beat_stale(){
+  local f="$ROOT/crawler/celerybeat-schedule"
+  [ -f "$f" ] || return 1
+  [ $(( $(date +%s) - $(stat -c %Y "$f") )) -ge 1800 ]
+}
+if _beat_stale; then
+  need=1; _log "celery beat 스케줄 파일이 30분 이상 갱신 안 됨 — 살아있지만 일하지 않는다"
+fi
 if [ "$need" -eq 1 ]; then
   _log "일부 서비스 다운 → up.sh"
   run_nolock bash "$HERE/up.sh" >> "$LOG" 2>&1
