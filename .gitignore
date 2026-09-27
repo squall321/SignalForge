@@ -49,3 +49,5 @@ celerybeat-schedule*
 /data
 /backups
 /logs
+# Drive SIF 영구 캐시(sync-from-drive)
+apptainer/.drive-cache/

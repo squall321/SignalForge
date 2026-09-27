@@ -139,8 +139,8 @@ if [[ $WITH_SIF -eq 1 ]]; then
       rclone lsf "$SRC/" 2>/dev/null | sed 's/^/    /'
       audit_event "sif_dryrun" "\"src\":\"$SRC\""
     else
-      STAGE="$(mktemp -d -t sf-sif-pull.XXXXXX)"
-      trap 'rm -rf "$STAGE"' EXIT
+      # 영구 캐시 — 임시 디렉터리면 rclone 이 비교할 것이 없어 매번 전량 전송이다. 캐시에 받으면 안 바뀐 파일은 전송 0.
+      STAGE="${SF_DRIVE_CACHE:-$PROJECT_ROOT/apptainer/.drive-cache}"; mkdir -p "$STAGE"
       rclone copy --progress "$SRC/" "$STAGE/"
       if [[ -f "$STAGE/SHA256SUMS" ]]; then
         ( cd "$STAGE" && sha256sum -c SHA256SUMS ) \
@@ -149,7 +149,13 @@ if [[ $WITH_SIF -eq 1 ]]; then
       else
         echo "  [WARN] SHA256SUMS 없음 — 검증 스킵"
       fi
-      cp "$STAGE"/*.sif "$SIF_DIR/" 2>/dev/null || true
+      # 같은 내용이면 손대지 않는다 — 살아 있는 인스턴스 밑의 SIF 를 덮어쓰면 squashfs 가 깨지고, cp 는 mtime 을 리셋해 포털 update-all 의
+      # 재기동 판정(지문)이 매번 달라진다(HWAXPortal docs/update-all-skip-unchanged).
+      for _s in "$STAGE"/*.sif; do
+        [ -f "$_s" ] || continue
+        if [ -f "$SIF_DIR/$(basename "$_s")" ] && cmp -s "$_s" "$SIF_DIR/$(basename "$_s")"; then echo "  · $(basename "$_s") 같음 — 그대로"
+        else cp -p "$_s" "$SIF_DIR/" 2>/dev/null || true; fi
+      done
       SIF_COUNT=$(ls "$STAGE"/*.sif 2>/dev/null | wc -l)
       echo "  → staged $SIF_COUNT sif → $SIF_DIR/"
       audit_event "sif_ok" "\"count\":$SIF_COUNT,\"src\":\"$SRC\""
