@@ -141,7 +141,7 @@ if [[ $WITH_SIF -eq 1 ]]; then
     else
       # 영구 캐시 — 임시 디렉터리면 rclone 이 비교할 것이 없어 매번 전량 전송이다. 캐시에 받으면 안 바뀐 파일은 전송 0.
       STAGE="${SF_DRIVE_CACHE:-$PROJECT_ROOT/apptainer/.drive-cache}"; mkdir -p "$STAGE"
-      rclone copy --progress "$SRC/" "$STAGE/"
+      rclone sync --progress "$SRC/" "$STAGE/"    # sync — 원격에서 뺀 파일이 캐시에 남지 않게
       if [[ -f "$STAGE/SHA256SUMS" ]]; then
         ( cd "$STAGE" && sha256sum -c SHA256SUMS ) \
           || { echo "[ERROR] sha256 mismatch — abort"; audit_event "fail" "\"reason\":\"sha_mismatch\""; exit 1; }
@@ -154,7 +154,7 @@ if [[ $WITH_SIF -eq 1 ]]; then
       for _s in "$STAGE"/*.sif; do
         [ -f "$_s" ] || continue
         if [ -f "$SIF_DIR/$(basename "$_s")" ] && cmp -s "$_s" "$SIF_DIR/$(basename "$_s")"; then echo "  · $(basename "$_s") 같음 — 그대로"
-        else cp -p "$_s" "$SIF_DIR/" 2>/dev/null || true; fi
+        else cp -p "$_s" "$SIF_DIR/" || { echo "[ERROR] $(basename "$_s") 설치 실패 — $SIF_DIR 에 쓸 수 없다(권한·소유자·디스크)"; audit_event "fail" "\"reason\":\"sif_install\""; exit 1; }; fi
       done
       SIF_COUNT=$(ls "$STAGE"/*.sif 2>/dev/null | wc -l)
       echo "  → staged $SIF_COUNT sif → $SIF_DIR/"
