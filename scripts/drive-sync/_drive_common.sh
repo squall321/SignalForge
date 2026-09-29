@@ -70,7 +70,15 @@ dump_glob() { echo "${PROJ_PREFIX}-db-*.sql.gz"; }
 #
 # 검증 3단: 파이프 성공(pipefail) → gzip 무결성 → 최소 크기.
 dump_verified() {   # $1=최종 경로  $2=--no-floor 면 크기 기준 생략
-  local out="$1" nofloor="${2:-}" part="$1.part" sz min
+  # .part 이름에 PID 를 붙인다. 04:30 에 cron 두 개(*/30 sync-to-drive 와
+  # 30 4 backup-to-drive)가 같이 발화하고, 덤프 이름은 분 단위 타임스탬프라
+  # **두 프로세스가 같은 .part 를 쓴다.** 하나가 rename 하면 다른 하나의
+  # stat 이 'No such file' 로 죽는다(실측 2026-09-29 04:30).
+  # 최종 이름에 직접 쓰던 예전에는 덮어쓰기로 끝났지만, 중간 파일이 생기면서
+  # 충돌이 드러났다 — 격리해야 한다.
+  # $$ 가 아니라 BASHPID 를 쓴다. $$ 는 서브셸에서도 부모 PID 를 그대로 주므로
+  # 한 스크립트가 두 덤프를 백그라운드로 돌리면 여전히 충돌한다.
+  local out="$1" nofloor="${2:-}" part="$1.part.${BASHPID:-$$}" sz min
   rm -f "$part"
   if ! pg_dump_cmd | gzip -c > "$part"; then
     rm -f "$part"; echo "[FAIL] pg_dump 실패 — 덤프를 만들지 않았다" >&2; return 1

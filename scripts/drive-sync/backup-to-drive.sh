@@ -128,7 +128,7 @@ if [[ -d "$PROJ_DUMP_DIR" ]]; then
   [ "$purged" -gt 0 ] && echo "→ 빈 덤프 ${purged}개 정리 (복원 후보에서 제외)"
 
   # 짝 잃은 사이드카·중단된 .part 정리
-  find "$PROJ_DUMP_DIR" -maxdepth 1 -name "*.sql.gz.part" -mmin +120 -delete 2>/dev/null || true
+  find "$PROJ_DUMP_DIR" -maxdepth 1 -name "*.sql.gz.part*" -mmin +120 -delete 2>/dev/null || true
   for sc in "$PROJ_DUMP_DIR"/${PROJ_PREFIX}-db-*.sql.gz.sha256; do
     [[ -e "$sc" ]] || continue
     [[ -f "${sc%.sha256}" ]] || rm -f "$sc"

@@ -12,10 +12,12 @@ PROJ_PREFIX="sf"
 # 함수 본문을 그대로 떼어와 같은 코드를 검증한다.
 eval "$(sed -n '/^thin_dumps() {/,/^}/p' "$HERE/../drive-sync/_drive_common.sh")"
 
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
 NOW=20260925120000
 pass=0; fail=0
 _ok(){ printf '  ✓ %s\n' "$1"; pass=$((pass+1)); }
-_no(){ printf '  ✗ %s\n     기대:%s\n     실제:%s\n' "$1" "$2" "$3"; fail=$((fail+1)); }
+_no(){ printf "  ✗ %s\n     기대:%s\n     실제:%s\n" "$1" "${2:-}" "${3:-}"; fail=$((fail+1)); }
 _run(){ printf '%s\n' "$@" | THIN_NOW="$NOW" thin_dumps "${DAYS:-5}"; }
 
 # ── 1. 최근 24시간은 한 개도 지우지 않는다 ────────────────────────────────
@@ -55,6 +57,42 @@ n_in=3; n_del=$(printf '%s' "$out" | grep -c . || true)
 # ── 7. 빈 입력에 죽지 않는다 ──────────────────────────────────────────────
 out=$(printf '' | THIN_NOW="$NOW" thin_dumps 5); rc=$?
 [ "$rc" -eq 0 ] && [ -z "$out" ] && _ok "빈 입력 안전" || _no "빈 입력" "rc=0 출력없음" "rc=$rc '$out'"
+
+
+# ── 8. 동시 실행이 .part 로 충돌하지 않는가 ───────────────────────────────
+# 04:30 에 cron 두 개(*/30 sync-to-drive, 30 4 backup-to-drive)가 같이 발화하고
+# 덤프 이름은 분 단위 타임스탬프라 최종 경로가 같다. .part 를 공유하면 두
+# 프로세스가 한 파일에 섞여 써서 하나가 깨진다(실측 2026-09-29 04:30 stat 실패).
+COMMON="$HERE/../drive-sync/_drive_common.sh"
+if grep -q 'part.\${BASHPID' "$COMMON"; then
+  _ok ".part 이름이 PID 로 격리된다"
+else
+  _no ".part 를 프로세스 간 공유한다 — 동시 실행에서 덤프가 깨진다" \
+      "$(grep -n 'part=' "$COMMON" | head -2)"
+fi
+
+# 기제 검증 — 공유하면 실제로 깨지고, 격리하면 둘 다 성공한다
+_probe(){  # $1=out $2=shared|pid
+  local part="$1.part"; [ "$2" = pid ] && part="$1.part.${BASHPID:-$$}"
+  rm -f "$part"
+  ( for i in $(seq 1 200); do echo "row $i"; done; sleep 1 ) | gzip -c > "$part" || { echo FAIL; return; }
+  gzip -t "$part" 2>/dev/null || { echo FAIL; return; }
+  stat -c %s "$part" >/dev/null 2>&1 || { echo FAIL; return; }
+  mv -f "$part" "$1" 2>/dev/null || { echo FAIL; return; }
+  echo OK
+}
+for mode in shared pid; do
+  rm -f "$TMP/d.gz"*
+  ( _probe "$TMP/d.gz" $mode > "$TMP/pa" 2>&1 & _probe "$TMP/d.gz" $mode > "$TMP/pb" 2>&1 & wait )
+  a=$(cat "$TMP/pa"); b=$(cat "$TMP/pb")
+  if [ "$mode" = shared ]; then
+    [ "$a" = FAIL ] || [ "$b" = FAIL ] && _ok "공유 .part 충돌을 재현한다 (A=$a B=$b)" \
+      || _no "충돌을 재현하지 못했다 — 이 테스트가 아무것도 막지 못한다" "A=$a B=$b"
+  else
+    [ "$a" = OK ] && [ "$b" = OK ] && _ok "PID 격리시 동시 실행 둘 다 성공" \
+      || _no "PID 격리에도 충돌한다" "A=$a B=$b"
+  fi
+done
 
 printf '\n  통과 %d / 실패 %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
