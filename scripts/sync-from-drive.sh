@@ -258,7 +258,9 @@ if [[ $WITH_DB -eq 1 ]]; then
     fi
   else
     # 다운로드만
-    LATEST=$(rclone lsf "$REMOTE_ROOT/db-dumps/" --include 'sf-db-*.sql.gz' 2>/dev/null | sort | tail -1)
+    # `|| true` — 폴더가 없으면 rclone 이 0 이 아닌 값(3)을 내고 pipefail·set -e 가 아래 [WARN] 분기에 닿기 전에 **말없이** 끝냈다
+    # (새 remote·첫 백업 전). 이 파일의 다른 rclone 목록 대입과 같은 모양으로 받는다(HWAXPortal docs/update-all-skip-unchanged D-14).
+    LATEST=$(rclone lsf "$REMOTE_ROOT/db-dumps/" --include 'sf-db-*.sql.gz' 2>/dev/null | sort | tail -1 || true)
     if [[ -z "$LATEST" ]]; then
       echo "[WARN] $REMOTE_ROOT/db-dumps/ 에 sf-db-*.sql.gz 없음"
       audit_event "db_skip" "\"reason\":\"no_remote_dump\""
