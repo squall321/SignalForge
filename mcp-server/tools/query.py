@@ -6,6 +6,16 @@ from datetime import datetime
 from db import get_db_session
 from sqlalchemy import text
 
+# 키워드 매칭 판단은 shared/keyword_match.py 가 **정본**이다 — 예전엔 이 파일과
+# shared/stats_sql.py 에 복제돼 있어 REST·MCP 가 갈라질 수 있었다.
+# 경로 해결은 tools/stats.py 와 같은 방식(절대경로를 박지 않는다).
+import pathlib as _pathlib  # noqa: E402
+import sys as _sys  # noqa: E402
+for _p in ("/shared", str(_pathlib.Path(__file__).resolve().parents[2] / "shared")):
+    if _p not in _sys.path:
+        _sys.path.insert(0, _p)
+from keyword_match import keyword_clause  # noqa: E402
+
 
 def _parse_dt(s: str):
     """'YYYY-MM-DD' 또는 ISO 타임스탬프 → datetime. asyncpg 는 str 를 안 받으므로 객체로 변환."""
@@ -44,10 +54,9 @@ async def query_voc_tool(
         conditions.append("pl.code = :platform")
         params["platform"] = platform
     if keyword:
-        conditions.append(
-            "to_tsvector('english', COALESCE(v.content_translated, '')) "
-            "@@ plainto_tsquery('english', :keyword)")
-        params["keyword"] = keyword
+        _c, _pp, _ = keyword_clause(keyword)
+        conditions.append(_c)
+        params.update(_pp)
     if start_date:
         conditions.append("v.published_at >= :start_date")
         params["start_date"] = _parse_dt(start_date)
@@ -125,28 +134,10 @@ async def get_top_issues_tool(
 #   · 비ASCII 키워드 → 두 컬럼 부분일치 (재현율 100%, 실측 1.0~1.4초)
 # pg_trgm 인덱스를 깔면 부분일치도 빨라지지만 본문 203MB 에 수백 MB 가 더 붙는다.
 # 1.2초가 대화형 호출에 견딜 만하므로 스키마는 건드리지 않는다.
-_NON_ASCII_RE = re.compile(r"[^\x00-\x7F]")
-
-_FTS_CLAUSE = (
-    "to_tsvector('english', COALESCE(v.content_translated, '')) "
-    "@@ plainto_tsquery('english', :keyword)"
-)
-# ILIKE 특수문자를 이스케이프해 '100%' 같은 키워드가 와일드카드로 해석되지 않게 한다
-_SUBSTR_CLAUSE = (
-    "(v.content_original ILIKE :kw_like ESCAPE '\\' "
-    " OR v.content_translated ILIKE :kw_like ESCAPE '\\')"
-)
-
-
+# 전략 전문과 실측 근거는 shared/keyword_match.py 에 있다.
 def _keyword_clause(keyword: str, match: str = "auto"):
-    """(clause, params) — 키워드 성격에 맞는 매칭 조건."""
-    mode = (match or "auto").lower()
-    if mode == "auto":
-        mode = "substring" if _NON_ASCII_RE.search(keyword or "") else "fts"
-    if mode == "substring":
-        esc = (keyword or "").replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        return _SUBSTR_CLAUSE, {"kw_like": f"%{esc}%"}, "substring"
-    return _FTS_CLAUSE, {"keyword": keyword}, "fts"
+    """(clause, params, 적용된 모드) — 공용 정본에 위임한다."""
+    return keyword_clause(keyword, match)
 
 
 # 정렬 옵션 — 기본은 최신순이다.
@@ -213,3 +204,79 @@ async def search_voc_tool(
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
         return [dict(r) for r in rows]
+
+
+# ── 제품명 → 제품 코드 해석 ───────────────────────────────────────────────
+# 왜 필요한가. 자유 텍스트로 제품을 묻는 것은 구조적으로 불안정하다.
+# 같은 제품인데 표기에 따라 결과가 100배 차이난다(2026-10-15 실측) —
+#   'S25 Ultra' 9,680 · 'Galaxy S25 Ultra' 2,296 · 'S25Ultra' 315 ·
+#   '갤럭시 S25 울트라' 88     (제품 태깅 기준 GS25U = 9,502)
+# 구절 검색으로 정밀도는 99%대가 됐지만 **재현율의 표기 의존**은 남는다.
+# 그래서 "이 키워드는 어느 제품인가"를 카탈로그(products)로 확정해 주고,
+# 키워드 검색이 몇 건을 놓치는지 같이 돌려준다. 호출자가 선택할 수 있게 한다.
+# 정규화는 파이썬에서 한다 — SQL 안에서 CTE 로 하면 GROUP BY 에 끌려 들어간다.
+_NORM_RE = re.compile(r"[^A-Za-z0-9가-힣]")
+
+
+def _norm_name(s: str) -> str:
+    return _NORM_RE.sub("", s or "").lower()
+
+
+_RESOLVE_SQL = text("""
+    SELECT p.code, p.name_en, p.name_ko, p.brand, p.category,
+           count(v.id)::int AS tagged_count,
+           (lower(regexp_replace(COALESCE(p.name_en,''), '[^A-Za-z0-9가-힣]', '', 'g')) = :k
+            OR lower(regexp_replace(COALESCE(p.name_ko,''), '[^A-Za-z0-9가-힣]', '', 'g')) = :k
+            OR lower(p.code) = :k) AS exact
+    FROM products p
+    LEFT JOIN voc_records v ON v.product_id = p.id AND v.archived_at IS NULL
+    WHERE p.is_active
+      AND (
+        lower(regexp_replace(COALESCE(p.name_en,''), '[^A-Za-z0-9가-힣]', '', 'g')) = :k
+        OR lower(regexp_replace(COALESCE(p.name_ko,''), '[^A-Za-z0-9가-힣]', '', 'g')) = :k
+        OR lower(p.code) = :k
+        OR lower(regexp_replace(COALESCE(p.name_en,''), '[^A-Za-z0-9가-힣]', '', 'g')) LIKE :klike
+        OR lower(regexp_replace(COALESCE(p.name_ko,''), '[^A-Za-z0-9가-힣]', '', 'g')) LIKE :klike
+      )
+    GROUP BY p.code, p.name_en, p.name_ko, p.brand, p.category
+    ORDER BY exact DESC, count(v.id) DESC
+    LIMIT 5
+""")
+
+
+async def resolve_product_keyword_tool(keyword: str) -> dict:
+    """키워드가 가리키는 제품을 카탈로그로 확정하고, 키워드 검색과의 차이를 보여준다."""
+    kw_clause, kw_params, used_match = _keyword_clause(keyword)
+    _nk = _norm_name(keyword)
+    async with get_db_session() as db:
+        matches = [dict(r) for r in (await db.execute(
+            _RESOLVE_SQL, {"k": _nk, "klike": f"%{_nk}%"})).mappings().all()]
+        kw_count = (await db.execute(text(f"""
+            SELECT count(*)::int FROM voc_records v
+            WHERE v.archived_at IS NULL AND {kw_clause}
+        """), kw_params)).scalar_one()
+
+    best = matches[0] if matches else None
+    out = {
+        "keyword": keyword,
+        "match_mode": used_match,
+        "keyword_hits": kw_count,
+        "candidates": matches,
+        "resolved_code": best["code"] if best else None,
+        "tagged_count": best["tagged_count"] if best else None,
+    }
+    if best:
+        gap = best["tagged_count"] - kw_count
+        out["note"] = (
+            f"키워드 '{keyword}' 는 제품 {best['code']}({best['name_en']}) 로 해석된다. "
+            f"키워드 검색 {kw_count}건 vs 제품 태깅 {best['tagged_count']}건"
+            f"(차이 {gap:+d}). 제품 단위 질문이면 "
+            f"search_voc(product_code='{best['code']}') 또는 제품 축 통계를 쓰는 것이 "
+            f"표기에 흔들리지 않는다."
+        )
+    else:
+        out["note"] = (
+            f"'{keyword}' 와 일치하는 카탈로그 제품이 없다. 일반 키워드로 보고 "
+            f"{used_match} 경로로 {kw_count}건을 찾았다."
+        )
+    return out

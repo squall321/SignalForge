@@ -6,7 +6,7 @@ from mcp.server.fastmcp import FastMCP
 from typing import Optional
 import os, asyncio
 
-from tools.query import query_voc_tool, get_top_issues_tool, search_voc_tool
+from tools.query import query_voc_tool, get_top_issues_tool, search_voc_tool, resolve_product_keyword_tool
 from tools.analytics import (
     analyze_sentiment_trend_tool,
     compare_products_tool,
@@ -120,9 +120,16 @@ async def search_voc(
     키워드로 VOC 를 검색합니다. **한국어·영어 모두 가능합니다.**
 
     매칭 경로는 키워드 성격에 따라 자동으로 갈립니다 —
-      · 영어/ASCII  → FTS 인덱스 (빠름, 어간 처리로 overheating↔overheat 매칭)
-      · 한국어 등    → 원문·번역문 부분일치 (재현율 100%, 약 1.2초)
+      · ASCII 한 토큰   → FTS 인덱스 (어간 처리로 overheating↔overheat 매칭)
+      · ASCII 여러 토큰 → **구절 검색** (인접 요구 — 같은 FTS 인덱스를 씁니다)
+      · 한국어 등        → 원문·번역문 부분일치 (재현율 100%, 약 1.2초)
     한국어가 FTS 로는 재현율 1.1% 밖에 안 나오기 때문입니다(교착어 + 번역본만 색인).
+
+    ⚠ **제품을 묻는 질문이면 keyword 가 아니라 product_code 를 쓰십시오.**
+    자유 텍스트는 표기에 따라 결과가 크게 흔들립니다(2026-10-15 실측) —
+      'S25 Ultra' 9,680 · 'Galaxy S25 Ultra' 2,296 · 'S25Ultra' 315 ·
+      '갤럭시 S25 울트라' 88   (제품 태깅 기준 GS25U = 9,502)
+    제품명을 코드로 바꾸려면 resolve_product_keyword 를 먼저 부르십시오.
 
     Args:
         keyword: 검색 키워드. 한국어 그대로 넣어도 됩니다
@@ -132,9 +139,28 @@ async def search_voc(
         order: 'recent'(기본, 발행일 최신순) | 'engagement'(참여도순)
                engagement 는 **날짜 필터 없이 쓰면 역대 바이럴 글이 독식**합니다.
                바이럴 발굴은 get_engagement_leaders(period_days 내장) 쪽이 낫습니다.
-        match: 'auto'(기본) | 'fts' | 'substring' — 경로를 강제할 때만 지정
+        match: 'auto'(기본) | 'phrase' | 'fts' | 'substring' — 경로를 강제할 때만.
+               'fts' 는 토큰 AND(어디든 같이 나오면 매칭)라 제품명에는 부적합합니다.
     """
     return await search_voc_tool(keyword, product_code, limit, days, order, match)
+
+
+@mcp.tool()
+async def resolve_product_keyword(keyword: str) -> dict:
+    """제품명/별칭을 **제품 코드로 확정**하고, 키워드 검색과의 차이를 알려줍니다.
+
+    제품을 묻는 질문에서 자유 텍스트 검색은 표기에 따라 결과가 크게 흔들립니다
+    (2026-10-15 실측) — 'S25 Ultra' 9,680 · 'Galaxy S25 Ultra' 2,296 ·
+    'S25Ultra' 315 · '갤럭시 S25 울트라' 88. 제품 태깅 기준은 GS25U 9,502 입니다.
+    이 도구로 코드를 먼저 확정한 뒤 product_code 로 조회하면 흔들리지 않습니다.
+
+    Args:
+        keyword: 제품명·별칭·코드 중 아무 것 ('S25 울트라', 'Galaxy Z Fold8', 'GZF8')
+
+    Returns:
+        resolved_code, tagged_count, keyword_hits, candidates(최대 5), note
+    """
+    return await resolve_product_keyword_tool(keyword)
 
 
 # ── 분석 ──────────────────────────────────────────────────

@@ -22,20 +22,13 @@ from typing import Optional
 from sqlalchemy import text  # noqa: F401
 
 # 한국어 등 비ASCII 키워드는 FTS 가 안 먹는다(교착어 + 번역본만 색인).
-# query.py 와 같은 판단을 쓴다 — 실측 재현율 FTS 1.1% vs 부분일치 100%.
-_NON_ASCII_RE = re.compile(r"[^\x00-\x7F]")
+# 키워드 매칭 판단은 keyword_match.py 가 정본이다(전략 전문·실측 근거 그쪽 참조).
+from keyword_match import keyword_clause as _kw_clause  # noqa: E402
 
 
 def _keyword_cond(keyword: str):
-    """(SQL 조건, params) — 키워드 성격에 맞는 매칭."""
-    if _NON_ASCII_RE.search(keyword or ""):
-        esc = (keyword or "").replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        return ("(v.content_original ILIKE :kw_like ESCAPE '\\' "
-                " OR v.content_translated ILIKE :kw_like ESCAPE '\\')",
-                {"kw_like": f"%{esc}%"}, "substring")
-    return ("to_tsvector('english', COALESCE(v.content_translated, '')) "
-            "@@ plainto_tsquery('english', :keyword)",
-            {"keyword": keyword}, "fts")
+    """(SQL 조건, params, 적용된 모드)."""
+    return _kw_clause(keyword)
 
 
 # 전체 VOC 슬라이스 축 — 결함 도구(defects._FILTER_SPECS)와 같은 사고방식이다.

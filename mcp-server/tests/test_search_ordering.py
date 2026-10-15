@@ -73,10 +73,24 @@ def test_korean_keyword_uses_substring():
     assert mode == "substring"
 
 
-def test_ascii_keyword_uses_fts():
-    """영어는 인덱스+어간 처리가 유리하다(overheating ↔ overheat)."""
-    for kw in ("overheating", "Galaxy S26", "100%"):
+def test_ascii_single_token_uses_fts():
+    """ASCII 한 토큰은 FTS — 인덱스 + 어간 처리 이점(overheating ↔ overheat)."""
+    for kw in ("overheating", "S26", "100%"):
         assert _q()._keyword_clause(kw)[2] == "fts", kw
+
+
+def test_ascii_multi_token_uses_phrase_not_loose_and():
+    """ASCII 여러 토큰은 **구절**이다. 어간 이점은 한 토큰에만 해당한다.
+
+    plainto_tsquery 는 'Galaxy S26' 을 `'galaxi' & 's26'` 으로 바꿔 글 전체에서
+    따로 찾는다. 그래서 'S25 Ultra' 검색 상위 10건 중 5건이 그 문구를 포함하지
+    않았다(2026-10-15 실측) — 아이폰 16 글, 픽셀 10 Pro 글, 케이스 브랜드
+    'Ultra Hybrid' 글. 'Galaxy Watch 8' 은 'watch' 가 흔한 동사라 2.2배 과다였다.
+    구절 검색도 같은 FTS 인덱스를 쓰므로 속도 이점은 유지된다.
+    """
+    for kw in ("Galaxy S26", "S25 Ultra", "battery drain"):
+        assert _q()._keyword_clause(kw)[2] == "phrase", kw
+        assert "phraseto_tsquery" in _q()._keyword_clause(kw)[0], kw
 
 
 def test_substring_searches_both_columns():
