@@ -107,6 +107,22 @@ _beat_stale(){
 if _beat_stale; then
   need=1; _log "celery beat 스케줄 파일이 30분 이상 갱신 안 됨 — 살아있지만 일하지 않는다"
 fi
+# **인스턴스 레지스트리가 유실된 '고아' 상태도 잡는다.**
+# ~/.apptainer/instances 의 항목이 사라지면 instance stop/exec 이 불가해지는데,
+# 프로세스는 계속 살아 있어서 위의 ps 검사와 up.sh 의 멱등 검사가 둘 다 통과한다.
+# 그러면 **영구히 관리 불가 상태로 남는다**(2026-10-15 sf-crawler-beat 실측:
+# 레지스트리 0, 프로세스 생존, 스케줄 파일은 정상 갱신 — 돌긴 도는데 손댈 수 없다).
+# 고아는 supervisor 를 PID 로 끊어야 up.sh 가 다시 만든다.
+for inst in "$INST_PG" sf-backend sf-mcp sf-crawler-worker sf-crawler-beat sf-frontend; do
+  if ps -eo args 2>/dev/null | grep -qF "Apptainer instance: $(id -un) [$inst]" \
+     && ! apptainer instance list 2>/dev/null | awk '{print $1}' | grep -qx "$inst"; then
+    sup=$(ps -eo pid,args 2>/dev/null \
+          | grep -F "Apptainer instance: $(id -un) [$inst]" | awk '{print $1}' | head -1)
+    _log "!! $inst 레지스트리 유실(고아) — supervisor pid=$sup 종료 후 재생성"
+    [ -n "$sup" ] && kill -TERM "$sup" 2>/dev/null
+    need=1
+  fi
+done
 if [ "$need" -eq 1 ]; then
   _log "일부 서비스 다운 → up.sh"
   run_nolock bash "$HERE/up.sh" >> "$LOG" 2>&1
