@@ -1059,123 +1059,105 @@ def verify_backup() -> dict:
     import subprocess
     import time as _time
 
-    repo_root = os.path.abspath(os.path.join(_CRAWLER_DIR, ".."))
-    script = os.path.join(repo_root, "scripts", "drive-sync", "verify-backup.sh")
-    if not os.path.isfile(script):
-        logger.error(f"[verify_backup] script not found: {script}")
-        return {"status": "error", "error": "script_missing"}
-
+    # **스크립트를 직접 실행하지 않는다.** 예전에는 그러려 했고, 컨테이너 안에서
+    # repo_root 가 '/' 로 계산돼 /scripts/drive-sync/verify-backup.sh 를 찾다가
+    # script_missing 을 반환하고 끝났다 — 알림 INSERT 경로에 도달조차 못 해
+    # **81일간 백업을 한 번도 검증하지 않았다**(2026-10-15 감사).
+    # 애초에 가능하지 않았다: 컨테이너에 /scripts 도 rclone 도 없다.
+    # 검증은 호스트 cron 이 하고(rclone·Drive 자격증명이 거기 있다), 여기서는
+    # 그 결과만 읽어 알림을 올린다. 결과가 낡은 것도 실패로 본다.
+    from reports._common import REPORTS_DIR  # 경로 정본 (박스마다 다르다)
+    state = str(REPORTS_DIR / "backup_verify.json")
+    max_age_h = float(os.getenv("BACKUP_VERIFY_MAX_AGE_HOURS", "36"))
     t0 = _time.time()
-    try:
-        res = subprocess.run(
-            ["bash", script],
-            capture_output=True, text=True, timeout=120,
-        )
-    except subprocess.TimeoutExpired:
-        logger.error("[verify_backup] verify-backup.sh timeout > 120s")
-        return {"status": "error", "error": "timeout"}
-    elapsed_ms = int((_time.time() - t0) * 1000)
-
-    # verify-backup.sh 는 마지막 stdout 라인에 JSON 한 줄 (tee).
-    last_line = (res.stdout or "").strip().splitlines()[-1] if res.stdout else ""
     payload: dict = {}
-    try:
-        payload = _json.loads(last_line) if last_line else {}
-    except Exception:
-        payload = {"parse_error": True, "raw": last_line[:200]}
+    if not os.path.isfile(state):
+        payload = {"ok": False, "reason": "verify_state_missing",
+                   "hint": "호스트 cron 의 verify-backup.sh 가 돌지 않았다"}
+    else:
+        try:
+            with open(state, encoding="utf-8") as fh:
+                payload = _json.load(fh)
+        except Exception as exc:
+            payload = {"ok": False, "reason": "verify_state_unreadable",
+                       "error": str(exc)[:120]}
+        else:
+            age_h = (_time.time() - os.path.getmtime(state)) / 3600.0
+            payload["state_age_hours"] = round(age_h, 1)
+            if age_h > max_age_h:
+                # 결과가 낡았으면 "검증 성공"을 믿을 수 없다 — 검증기가 멈춘 것이다.
+                payload["ok"] = False
+                payload["reason"] = f"verify_state_stale({age_h:.0f}h > {max_age_h:.0f}h)"
+    elapsed_ms = int((_time.time() - t0) * 1000)
 
     ok = bool(payload.get("ok"))
     logger.info(
-        f"[verify_backup] ok={ok} rc={res.returncode} elapsed_ms={elapsed_ms} "
-        f"reason={payload.get('reason')}"
+        f"[verify_backup] ok={ok} elapsed_ms={elapsed_ms} "
+        f"reason={payload.get('reason')} state_age_h={payload.get('state_age_hours')}"
     )
 
     # 실패 시 alert_events INSERT (alert_rules.backup_fail).
     if not ok:
-        env = {**os.environ, "PGPASSWORD": os.getenv("PGPASSWORD",
-                                                    os.getenv("POSTGRES_PASSWORD", "signalforge_pass"))}
-        psql_base = [
-            "psql", "-h", os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            "-p", os.getenv("POSTGRES_PORT", "5434"),
-            "-U", os.getenv("POSTGRES_USER", "signalforge"),
-            "-d", os.getenv("POSTGRES_DB", "signalforge"),
-            "-tA", "-v", "ON_ERROR_STOP=1",
-        ]
-        # cooldown 가드: backup_fail.cooldown_sec(3600) 이내 직전 발화 있으면 skip.
-        # 일일 1회 호출이라 일반적으로 무관, 수동 재실행 대비.
-        sql_cd = """
-            SELECT EXTRACT(EPOCH FROM (now() - COALESCE(MAX(e.fired_at), 'epoch'::timestamptz)))::int,
-                   r.cooldown_sec
-            FROM alert_rules r
-            LEFT JOIN alert_events e ON e.rule_id = r.id
-            WHERE r.name = 'backup_fail' AND r.is_active = TRUE
-            GROUP BY r.cooldown_sec
-        """
-        try:
-            cd_res = subprocess.run(
-                psql_base + ["-c", sql_cd],
-                env=env, capture_output=True, text=True, timeout=10,
-            )
-            line = (cd_res.stdout or "").strip()
-            if line:
-                sec_since, cooldown = (int(x) for x in line.split("|"))
-                if sec_since < cooldown:
-                    logger.warning(
-                        f"[verify_backup] cooldown active ({sec_since}s < {cooldown}s) — skip insert"
-                    )
-                    return {"status": "fail_cooldown",
-                            "ok": False, "payload": payload, "elapsed_ms": elapsed_ms}
-        except Exception as exc:
-            logger.warning(f"[verify_backup] cooldown 조회 실패 (insert 진행): {exc}")
+        # **psql 서브프로세스를 쓰지 않는다.** 컨테이너에 psql 이 없어서
+        # FileNotFoundError 로 죽었고, 실패를 감지해도 기록이 안 됐다
+        # (2026-10-15 감사). 크롤러엔 asyncpg 가 있으니 그걸 쓴다.
+        import asyncio as _aio
+        import re as _re
+        from datetime import datetime as _dt, timezone as _tz
 
-        # alert_events INSERT — value=0 → op '<' threshold=1 위반.
-        ev_payload = {
-            "type": "backup_fail",
-            "reason": payload.get("reason"),
-            "file": payload.get("file"),
-            "mtime": payload.get("mtime"),
-            "age_hours": payload.get("age_hours"),
-            "drive_path": payload.get("drive_path"),
-            "verified_at": payload.get("verified_at"),
-        }
-        sql_ins = """
-            INSERT INTO alert_events
-                (rule_id, severity, value, threshold, payload, dispatched_channels)
-            SELECT id, severity, 0, threshold,
-                   CAST($1 AS JSONB), ARRAY[]::varchar[]
-            FROM alert_rules
-            WHERE name = 'backup_fail' AND is_active = TRUE
-            RETURNING id
-        """
-        # psql 의 -c $1 placeholder 는 비표준 — 안전하게 stdin heredoc 사용.
+        import asyncpg as _apg
+
+        async def _record_failure() -> str:
+            dsn = _re.sub(r"\+asyncpg", "", os.getenv("DATABASE_URL", ""))
+            if not dsn:
+                return "no_dsn"
+            conn = await _apg.connect(dsn)
+            try:
+                rule = await conn.fetchrow(
+                    "SELECT id, severity, threshold, cooldown_sec FROM alert_rules "
+                    "WHERE name = 'backup_fail' AND is_active = TRUE")
+                if rule is None:
+                    return "rule_missing"
+                last = await conn.fetchval(
+                    "SELECT max(fired_at) FROM alert_events WHERE rule_id = $1",
+                    int(rule["id"]))
+                if last is not None:
+                    age = (_dt.now(_tz.utc) - last).total_seconds()
+                    if age < int(rule["cooldown_sec"] or 3600):
+                        return "cooldown"
+                await conn.execute(
+                    "INSERT INTO alert_events (rule_id, severity, value, threshold,"
+                    " payload, dispatched_channels)"
+                    " VALUES ($1, $2, 0, $3, $4::jsonb, ARRAY[]::varchar[])",
+                    int(rule["id"]), str(rule["severity"] or "critical"),
+                    float(rule["threshold"] or 1.0),
+                    _json.dumps({"type": "backup_fail",
+                                 "reason": payload.get("reason"),
+                                 "state_age_hours": payload.get("state_age_hours"),
+                                 "file": payload.get("file")}, ensure_ascii=False))
+                return "inserted"
+            finally:
+                await conn.close()
+
         try:
-            ins_res = subprocess.run(
-                psql_base + [
-                    "-c",
-                    "INSERT INTO alert_events (rule_id, severity, value, threshold, payload, dispatched_channels) "
-                    "SELECT id, severity, 0, threshold, "
-                    f"CAST('{_json.dumps(ev_payload).replace(chr(39), chr(39)*2)}' AS JSONB), "
-                    "ARRAY[]::varchar[] "
-                    "FROM alert_rules WHERE name='backup_fail' AND is_active=TRUE RETURNING id"
-                ],
-                env=env, capture_output=True, text=True, timeout=10,
-            )
-            if ins_res.returncode != 0:
-                logger.error(f"[verify_backup] alert_events INSERT 실패: {ins_res.stderr.strip()}")
+            outcome = _aio.run(_record_failure())
+            if outcome == "inserted":
+                logger.warning("[verify_backup] alert_events 발화 — reason=%s",
+                               payload.get("reason"))
             else:
-                logger.warning(
-                    f"[verify_backup] alert_events 발화 — reason={payload.get('reason')}"
-                )
+                logger.info("[verify_backup] 알림 기록 skip (%s)", outcome)
+            payload["alert"] = outcome
         except Exception as exc:
-            logger.exception(f"[verify_backup] alert_events INSERT 예외: {exc}")
-        del sql_ins  # 미사용 (참조용 SQL 보존만)
+            logger.exception("[verify_backup] alert_events INSERT 예외: %s", exc)
+            payload["alert"] = f"error:{type(exc).__name__}"
 
     return {
         "status": "ok" if ok else "fail",
         "ok": ok,
         "payload": payload,
         "elapsed_ms": elapsed_ms,
-        "rc": res.returncode,
+        # 더 이상 서브프로세스를 띄우지 않는다 — 호스트가 쓴 결과를 읽을 뿐이다.
+        "state_age_hours": payload.get("state_age_hours"),
     }
 
 

@@ -43,6 +43,16 @@ import sys, asyncio; sys.path.insert(0, '/crawler')
 from platforms.hackernews import HackerNewsCrawler
 print(asyncio.run(HackerNewsCrawler().run()))
 " >> "$LOG" 2>&1
-echo "$(date '+%F %T') HN backfill 연도 $YEAR 끝" >> "$LOG"
+rc=$?
+echo "$(date '+%F %T') HN backfill 연도 $YEAR 끝 (rc=$rc)" >> "$LOG"
+# **실패하면 커서를 전진시키지 않는다.** 이전에는 rc 검사 없이 무조건 다음 연도로
+# 넘겨, DB 가 내려가 있던 나흘간 2013·2012·2011·2010 을 빈손으로 '소비'했다
+# (2026-10-15 감사). 지나간 연도는 FLOOR 까지 한 바퀴 돌아야 다시 온다.
+if [ "$rc" -eq 0 ]; then
+  echo "$(( YEAR - 1 ))" > "$STATE"
+else
+  echo "$(date '+%F %T') 실패(rc=$rc) — 커서 유지, 다음 실행에서 같은 연도 재시도" >> "$LOG"
+fi
+# 러너의 실패 경보(⚠)가 울리도록 종료코드를 전파한다.
+exit "$rc"
 
-echo "$(( YEAR - 1 ))" > "$STATE"

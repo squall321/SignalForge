@@ -35,10 +35,19 @@ run_py() {  # $1=스크립트 $2...=추가 env
     sh -c "cd /crawler && python3 scripts/$script" >> "$LOG" 2>&1
   local rc=$?
   echo "$(date '+%F %T') ◁ $script 끝 (rc=$rc)" >> "$LOG"
+  # 하나라도 실패하면 스크립트 전체를 실패로 끝낸다 — 러너의 ⚠ 가 울리도록.
+  [ "$rc" -ne 0 ] && SF_FAILED=1
+  return 0
 }
+SF_FAILED=0
 
 echo "$(date '+%F %T') ===== 귀속 보강 시작 =====" >> "$LOG"
 # 국가 추론이 먼저 — 가볍고(30초) 빨리 끝난다. 링크는 전량 스캔이라 무겁다.
 run_py backfill_country_from_lang.py
 run_py backfill_product_links.py --env LINK_LIMIT="${LINK_LIMIT:-60000}"
 echo "$(date '+%F %T') ===== 귀속 보강 끝 =====" >> "$LOG"
+
+# 자식 실패를 러너에 전파한다. 이게 없어서 09-18~09-25 여덟 번의 실패가
+# backfill-runner.log 에 한 줄도 남지 않았다(2026-10-15 감사).
+# 이 스크립트는 여러 단계를 돌리므로 **하나라도 실패하면 1** 로 끝낸다.
+exit "${SF_FAILED:-0}"

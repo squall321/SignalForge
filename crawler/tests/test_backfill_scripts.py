@@ -209,3 +209,81 @@ def test_cursors_persist_incrementally(script, marker):
     src = (SCRIPTS.parent / "crawler" / "scripts" / script).read_text()
     body = src.split("async def main", 1)[1]
     assert body.count(marker) >= 1, f"{script}: 진행 중 상태 저장이 없다"
+
+
+# ── 자식 실패가 러너에 전달되는가 ─────────────────────────────────────────
+# 2026-10-15 감사: 러너가 부르는 자식 12개 중 11개가 종료코드를 전파하지 않아
+# 2026-09-16 에 일부러 넣은 실패 경보(⚠)가 **구조적으로 발화 불가**였다.
+# 09-18~09-25 여덟 번의 실패가 backfill-runner.log 에 한 줄도 남지 않았고,
+# 그동안 터키어 İ KeyError 로 Reddit 역사 수집이 죽어 있던 것을 아무도 몰랐다.
+_RUNNER_CHILDREN = [
+    p for p in (SCRIPTS / "backfill-runner.sh").read_text().splitlines()
+    if p.strip().startswith("run_step")
+]
+
+
+def _child_names():
+    out = []
+    for line in _RUNNER_CHILDREN:
+        tok = line.split()
+        if len(tok) >= 2 and tok[1].endswith(".sh"):
+            out.append(tok[1])
+    return out
+
+
+def test_runner_children_are_discoverable():
+    """자식 목록을 못 읽으면 아래 테스트들이 전부 공집합을 돌아 무의미해진다."""
+    names = _child_names()
+    assert len(names) >= 10, f"자식 {len(names)}개만 찾았다: {names}"
+
+
+@pytest.mark.parametrize("name", _child_names(), ids=lambda n: n)
+def test_child_propagates_exit_code(name):
+    """자식이 rc 를 삼키면 러너는 영원히 '정상 완료'만 본다."""
+    path = SCRIPTS / name
+    if not path.exists():
+        pytest.skip(f"{name} 없음")
+    src = path.read_text().rstrip()
+    last = [l for l in src.splitlines() if l.strip() and not l.strip().startswith("#")][-1]
+    assert last.strip() in ('exit "$rc"', "exit 0", 'exit "${SF_FAILED:-0}"'), (
+        f"{name} 의 마지막 실행문이 '{last.strip()[:50]}' 이다 — "
+        "종료코드를 전파하지 않으면 러너의 실패 경보가 울리지 않는다")
+
+
+@pytest.mark.parametrize("name", _child_names(), ids=lambda n: n)
+def test_cursor_advance_is_guarded_by_rc(name):
+    """**실패해도 커서가 전진하면 데이터 유실이다.**
+
+    실측 — DB 가 내려가 있던 나흘간 HN 이 2013·2012·2011·2010 을 빈손으로
+    '소비'했다. 지나간 연도는 FLOOR 까지 한 바퀴 돌아야 다시 온다.
+    """
+    path = SCRIPTS / name
+    if not path.exists():
+        pytest.skip(f"{name} 없음")
+    lines = path.read_text().splitlines()
+    writes = [i for i, l in enumerate(lines)
+              if '> "$STATE"' in l and not l.strip().startswith("#")]
+    if not writes:
+        pytest.skip(f"{name} 은 셸에서 커서를 쓰지 않는다")
+    for i in writes:
+        ctx = "\n".join(lines[max(0, i - 10):i])
+        assert ('"$rc" -eq 0' in ctx or '"$rc" = "3"' in ctx), (
+            f"{name}:{i+1} 커서 쓰기가 rc 조건 밖에 있다 — 실패해도 구간을 소비한다")
+
+
+@pytest.mark.parametrize("name", _child_names(), ids=lambda n: n)
+def test_rc_captured_before_any_command_substitution(name):
+    """`echo "$(date ...) (rc=$?)"` 는 **항상 0** 이다 — $(date) 가 $? 를 덮는다.
+
+    러너에서 고친 버그가 deep-page-backfill.sh 에 남아 있었다(2026-10-15 감사).
+    """
+    path = SCRIPTS / name
+    if not path.exists():
+        pytest.skip(f"{name} 없음")
+    for i, line in enumerate(path.read_text().splitlines(), 1):
+        if line.strip().startswith("#"):
+            continue
+        if "$(" in line and "rc=$?" in line.split("$(", 1)[1]:
+            pytest.fail(f"{name}:{i} 명령치환 뒤에서 $? 를 읽는다 — 항상 0 이다\n  {line.strip()[:70]}")
+        if "$?" in line and "$(" in line and line.index("$(") < line.index("$?"):
+            pytest.fail(f"{name}:{i} $(...) 가 $? 보다 앞에 있다 — $? 가 덮인다\n  {line.strip()[:70]}")

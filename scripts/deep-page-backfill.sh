@@ -45,4 +45,8 @@ apptainer exec --bind "$CRAWLER_DIR:/crawler" --bind "$ROOT/logs:/logs" \
   --env DEEP_BUDGET_SEC="${DEEP_BUDGET_SEC:-900}" \
   "$APPT_DIR/sif/crawler.sif" \
   sh -c "cd /crawler && python3 scripts/deep_page_backfill.py" >> "$LOG" 2>&1
-echo "$(date '+%F %T') 깊이 backfill 끝 (rc=$?)" >> "$LOG"
+# ⚠ `echo "$(date ...) (rc=$?)"` 는 **항상 0** 이다 — $(date) 가 먼저 실행돼
+# $? 를 덮어쓴다. 러너에서 같은 버그를 고쳤는데 여기 남아 있었다(2026-10-15 감사).
+rc=$?
+echo "$(date '+%F %T') 깊이 backfill 끝 (rc=$rc)" >> "$LOG"
+exit "$rc"

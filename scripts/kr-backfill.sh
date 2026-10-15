@@ -3,6 +3,7 @@
 # 기존 crawler/scripts/historical_kr_backfill.py(dormant, 과거 일회성)를 cron 으로 활성화.
 # 정체된 celery 큐 우회(ephemeral sif exec). steady(celery)는 최근 페이지만 보므로 이건 옛 글 담당.
 set -uo pipefail
+SF_FAILED=0   # 자식 실패 집계 — 하나라도 실패하면 1 로 끝낸다
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 # shellcheck source=/dev/null
@@ -24,4 +25,11 @@ apptainer exec --bind "$CRAWLER_DIR:/crawler" \
   --env BACKFILL_MODE=1 \
   "$APPT_DIR/sif/crawler.sif" sh -c "cd /crawler && python3 scripts/historical_kr_backfill.py" \
   >> "$LOG" 2>&1
+rc=$?   # ⚠ 반드시 바로 잡는다 — 뒤에 $(date) 가 오면 $? 가 덮인다
+[ "$rc" -ne 0 ] && SF_FAILED=1
 echo "$(date '+%F %T') KR backfill 끝" >> "$LOG"
+
+# 자식 실패를 러너에 전파한다. 이게 없어서 09-18~09-25 여덟 번의 실패가
+# backfill-runner.log 에 한 줄도 남지 않았다(2026-10-15 감사).
+# 이 스크립트는 여러 단계를 돌리므로 **하나라도 실패하면 1** 로 끝낸다.
+exit "${SF_FAILED:-0}"

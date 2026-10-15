@@ -26,6 +26,12 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_drive_common.sh"
 : "${DRY_RUN:=0}"
 
 STATE_FILE="$PROJ_DUMP_DIR/last_verified.json"
+# 컨테이너(celery)가 읽을 수 있는 자리에도 같이 남긴다.
+# crawler 컨테이너는 /reports 만 바인드돼 있고 backups/ 는 안 보인다 —
+# 그래서 tasks.verify_backup 이 이 스크립트를 exec 하려다 repo_root='/' 로
+# 계산해 script_missing 을 반환하고 **81일간 아무것도 검증하지 않았다**
+# (2026-10-15 감사). 검증은 호스트가 하고, 컨테이너는 결과만 읽는다.
+REPORT_COPY="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/reports/backup_verify.json"
 NOW_ISO="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
 # ── DRY_RUN: rclone 호출 없이 conf 파싱만 검증 ───────────────────────────────
@@ -46,7 +52,7 @@ LATEST_JSON="$(echo "$LSJSON" | jq -c 'sort_by(.ModTime) | last // empty')"
 if [[ -z "$LATEST_JSON" || "$LATEST_JSON" = "null" ]]; then
   jq -nc --arg now "$NOW_ISO" --arg drive "$DRIVE_PATH" \
     '{ok:false, reason:"no_backup_file", verified_at:$now, drive_path:$drive}' \
-    | tee "$STATE_FILE"
+    | tee "$STATE_FILE" "$REPORT_COPY"
   exit 1
 fi
 
@@ -123,6 +129,6 @@ jq -nc \
      min_size_bytes: $min_b,
      sha256: $sha256
   }' \
-  | tee "$STATE_FILE"
+  | tee "$STATE_FILE" "$REPORT_COPY"
 
 [[ "$OK" = "true" ]] || exit 1
