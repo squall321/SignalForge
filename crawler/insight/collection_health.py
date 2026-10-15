@@ -53,7 +53,9 @@ SNAPSHOT_PREFIX = "collection_health_"
 
 # ── 임계 ───────────────────────────────────────────────────────────────────
 THRESH_WARNING_RATIO = 0.10        # recent_24h < baseline_24h * 0.10 → warning
-DEFAULT_COOLDOWN_SEC = 3600        # metric 단위 cooldown 1h
+DEFAULT_COOLDOWN_SEC = 3600        # 종류 단위 cooldown 1h
+# 상태가 그대로여도 이 주기마다 한 번은 다시 올린다 — 완전히 묻히지 않게.
+HEARTBEAT_SEC = int(os.getenv('COLLECTION_HEALTH_HEARTBEAT_SEC', '86400'))
 ALERT_RULE_NAME = "collection_health"
 
 
@@ -300,16 +302,68 @@ def evaluate_null_dates(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
+# 위반 종류 — 사이트별로 알림을 쪼개지 않고 이 단위로 묶는다.
+_KIND_OF = (
+    ("collection.zero_yield.", "collection.zero_yield", "수집 0건"),
+    ("collection.null_date.", "collection.null_date", "발행일 결측"),
+    ("collection.", "collection.drop", "직전 7일 대비 급감"),
+)
+
+
+def _kind(metric: str):
+    for prefix, kind, label in _KIND_OF:
+        if (metric or "").startswith(prefix):
+            return kind, label
+    return "collection.other", "기타"
+
+
+def group_violations(violations: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """사이트별 위반을 **종류별로** 묶는다.
+
+    왜 묶는가 — metric 이 `collection.<사이트>` 라 쿨다운이 사이트 단위로 걸렸고,
+    활성 사이트 38곳이 시간마다 각자 발화해 **하루 280건**이 됐다(2026-10-15 실측,
+    30일 8,396건 = 전체 알림의 98.2%). 그 양이면 채널이 묻히고 Alerts 화면도
+    이 룰로 도배돼 다른 알림에 도달할 수 없다. 사이트 상세는 스냅샷
+    (reports/collection_health_*.json)에 이미 전량 남으므로, 알림은 종류 단위로
+    묶고 payload 에 사이트 목록을 싣는다.
+    """
+    groups: Dict[str, Dict[str, Any]] = {}
+    for v in violations:
+        kind, label = _kind(v.get("metric") or "")
+        g = groups.setdefault(kind, {
+            "metric": kind, "label": label, "codes": [], "severity": "warning",
+            "value": 0.0, "threshold": 0.0, "reasons": {},
+        })
+        code = v.get("code")
+        if code and code not in g["codes"]:
+            g["codes"].append(code)
+        if v.get("reason"):
+            g["reasons"][code] = v["reason"]
+        # 한 건이라도 critical 이면 그룹도 critical
+        if str(v.get("severity")) == "critical":
+            g["severity"] = "critical"
+        g["threshold"] = float(v.get("threshold") or g["threshold"] or 0.0)
+    for g in groups.values():
+        g["codes"].sort()
+        g["value"] = float(len(g["codes"]))
+    return groups
+
+
 async def insert_alert_events(
     conn: asyncpg.Connection,
     violations: List[Dict[str, Any]],
 ) -> Dict[str, int]:
-    """위반당 1행 INSERT. metric 단위 cooldown 적용.
+    """위반을 **종류별로 묶어** INSERT. 영향 사이트 집합이 넓어졌을 때만 발화.
+
+    "같은 사이트들이 계속 죽어 있다"는 반복 알림은 소음이고,
+    **"새로 죽은 사이트가 생겼다"가 신호다.** 그래서 직전 발화의 사이트 집합과
+    비교해 새 사이트가 있을 때만 발화한다. 상태가 그대로면 건너뛰되,
+    완전히 묻히지 않도록 heartbeat 주기(기본 24h)마다 한 번은 다시 올린다.
 
     rule(collection_health) 이 없으면 inserted=0 으로 graceful 반환.
     """
     if not violations:
-        return {"inserted": 0, "skipped_cooldown": 0, "rule_missing": 0}
+        return {"inserted": 0, "skipped_cooldown": 0, "rule_missing": 0, "groups": 0}
 
     rule = await conn.fetchrow(
         """
@@ -322,30 +376,44 @@ async def insert_alert_events(
     if rule is None:
         logger.info("[collection_health] alert_rules.%s 없음 — INSERT skip (graceful)",
                     ALERT_RULE_NAME)
-        return {"inserted": 0, "skipped_cooldown": 0, "rule_missing": len(violations)}
+        return {"inserted": 0, "skipped_cooldown": 0,
+                "rule_missing": len(violations), "groups": 0}
 
     cooldown_sec = int(rule["cooldown_sec"] or DEFAULT_COOLDOWN_SEC)
-    inserted = 0
-    skipped = 0
+    groups = group_violations(violations)
+    inserted = skipped = 0
     now = datetime.now(timezone.utc)
 
-    for v in violations:
-        metric_key = v.get("metric")
-        # metric 단위 cooldown — payload->>'metric' 으로 직전 발화 검색
-        last_fired = await conn.fetchval(
+    for kind, g in sorted(groups.items()):
+        prev = await conn.fetchrow(
             """
-            SELECT max(fired_at)
+            SELECT fired_at, payload
             FROM alert_events
             WHERE rule_id = $1 AND payload->>'metric' = $2
+            ORDER BY fired_at DESC
+            LIMIT 1
             """,
-            int(rule["id"]),
-            metric_key,
+            int(rule["id"]), kind,
         )
-        if last_fired is not None:
-            sec_since = (now - last_fired).total_seconds()
+        new_codes = set(g["codes"])
+        if prev is not None:
+            sec_since = (now - prev["fired_at"]).total_seconds()
+            try:
+                prev_codes = set(json.loads(prev["payload"]).get("codes") or [])
+            except Exception:
+                prev_codes = set()
+            added = new_codes - prev_codes
             if sec_since < cooldown_sec:
                 skipped += 1
                 continue
+            # 쿨다운은 지났다 — 새로 악화된 사이트가 없으면 heartbeat 주기까지 참는다
+            if not added and sec_since < HEARTBEAT_SEC:
+                skipped += 1
+                continue
+            g["new_codes"] = sorted(added)
+        else:
+            g["new_codes"] = sorted(new_codes)
+
         try:
             await conn.execute(
                 """
@@ -354,21 +422,27 @@ async def insert_alert_events(
                 VALUES ($1, $2, $3, $4, $5::jsonb, ARRAY[]::varchar[])
                 """,
                 int(rule["id"]),
-                str(v.get("severity") or rule["severity"]),
-                float(v.get("value") or 0.0),
-                float(v.get("threshold") or rule["threshold"] or 0.0),
+                str(g["severity"] or rule["severity"]),
+                float(g["value"]),
+                float(g["threshold"] or rule["threshold"] or 0.0),
                 json.dumps({
                     "type": "collection_health",
-                    "metric": metric_key,
-                    "code": v.get("code"),
-                    "reason": v.get("reason"),
+                    "metric": kind,
+                    "label": g["label"],
+                    "site_count": len(g["codes"]),
+                    "codes": g["codes"],
+                    "new_codes": g.get("new_codes") or [],
+                    "reasons": g["reasons"],
                 }, ensure_ascii=False),
             )
             inserted += 1
         except Exception as exc:
-            logger.warning("[collection_health] INSERT 실패 (%s): %s", metric_key, exc)
+            logger.warning("[collection_health] INSERT 실패 (%s): %s", kind, exc)
 
-    return {"inserted": inserted, "skipped_cooldown": skipped, "rule_missing": 0}
+    logger.info("[collection_health] 알림 %d종 중 %d건 발화 / %d건 skip (사이트 위반 %d건)",
+                len(groups), inserted, skipped, len(violations))
+    return {"inserted": inserted, "skipped_cooldown": skipped,
+            "rule_missing": 0, "groups": len(groups)}
 
 
 # ── 스냅샷 적재 ─────────────────────────────────────────────────────────
