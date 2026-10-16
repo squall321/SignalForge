@@ -113,9 +113,17 @@ fi
 # 그러면 **영구히 관리 불가 상태로 남는다**(2026-10-15 sf-crawler-beat 실측:
 # 레지스트리 0, 프로세스 생존, 스케줄 파일은 정상 갱신 — 돌긴 도는데 손댈 수 없다).
 # 고아는 supervisor 를 PID 로 끊어야 up.sh 가 다시 만든다.
+# 레지스트리는 한 번만, 파이프 판정 없이 읽는다 — `instance list | awk | grep -qx` 는 pipefail 아래서 grep 이 첫 일치에서 닫는 순간
+# 아직 쓰던 awk 가 SIGPIPE(141)로 죽어 **떠 있는 인스턴스를 '없다' 로** 읽는다(HWAXPortal docs/gotchas · test_shell_pipe_guard).
+# 여기서 '없다' 는 곧 '고아' 라 멀쩡한 인스턴스의 supervisor 를 끊는다. 목록을 못 읽으면(모름) 고아 판정을 통째로 건너뛴다 —
+# 모름을 '없다' 로 읽으면 전부를 끊는다.
+_reg=""; _reg_ok=0
+if _reg="$(apptainer instance list 2>/dev/null)"; then _reg_ok=1; _reg="$(awk '{print $1}' <<<"$_reg")"; fi
+[ "$_reg_ok" = 1 ] || _log "인스턴스 레지스트리를 읽지 못했다 — 고아 판정을 건너뛴다(모름을 '없다' 로 읽지 않는다)"
 for inst in "$INST_PG" sf-backend sf-mcp sf-crawler-worker sf-crawler-beat sf-frontend; do
+  [ "$_reg_ok" = 1 ] || break
   if ps -eo args 2>/dev/null | grep -qF "Apptainer instance: $(id -un) [$inst]" \
-     && ! apptainer instance list 2>/dev/null | awk '{print $1}' | grep -qx "$inst"; then
+     && ! grep -qx -- "$inst" <<<"$_reg"; then
     sup=$(ps -eo pid,args 2>/dev/null \
           | grep -F "Apptainer instance: $(id -un) [$inst]" | awk '{print $1}' | head -1)
     _log "!! $inst 레지스트리 유실(고아) — supervisor pid=$sup 종료 후 재생성"
