@@ -33,7 +33,7 @@ async def query_voc_tool(
     end_date: Optional[str] = None,
     limit: int = 20,
 ) -> List[dict]:
-    # 모든 필터가 선택 — product_code 없이도 전체 VOC 를 자유 조회(제품 태깅 ~18% 라
+    # 모든 필터가 선택 — product_code 없이도 전체 VOC 를 자유 조회(제품 태깅은 일부라
     # LEFT JOIN 으로 미태깅 VOC 도 포함). 날짜구간(published_at)·플랫폼·키워드까지 조합 가능.
     conditions: List[str] = ["TRUE"]
     params: dict = {"limit": limit}
@@ -159,8 +159,8 @@ async def search_voc_tool(
     keyword: str, product_code: Optional[str] = None, limit: int = 30,
     days: Optional[int] = None, order: str = "recent", match: str = "auto",
 ) -> List[dict]:
-    # products 는 LEFT JOIN — 제품 태깅율이 ~18% 라 INNER JOIN 시 미태깅 VOC 82% 가
-    # 조용히 누락된다. 검색은 전체 voc_active 를 대상으로 해야 한다(product_code 지정 시만 좁힘).
+    # products 는 LEFT JOIN — 제품 태깅은 일부라 INNER JOIN 시 미태깅 VOC 가 조용히
+    # 누락된다. 검색은 전체 voc_active 를 대상으로 해야 한다(product_code 지정 시만 좁힘).
     kw_clause, kw_params, used_match = _keyword_clause(keyword, match)
     conditions = [kw_clause]
     params: dict = {"limit": limit, **kw_params}

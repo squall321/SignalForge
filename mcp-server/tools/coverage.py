@@ -80,10 +80,13 @@ async def get_kg_relations_tool(
 async def get_unmapped_voc_tool(
     reason: Optional[str] = None, limit: int = 20
 ) -> dict:
-    """미태깅(제품 미매핑) VOC 점검 — 전체 데이터의 ~82% 를 차지하는 미태깅분을 직접 들여다본다.
+    """미태깅(제품 미매핑) VOC 점검 — 현재 태깅률(coverage)과 미태깅분의 사유·샘플.
 
     unmapped_reason 분포 + 샘플을 함께 반환해, 무엇이 제품 매핑에서 빠지는지(no_model_mention 등)
     데이터 커버리지 한계를 진단할 수 있게 한다.
+
+    태깅률은 도구 설명에 숫자로 박지 않고 여기서 실측해 돌려준다. 예전 설명의 "미태깅 ~82%"는
+    2026-06 수치였는데 그대로 남아, 호출한 AI 가 매번 "태깅이 거의 안 돼 있다"고 옮겼다.
 
     Args:
         reason: no_model_mention / non_galaxy / too_short / noise 중 — 선택(샘플 한정).
@@ -91,8 +94,15 @@ async def get_unmapped_voc_tool(
     """
     limit = max(1, min(limit, 100))
     async with get_db_session() as db:
+        cov = (await db.execute(text("""
+            SELECT count(*) AS active,
+                   count(*) FILTER (WHERE product_id IS NOT NULL) AS tagged
+            FROM voc_active
+        """))).mappings().one()
+        # 사유가 비어 있는 행은 '사유 미분류'다. 예전 라벨 '(tagged_or_general)' 은
+        # WHERE product_id IS NULL 결과라 '태깅됨'일 수 없는 잘못된 이름이었다.
         breakdown = (await db.execute(text("""
-            SELECT COALESCE(unmapped_reason, '(tagged_or_general)') AS reason, COUNT(*) AS cnt
+            SELECT COALESCE(unmapped_reason, '(unclassified)') AS reason, COUNT(*) AS cnt
             FROM voc_active
             WHERE product_id IS NULL
             GROUP BY unmapped_reason ORDER BY cnt DESC
@@ -111,8 +121,20 @@ async def get_unmapped_voc_tool(
             ORDER BY v.engagement_score DESC NULLS LAST
             LIMIT :limit
         """), params)).mappings().all()
+    active, tagged = int(cov["active"]), int(cov["tagged"])
     return {
+        "coverage": {
+            "active_total": active,
+            "tagged": tagged,
+            "untagged": active - tagged,
+            "tagged_pct": round(100.0 * tagged / active, 1) if active else None,
+        },
         "untagged_total": sum(int(b["cnt"]) for b in breakdown),
         "breakdown": [{"reason": b["reason"], "count": int(b["cnt"])} for b in breakdown],
         "samples": [dict(s) for s in samples],
+        "note": (
+            "미태깅은 대부분 처리 실패가 아니라 본문에 특정 모델명이 없는 글이다 "
+            "(2026-10-17 미태깅 표본 8,000건 — 기기·브랜드어 없음 4,940건, 브랜드·시리즈만 "
+            "2,686건, 모델명 있음 374건). 제품 단위 질문은 product_code 로 조회한다."
+        ),
     }

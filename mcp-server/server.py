@@ -73,6 +73,8 @@ async def query_voc(
     """
     VOC를 조건별로 자유 조회합니다. 모든 필터가 선택이며 조합 가능합니다.
     product_code 를 생략하면 전체 제품(미태깅 포함)을 횡단 조회합니다.
+    결과의 product_code 가 비어 있으면 본문에 특정 모델명이 없는 글입니다(일반 토론·짧은
+    댓글·브랜드만 언급) — 처리 실패가 아닙니다. 현재 태깅률은 get_unmapped_voc 의 coverage.
 
     Args:
         product_code: 제품 코드 (예: GS25U, GZF7) — 생략 시 전체
@@ -130,6 +132,9 @@ async def search_voc(
       'S25 Ultra' 9,680 · 'Galaxy S25 Ultra' 2,296 · 'S25Ultra' 315 ·
       '갤럭시 S25 울트라' 88   (제품 태깅 기준 GS25U = 9,502)
     제품명을 코드로 바꾸려면 resolve_product_keyword 를 먼저 부르십시오.
+
+    결과의 product_name 이 비어 있으면 본문에 특정 모델명이 없는 글입니다(일반 토론·짧은
+    댓글·브랜드만 언급) — 처리 실패가 아닙니다. 현재 태깅률은 get_unmapped_voc 의 coverage.
 
     Args:
         keyword: 검색 키워드. 한국어 그대로 넣어도 됩니다
@@ -442,9 +447,11 @@ async def get_kg_relations(
 
 @mcp.tool()
 async def get_unmapped_voc(reason: Optional[str] = None, limit: int = 20) -> dict:
-    """미태깅(제품 미매핑) VOC를 점검합니다 — 전체의 ~82%를 차지하는 미태깅분 진단.
+    """미태깅(제품 미매핑) VOC를 점검합니다 — 현재 태깅률(coverage)과 미태깅분 진단.
 
-    unmapped_reason 분포 + 샘플을 함께 반환. 무엇이 제품 매핑에서 빠지는지 파악.
+    coverage 에 실측 태깅률을, breakdown·samples 에 unmapped_reason 분포와 샘플을 담습니다.
+    태깅률을 말해야 할 때는 이 도구의 coverage 를 인용하십시오(설명문에 숫자를 두지 않습니다).
+    미태깅의 대부분은 처리 실패가 아니라 본문에 특정 모델명이 없는 글입니다(note 참조).
 
     Args:
         reason: no_model_mention / non_galaxy / too_short / noise 중 — 샘플 한정 (선택)

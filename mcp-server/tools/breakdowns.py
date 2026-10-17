@@ -1,5 +1,5 @@
 # MCP 보강 도구 — 미노출 데이터 차원(플랫폼/engagement/언어) 집계.
-# 전부 voc_active 기반, products 는 LEFT JOIN(미태깅 82% 누락 방지), period_days=0 이면 전기간.
+# 전부 voc_active 기반, products 는 LEFT JOIN(미태깅 행 누락 방지), period_days=0 이면 전기간.
 from typing import Optional, List
 from db import get_db_session
 from sqlalchemy import text
