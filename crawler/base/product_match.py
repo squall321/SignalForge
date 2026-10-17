@@ -14,6 +14,7 @@ DB products 테이블 시드 코드와 1:1 정합. 다음 카테고리를 커버
 대신 부정형 lookahead (?![0-9a-zA-Z]) 를 사용한다 — 숫자/영문 미연속만 차단,
 한글/공백/구두점은 허용.
 """
+import logging
 import math
 import re
 import unicodedata
@@ -1439,6 +1440,122 @@ def accept_legacy_code(text: str, code: str) -> bool:
     return bool(own)                     # 자사 근거가 같이 있으면 비교글이라 유지
 
 
+# ═════════ 레거시 폴백 — 라이브가 빈손일 때 구형 모델을 찾는다 ═══════════
+#
+# 라이브 사전은 활성 제품만 안다. 비활성(구형) 311종은 레거시 사전에만 있는데, 그
+# 폴백이 reprocess Phase C 한 곳에만 걸려 있었다. 08-28(dcdb0b2) 번역 백로그 수정이
+# 그 잡을 번역 전용으로 바꾸자 구형 태깅이 **조용히** 멈췄다 — 수집 월별 구형 태깅
+# 비율 6월 9.2% · 8월 8.2% → 9월 1.8% · 10월 1.3%. 그래서 수집·링크 백필·재태깅이
+# 모두 지나는 infer_all_product_codes 에 연결한다. 배치 잡 하나에 걸린 기능은 그 잡이
+# 바뀌면 사라진다.
+#
+# 레거시를 그대로 쓰면 안 된다. 미태깅 표본에서 레거시가 구형 코드를 준 330건을 전수
+# 판정하니 정밀도 86~88% 였다(2026-10-17). 틀린 유형마다 게이트를 둔다 —
+#   · 라이브 권위    라이브 패턴이 있는 코드는 내지 않는다 ('ipad a16' → GA16)
+#   · 이어지는 문자  'note 2' ⊂ 'note 23', 'galaxy watch 4' ⊂ 'watch 46mm', 'a 25,500mah'
+#   · 번호 붙은 후속  번호 없는 매칭 뒤의 숫자 ('galaxy fold 3', 'watch active 2')
+#   · 시리즈 일반명  'galaxy fold'·'galaxy buds'·'z flip' 은 지금 라인 이름이다(오류의 절반)
+#   · 변형 접미      'galaxy s9 fe+'(탭), 's10 plus tablet', 'note 10 lite'
+#   · 맨 'a NN'      'a 12 días', 'for a 13 year old', 'cortex-a55', 'a13 bionic'
+#   · 목록 번호      r/Android 상투문 'note 2. join our irc'
+_LIVE_CODES = frozenset(c.upper() for c, _ in PRODUCT_PATTERNS)
+
+# 번호 없는 1세대 이름 — 후속 세대가 나온 뒤로는 시리즈 전체를 가리키는 말로 쓰인다.
+# 실측: 'galaxy fold' → GZF1 판정 8건이 전부 틀렸다('our galaxy folds', 'galaxy fold 3').
+_SERIES_GENERIC = frozenset({
+    "GZF1", "GZFL1", "GB1", "GN1", "GS1", "GW1", "GGEAR1", "GFIT", "GTAB1",
+    "GTACT1", "GXC1", "GJUMP1", "GWIDE1", "PX1",
+})
+_HAS_DIGIT = re.compile(r"\d")
+_ASCII_ALNUM = re.compile(r"[0-9a-z]")
+_NUM_AFTER = re.compile(r"\s*\d")
+_QTY_AFTER = re.compile(r"[,.]\d")
+_VARIANT_AFTER = re.compile(
+    r"\s*(?:\+|(?:plus|ultra|pro|max|fe|lite|core|mini|neo|prime|edge|active|tab|tablet)\b)")
+_BARE_A = re.compile(r"a\s*\d{1,3}")
+_SPACED_A = re.compile(r"a\s+\d")
+_BRAND_TAIL = re.compile(r"(?:galaxy|samsung|갤럭시|삼성|갤)\s*$")
+_CHIP_AFTER = re.compile(r"\s*(?:bionic|chip|fusion|processor|soc)\b")
+_APPLE_NEAR = re.compile(r"iphone|ipad|apple|bionic|macbook")
+_BARE_NOTE = re.compile(r"note\s*\d{1,2}")
+# 폰 S6~S10 은 탭 S6~S10 과 번호를 공유한다. 레거시의 's9 plus'·'s10 plus' 는 폰으로
+# 가는데, 2025~26 글에서 'tab' 을 빼고 쓴 탭이 많다(홀드아웃 오류 6건 중 4건 —
+# 'looking for a tablet … s10 plus', 'the tablet is a galaxy s7', 's10 plus … s-pen').
+_PHONE_S_SHARED = re.compile(r"GS(?:[6-9]|10)(?!\d)")
+# 맨 'tab'·'탭' 은 넣지 않는다 — 브라우저 탭('opens a new tab'), '더블탭'(터치)과 겹친다.
+# 's pen' 은 단어 경계가 필요하다 — 없으면 'spending'·'spend' 의 'spen' 을 잡는다.
+_TABLET_NEAR = re.compile(r"tablet|태블릿|갤탭|갤럭시\s*탭|\bs-?\s?pens?\b|stylus")
+
+log = logging.getLogger(__name__)
+# scripts.relink_products.iter_product_matches 를 지연 import 한다.
+# None = 아직 안 불러옴, False = 불러오기 실패(프로세스당 한 번만 알린다).
+_legacy_iter = None
+
+
+def _legacy_span_ok(norm: str, s: int, e: int, code: str) -> bool:
+    """레거시 후보 한 건(정규화 본문 norm 의 [s, e))을 받아들일지 판정."""
+    hit = norm[s:e]
+    if not hit:
+        return False
+    has_digit = bool(_HAS_DIGIT.search(hit))
+    brand_before = bool(_BRAND_TAIL.search(norm[max(0, s - 12):s]))
+    # 이어지는 영숫자 — 더 긴 이름의 일부다. 한글 조사('폴드3은')는 막지 않는다.
+    if hit[-1].isascii() and hit[-1].isalnum() and _ASCII_ALNUM.match(norm, e):
+        return False
+    if _QTY_AFTER.match(norm, e):                    # 'a 25,500mah'
+        return False
+    if not has_digit and _NUM_AFTER.match(norm, e):  # 'galaxy fold 3'
+        return False
+    if code in _SERIES_GENERIC and not has_digit:
+        return False
+    if _VARIANT_AFTER.match(norm, e):                # 'galaxy s9 fe+', 's10 plus tablet'
+        return False
+    if _BARE_A.fullmatch(hit) and not brand_before:
+        if _SPACED_A.match(hit):                     # 'a 12 días', 'a 13 year old'
+            return False
+        if norm[s - 1:s] == "-" or _CHIP_AFTER.match(norm, e):   # 'cortex-a55'
+            return False
+        if _APPLE_NEAR.search(norm[max(0, s - 40):e + 40]):      # 'iphone 13 … a15'
+            return False
+    if _BARE_NOTE.fullmatch(hit) and not brand_before and norm[e:e + 1] in (".", ":", ")"):
+        return False
+    # 창은 ±300자 — 제목에서 'tablet' 이라 하고 본문 셋째 줄에서 's8 plus' 를 다시 쓰는 글이 있다.
+    if _PHONE_S_SHARED.match(code) and _TABLET_NEAR.search(norm[max(0, s - 300):e + 300]):
+        return False                                 # 탭 S6~S10 을 'tab' 없이 쓴 글
+    return True
+
+
+def legacy_fallback_code(text: Optional[str]) -> Optional[str]:
+    """라이브 사전이 빈손일 때 레거시 사전에서 구형 모델 코드를 찾는다. 없으면 None.
+
+    후보를 우선순위 순으로 훑어 게이트를 모두 통과한 첫 코드를 돌려준다 — 첫 후보가
+    거부돼도 다음 후보를 본다('galaxy fold 3' 은 'galaxy fold' 를 지나 'fold 3' 에 닿는다).
+    """
+    global _legacy_iter
+    if not text:
+        return None
+    if _legacy_iter is None:
+        try:
+            from scripts.relink_products import iter_product_matches
+            _legacy_iter = iter_product_matches
+        except Exception:
+            # 예전엔 여기서 조용히 None 을 냈다 — 폴백이 사라져도 아무도 몰랐다.
+            log.exception("레거시 사전 import 실패 — 구형 모델 태깅이 꺼진다")
+            _legacy_iter = False
+    if not _legacy_iter:
+        return None
+    for code, norm, s, e in _legacy_iter(text):
+        up = code.upper()
+        if up in _LIVE_CODES:
+            continue
+        if not _legacy_span_ok(norm, s, e, up):
+            continue
+        if _brand_of(up) == "samsung" and not accept_legacy_code(text, up):
+            continue
+        return up
+    return None
+
+
 def infer_product_code(text: Optional[str]) -> Optional[str]:
     """본문/제목에서 대표 제품 코드 추론. 매치 없으면 None.
 
@@ -1545,10 +1662,14 @@ _COMPARE_RE = re.compile(
 )
 
 
-def infer_all_product_codes(text: Optional[str]) -> List[Tuple[str, str]]:
+def infer_all_product_codes(text: Optional[str], *,
+                            legacy: bool = True) -> List[Tuple[str, str]]:
     """본문에서 언급된 **모든** 제품을 (code, role) 로 추출.
 
     role — primary(문서 주제에 가장 가까운 제품) / compared(비교 마커 있음) / mentioned.
+
+    라이브 사전이 아무것도 못 찾으면 레거시 폴백(legacy_fallback_code)으로 구형 모델을
+    한 번 더 찾는다. legacy=False 는 라이브 판정만 필요한 호출(backfill_rival_retag)용이다.
 
     span 겹침 억제가 핵심이다. `_E` 는 뒤 문자가 공백이면 통과하므로
     'Galaxy S26 Ultra' 가 GS26U(7,16) 와 GS26(0,10) 을 **동시에** 매칭한다.
@@ -1574,7 +1695,8 @@ def infer_all_product_codes(text: Optional[str]) -> List[Tuple[str, str]]:
         kept.append((code, span))
 
     if not kept:
-        return []
+        code = legacy_fallback_code(text) if legacy else None
+        return [(code, "primary")] if code else []
     codes = [c for c, _ in kept]
     primary = _pick_primary(text, codes)
     role = "compared" if _COMPARE_RE.search(text) else "mentioned"

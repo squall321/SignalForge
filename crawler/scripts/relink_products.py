@@ -911,6 +911,11 @@ MODEL_MAP: dict = {
     "z fold3": "GZF3", "갤럭시 z 폴드3": "GZF3", "폴드3": "GZF3",
     "galaxy z fold2": "GZF2", "galaxy z fold 2": "GZF2", "z fold 2": "GZF2",
     "z fold2": "GZF2", "갤럭시 z 폴드2": "GZF2", "폴드2": "GZF2",
+    # 'z' 를 빼고 쓰는 표기 — 'galaxy fold 3' 이 'galaxy fold'(1세대)로 잡히던 자리다.
+    # 레거시 폴백은 번호 없는 'galaxy fold' 를 거부하므로 이 키가 있어야 GZF3 에 닿는다.
+    "galaxy fold 4": "GZF4", "galaxy fold4": "GZF4",
+    "galaxy fold 3": "GZF3", "galaxy fold3": "GZF3",
+    "galaxy fold 2": "GZF2", "galaxy fold2": "GZF2",
     "galaxy fold": "GZF1", "갤럭시 폴드": "GZF1",
     # ── Galaxy Z Flip 5~8 (R7 신규) ────────────────────────────────
     "galaxy z flip8": "GZFL8", "z flip 8": "GZFL8", "z flip8": "GZFL8", "플립8": "GZFL8",
@@ -925,6 +930,9 @@ MODEL_MAP: dict = {
     "z flip4": "GZFL4", "갤럭시 z 플립4": "GZFL4", "플립4": "GZFL4",
     "galaxy z flip3": "GZFL3", "galaxy z flip 3": "GZFL3", "z flip 3": "GZFL3",
     "z flip3": "GZFL3", "갤럭시 z 플립3": "GZFL3", "플립3": "GZFL3",
+    # 'z' 없는 표기 — 위 'galaxy fold N' 과 같은 이유
+    "galaxy flip 4": "GZFL4", "galaxy flip4": "GZFL4",
+    "galaxy flip 3": "GZFL3", "galaxy flip3": "GZFL3",
     "galaxy z flip": "GZFL1", "z flip": "GZFL1", "갤럭시 z 플립": "GZFL1",
     # ── Galaxy Watch 6~8 + Ultra (R7 신규) ─────────────────────────
     "galaxy watch ultra": "GWU", "watch ultra": "GWU", "갤럭시 워치 울트라": "GWU",
@@ -1088,18 +1096,67 @@ def _has_galaxy_context(norm: str) -> bool:
     return bool(_GALAXY_CTX_RE.search(norm))
 
 
+_WIDE_JUMP_RES = [
+    (re.compile(r"갤(?:럭시)?\s*와이드\s*([2-8])"), "GWIDE"),
+    (re.compile(r"(?<![a-z])와이드\s*([2-8])\b"), "GWIDE"),
+    (re.compile(r"(?:갤(?:럭시)?\s*)?점프\s*([1-4])"), "GJUMP"),
+]
+
+
+def _wide_jump_matches(norm: str):
+    """'와이드 N' / '점프 N' 한국어 패턴 — (code, start, end). 정규식 선언 순서대로."""
+    for pat, prefix in _WIDE_JUMP_RES:
+        for m in pat.finditer(norm):
+            yield f"{prefix}{m.group(1)}", m.start(), m.end()
+
+
 def _resolve_wide_jump(norm: str) -> Optional[str]:
     """'와이드 N' / '점프 N' 한국어 패턴 — 그룹 캡처로 series_code 결정."""
-    m = re.search(r"갤(?:럭시)?\s*와이드\s*([2-8])", norm)
-    if m:
-        return f"GWIDE{m.group(1)}"
-    m = re.search(r"(?<![a-z])와이드\s*([2-8])\b", norm)
-    if m:
-        return f"GWIDE{m.group(1)}"
-    m = re.search(r"(?:갤(?:럭시)?\s*)?점프\s*([1-4])", norm)
-    if m:
-        return f"GJUMP{m.group(1)}"
+    for code, _s, _e in _wide_jump_matches(norm):
+        return code
     return None
+
+
+def iter_product_matches(text: str):
+    """match_product_code 와 같은 우선순위로 매칭 후보를 **전부** 낸다 — (code, norm, start, end).
+
+    첫 값이 곧 match_product_code 의 결과다. base.product_match 의 레거시 폴백은 후보마다
+    게이트를 적용하고 거부되면 다음 후보로 넘어가므로 전부가 필요하다. 첫 매칭만 보면
+    'galaxy fold 3' 이 'galaxy fold'(1세대 — 거부)에 막혀 'fold 3'(GZF3)에 닿지 못한다.
+    norm 은 정규화·마스킹을 거친 본문이고 start/end 는 그 안의 위치다.
+    """
+    if not text:
+        return
+    norm = normalize(text)
+
+    # 1) Noise gate — 갤럭시 컨텍스트 없이 noise pattern 만 매칭되면 후보 없음
+    has_galaxy = _has_galaxy_context(norm)
+    for pat, _name in NOISE_PATTERNS:
+        if pat.search(norm) and not has_galaxy:
+            return
+
+    # 1b) Noise mask — YC batch / notebook / app store note 등 토큰 부분 마스킹
+    norm = _mask_noise(norm)
+
+    # 2) Wide/Jump 그룹 캡처 — 한국 통신사 전용 모델 (베어 A-넘버보다 우선).
+    #    Harvest 5 V2: 베어 'a33' 같은 GSMArena 회수 패턴이 추가되면서
+    #    '점프2 A33' 같은 한국어 문장에서 GJUMP2 가 가려지는 회귀를 방지.
+    for code, s, e in _wide_jump_matches(norm):
+        yield code, norm, s, e
+
+    # 3) Regex 패턴 — 선언 순서대로
+    for pat, code in MODEL_REGEX_PATTERNS:
+        if code is None:
+            continue
+        for m in pat.finditer(norm):
+            yield code, norm, m.start(), m.end()
+
+    # 4) MODEL_MAP substring 매칭 (길이 내림차순)
+    for key in _SORTED_KEYS:
+        i = norm.find(key)
+        while i >= 0:
+            yield MODEL_MAP[key], norm, i, i + len(key)
+            i = norm.find(key, i + 1)
 
 
 def match_product_code(text: str) -> Optional[str]:
@@ -1110,39 +1167,10 @@ def match_product_code(text: str) -> Optional[str]:
       2. MODEL_REGEX_PATTERNS — 컨텍스트 의존 패턴 (Tab, SM-코드, A 시리즈 등).
       3. Wide/Jump 그룹 캡처 핸들러 (한국어 한정).
       4. MODEL_MAP — 길이 내림차순 substring 매칭.
+    순서와 판정은 iter_product_matches 가 갖고, 여기서는 그 첫 후보를 돌려준다.
     """
-    if not text:
-        return None
-    norm = normalize(text)
-
-    # 1) Noise gate — 갤럭시 컨텍스트 없이 noise pattern 만 매칭되면 즉시 None
-    has_galaxy = _has_galaxy_context(norm)
-    for pat, _name in NOISE_PATTERNS:
-        if pat.search(norm) and not has_galaxy:
-            return None
-
-    # 1b) Noise mask — YC batch / notebook / app store note 등 토큰 부분 마스킹
-    norm = _mask_noise(norm)
-
-    # 2) Wide/Jump 그룹 캡처 — 한국 통신사 전용 모델 (베어 A-넘버보다 우선).
-    #    Harvest 5 V2: 베어 'a33' 같은 GSMArena 회수 패턴이 추가되면서
-    #    '점프2 A33' 같은 한국어 문장에서 GJUMP2 가 가려지는 회귀를 방지.
-    wj = _resolve_wide_jump(norm)
-    if wj:
-        return wj
-
-    # 3) Regex 패턴 — 선언 순서대로
-    for pat, code in MODEL_REGEX_PATTERNS:
-        if code is None:
-            continue
-        if pat.search(norm):
-            return code
-
-    # 4) MODEL_MAP substring 매칭 (길이 내림차순)
-    for key in _SORTED_KEYS:
-        if key in norm:
-            return MODEL_MAP[key]
-
+    for code, _norm, _s, _e in iter_product_matches(text):
+        return code
     return None
 
 

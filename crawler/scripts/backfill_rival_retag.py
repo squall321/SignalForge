@@ -90,7 +90,9 @@ async def main():
                     if stored not in PATTERNED:
                         nopat += 1             # 판정 불가 — 손대지 않는다
                         continue
-                    out = infer_all_product_codes(r.content_original)
+                    # 라이브 전용 — 레거시 폴백이 게이트 3('다른 제품을 찾았다')을 채우면,
+                    # 본문에 제품명이 없는 명시 매핑 행이 본문 속 구형 언급으로 덮인다.
+                    out = infer_all_product_codes(r.content_original, legacy=False)
                     codes = {c for c, _ in out}
                     if stored in codes:
                         continue               # 본문이 여전히 뒷받침 → 손대지 않음
