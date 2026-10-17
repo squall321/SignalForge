@@ -196,6 +196,34 @@ def like_any_clause(terms, name: str):
             {name: pats})
 
 
+def all_tokens_clause(tokens, prefix: str = "a"):
+    """낱말이 **모두** 나오는 글 — 개념을 못 찾은 질의의 어휘 후보 경로. 없으면 None.
+
+    '카카오톡 알림이 늦게 와요' 같은 질의는 온톨로지 개념이 없다. 예전엔 전체 문구 부분일치라
+    거의 안 잡혔고(4건), 벡터만 쓰면 '늦게' 만 닮은 글이 왔다. 낱말을 다 담은 글은 정밀하다.
+    한국어 낱말은 한국어 원문 부분일치, ASCII 는 tsquery 하나로 && — expansion_clauses 와 같은 경로.
+    """
+    ko, fts, params = [], [], {}
+    for i, tok in enumerate(t for t in tokens or () if t and t.strip()):
+        t = " ".join(tok.split())
+        if _HANGUL_RE.search(t):
+            name = f"{prefix}_k{i}"
+            ko.append(f"v.content_original ILIKE :{name}")
+            params[name] = _like_pattern(t)
+        elif not _NON_ASCII_RE.search(t) and fts_safe(t):
+            name = f"{prefix}_f{i}"
+            fts.append(f"plainto_tsquery('english', :{name})")
+            params[name] = t
+    parts = []
+    if ko:
+        parts.append("(v.language_detected = 'ko' AND " + " AND ".join(ko) + ")")
+    if fts:
+        parts.append(f"{_FTS_DOC} @@ ({' && '.join(fts)})")
+    if not parts:
+        return None
+    return " AND ".join(parts), params
+
+
 def token_like_clause(token: str, name: str):
     """한 낱말이 원문·번역문 어디든 있는가 — 순위 가산용(필터가 아니다)."""
     return (f"(v.content_original ILIKE :{name} OR v.content_translated ILIKE :{name})",

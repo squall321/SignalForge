@@ -69,6 +69,12 @@ Samsung Galaxy VOC 데이터베이스에 자연어로 질문하는 MCP 서버. F
 개념이 하나도 없으면 예전 키워드 검색이다(`semantic=False` 와 같다). 설계·실측은
 `docs/semantic-search/context-notes.md`.
 
+**2단계 (같은 날)** — 사전 밖 표현. 은유·완곡은 로컬 LLM(ollama `qwen2.5:7b`)이 증상 키로 옮기고
+(새 표현 홀드아웃 19/19), 비슷한 문장은 임베딩(ollama `bge-m3`)으로 찾는다. 벡터는
+`crawler/data/vectors/bge-m3/` 조각 파일(mmap). 적재 `crawler/scripts/build_embeddings.py`(전량 약
+1.5시간, GPU), 증분은 beat `embed-new-2h`. ollama·색인이 없으면 두 기능 다 조용히 빠지고 1단계로
+돈다(결과 notes·interpretation.vector 에 표시). `docs/vector-search/context-notes.md`.
+
 ---
 
 ## 스키마 함정 (raw SQL 짤 때 주의 — 도구 쓰면 안 만남)

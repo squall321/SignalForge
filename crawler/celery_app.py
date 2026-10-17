@@ -299,6 +299,14 @@ app.conf.beat_schedule = {
         "task": "tasks.run_health_check",
         "schedule": crontab(minute=30),
     },
+    # 2026-10-17 시맨틱 검색 2단계: 새 VOC 임베딩 증분 — 하루 1~2만 건, 회차당 수십 초.
+    # 시간 예산 600초. 전량 적재가 잠금을 쥐고 있으면 건너뛴다(멱등·커서 보존).
+    "embed-new-2h": {
+        "task": "tasks.run_embed_new",
+        "schedule": 7200.0,
+        "kwargs": {"budget_sec": 600},
+        "options": {"expires": 3600},
+    },
     # r6 (2026-06-10): 미번역 잔재 점진 치유 — 6h 주기 500건씩 (Google rate-limit 안전).
     # 백필 burst 후 번역 실패 fallback (원문 보존) 행을 자동 복구. 멱등.
     "translation-reprocess-2h": {

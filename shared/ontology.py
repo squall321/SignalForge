@@ -144,6 +144,23 @@ QUERY_SYMPTOM_SRC: Dict[str, str] = {
     "shock": r"감전|\belectric\s+shock\b",
 }
 
+# LLM 개념 추론에 주는 설명 — 라벨만 주면 '작동 안 함'을 '앱 튕김'으로, '렌즈 안 먼지'를 '깨짐'으로
+# 헷갈렸다(평가 26건 중 4건). 헷갈리는 쌍을 갈라 주는 설명을 붙이니 새 표현 홀드아웃 19/19.
+SYMPTOM_HINTS: Dict[str, str] = {
+    "not_working": "a feature, button, pen, sensor or app does not respond / is not recognized",
+    "crash": "an APP closes by itself or force-closes",
+    "no_power": "the whole device will not turn on",
+    "dust_ingress": "dust, debris or something got INSIDE (lens, hinge, screen)",
+    "crack": "glass or body is cracked",
+    "peeling": "film, coating or paint peels off",
+    "swelling": "battery bulges and pushes the back cover up",
+    "drain": "battery runs out fast / does not last",
+    "overheat": "device gets hot",
+    "green_line": "a line (any colour) appears on the screen",
+    "noise": "crackling, buzzing or distorted sound",
+    "blurry": "photos or focus are blurry",
+}
+
 # 본문 검색용 정밀 동의어. 문서 렉시콘의 리터럴 분기(자동 추출)에 더한다.
 # 넓은 말('hot', 'slow', 'dead')은 넣지 않는다 — 본문에서는 오탐이 된다.
 EXPANSION_EXTRA: Dict[str, List[str]] = {
@@ -332,10 +349,13 @@ YEAR_RE = re.compile(r"(?<![0-9a-z])(20[12]\d)\s*년?(?![0-9])")
 _STOP_KO = set("관련 관해 대한 대해 대해서 어때 어때요 어떤가요 어떤지 있나요 있어요 인가요 인지 좀 정말 너무 "
                "진짜 그냥 것 거 때 후 전 중 등 및 또는 그리고 하는 하고 되는 돼요 됩니다 합니다 있는 없는 있음 "
                "없음 같은 같아요 현상 증상 사례 글 내용 정보 반응 여론 사용자 유저 사람들 많이 많은 자주 계속 "
-               "심하게 생김 생겨요 발생 경우 알려줘 찾아줘 보여줘 검색 모음 정리".split())
+               "심하게 생김 생겨요 발생 경우 알려줘 찾아줘 보여줘 검색 모음 정리 "
+               "와요 와 가요 해요 나요 줘요 됨 함 음 임 네요 어요 아요".split())
 _STOP_EN = set("the a an of for on in at to with about and or is are was were be been my your our any some "
                "how what why when does do did it its this that these those people users user posts post "
                "reports report getting get gets having has have show find search me".split())
+# 조사 떼기는 부분일치 검색어용이라 넉넉히 뗀다. '손난로' → '손난' 처럼 명사 끝을 떼도
+# '손난로' 를 여전히 찾지만, '알림이' 를 그대로 두면 '알림' 을 못 찾는다(재현율이 더 중요하다).
 _PARTICLE = re.compile(r"(?:으로|에서|이랑|하고|까지|부터|처럼|보다|이|가|은|는|을|를|의|에|도|만|로|랑|과|와)$")
 _TOKEN_RE = re.compile(r"[0-9a-z가-힣][0-9a-z가-힣+\-']*")
 
@@ -763,6 +783,33 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
             rest.append(t)
     it.residual = rest[:3]
     return it
+
+
+def add_symptoms(it: Interpretation, keys: Iterable[str], *, via: str, role: str = "inferred"):
+    """해석 밖(LLM 추론 등)에서 온 증상을 붙이고, 사전 증상과 같은 관계(함의 부품·주제)를 단다.
+
+    알 수 없는 키는 버린다 — 바깥 추론이 온톨로지에 없는 개념을 만들어 내지 못하게.
+    """
+    for key in keys:
+        if key not in SYMPTOM_LABELS or key in it.symptoms:
+            continue
+        it.symptoms.append(key)
+        _add(it, "symptom", key, via, role)
+        comp = SYMPTOM_COMPONENT.get(key)
+        if comp and comp != "device" and comp not in it.components + it.boost_components:
+            it.boost_components.append(comp)
+            _add(it, "component", comp, f"<{key}>", "derived")
+        top = SYMPTOM_TOPIC.get(key)
+        if top and top not in it.topics + it.boost_topics:
+            it.boost_topics.append(top)
+            _add(it, "topic", top, f"<{key}>", "derived")
+    # 부품이 후보 경로였다면 증상이 생긴 이상 가산으로 내린다(사전 해석과 같은 규칙)
+    if it.symptoms and it.components:
+        it.boost_components.extend(c for c in it.components if c not in it.boost_components)
+        it.components = []
+        for c in it.concepts:
+            if c.type == "component" and c.role == "match":
+                c.role = "boost"
 
 
 # ═════════ 둘러보기 ═══════════════════════════════════════════════════════

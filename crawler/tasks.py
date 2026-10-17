@@ -358,6 +358,22 @@ def run_health_check():
     return result
 
 
+@app.task(name="tasks.run_embed_new", max_retries=0)
+def run_embed_new(budget_sec: int = 600) -> dict:
+    """새 VOC 를 bge-m3 로 임베딩해 벡터 저장소에 덧붙인다(시맨틱 검색 2단계) — 2h 주기.
+
+    전량 적재(scripts/build_embeddings, 약 1.5시간)를 이어받는 증분이다. 커서는 쓴 만큼만
+    전진하고, 다른 적재가 돌고 있으면(파일 잠금) 이번 회차는 건너뛴다. ollama 가 없으면
+    embed_error 로 끝나고 다음 회차가 같은 지점부터 다시 한다.
+    """
+    import asyncio as _asyncio
+    from scripts import build_embeddings as _be
+    _be.BUDGET = float(budget_sec)           # 모듈 상수는 import 시 고정되므로 갱신
+    res = _asyncio.run(_be.main())
+    logger.info(f"[embed_new] {res}")
+    return {"status": "done", **res}
+
+
 @app.task(name="tasks.run_translation_reprocess", max_retries=0)
 def run_translation_reprocess(limit: int = 500) -> dict:
     """r6 (2026-06-10): 미번역 잔재 점진 치유 — 6h 주기.

@@ -87,9 +87,29 @@ def test_channel_filter():
     assert r["results"] and all("Reddit" in (x["platform_name"] or "") for x in r["results"])
 
 
-def test_no_concept_falls_back_to_keyword():
+def test_no_concept_goes_to_vector_or_keyword():
+    """개념이 없으면 벡터(색인이 있을 때) 또는 예전 키워드 검색이다 — 빈손이면 안 된다."""
+    r = _run("카카오톡 알림이 늦게 와요", limit=5)
+    assert r["strategy"] in ("vector", "keyword")
+    assert r["results"], "개념 없는 질의가 빈손이다"
+
+
+def test_keyword_fallback_when_vectors_unavailable(monkeypatch):
+    import tools.semantic as S
+    monkeypatch.setattr(S.V, "store", lambda: None)
+    monkeypatch.setattr(S, "infer_symptoms", _no_llm)
     r = _run("카카오톡 알림", limit=5)
     assert r["strategy"] == "keyword"
+
+
+async def _no_llm(_q):
+    return []
+
+
+def test_dictionary_explained_query_skips_vectors():
+    """사전 개념만으로 설명되면 벡터를 섞지 않는다 — 섞으면 표기마다 결과가 갈렸다(251 → 499)."""
+    r = _run("S25 울트라 발열", limit=5)
+    assert r["interpretation"]["vector"]["used"] is False
 
 
 @pytest.mark.parametrize("q,limit_s", [
@@ -115,3 +135,33 @@ def test_fast_plan_drops_text_branches():
     fast, _ = S._build_sql(it, sc, limit=5, days=None, order="relevance", fast=True)
     branch = "SELECT v.id, 'TS'"          # 점수식에도 'TS' 가 있으니 후보 경로 자체를 본다
     assert branch in full and branch not in fast and "FROM voc_defects d " in fast
+
+
+# ── 2단계: LLM 개념 추론 + 벡터 (색인·ollama 가 있을 때) ───────────────────
+def _vec_ready():
+    try:
+        import tools.vector as V
+        return V.store() is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _evidence(r, k=10):
+    return sum(1 for x in r["results"][:k]
+               if any(m in ("결함 주석(증상)", "본문(증상 동의어)") for m in x["matched"]))
+
+
+@pytest.mark.skipif(not _vec_ready(), reason="벡터 색인 없음")
+def test_metaphor_is_understood():
+    """'폰이 손난로 같아요' — 사전도 임베딩도 못 잡던 은유. LLM 이 발열로 옮겨야 한다."""
+    r = _run("폰이 손난로 같아요", limit=10)
+    assert r["interpretation"]["llm_symptoms"] == ["overheat"], r["interpretation"]["llm_symptoms"]
+    assert _evidence(r) >= 7, [x["matched"] for x in r["results"]]
+
+
+@pytest.mark.skipif(not _vec_ready(), reason="벡터 색인 없음")
+def test_paraphrase_within_product_scope():
+    """'하루를 못 버텨요' 는 배터리 광탈이다. 제품 범위는 지키고 근거 있는 글이 위에 와야 한다."""
+    r = _run("S25 울트라 하루를 못 버텨요", limit=10)
+    assert r["interpretation"]["llm_symptoms"] == ["drain"]
+    assert _evidence(r) >= 7

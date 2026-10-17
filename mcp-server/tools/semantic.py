@@ -13,6 +13,7 @@
 성능 근거(2026-10-17 실측, 활성 99만 행): 결함 주석 9ms · 영어 동의어 tsquery 1.3초 ·
 한국어 동의어 원문 부분일치 0.4초. 제품 범위가 있으면 그 안에서만 돈다.
 """
+import asyncio
 import re
 import time
 from datetime import datetime, timezone
@@ -30,13 +31,18 @@ for _p in ("/shared", str(_pathlib.Path(__file__).resolve().parents[2] / "shared
         _sys.path.insert(0, _p)
 import ontology as O  # noqa: E402
 from keyword_match import (  # noqa: E402
-    expansion_clauses, fts_groups_clause, like_any_clause, token_like_clause,
+    all_tokens_clause, expansion_clauses, fts_groups_clause, like_any_clause, token_like_clause,
 )
+from tools import vector as V  # noqa: E402
+from tools.llm_concepts import infer_symptoms  # noqa: E402
 
 _CATALOG_TTL = 600
 _BROAD_LINKS = 60000      # 이보다 크면 범위를 후보 필터로 (CTE 로 만들면 8초)
 _DRIVE_LINKS = 15000      # 이하면 범위가 후보 경로를 몬다 (행마다 FTS 를 돌려도 0.5초대)
 _TIMEOUT_S = 15           # 넘으면 주석만으로 재시도
+_VEC_K = 300              # 벡터 후보 수 (범위 안에서, 또는 전역)
+_VEC_W = 2.0              # 벡터 유사도 가중 — 결함 주석(3)보다 낮게: 은유·짧은 글에서 벡터가 틀렸다
+_VEC_MIN_CHARS = 20       # 벡터로만 걸린 글은 이보다 길어야 — 짧은 댓글이 유사도를 독식했다
 _catalog: Dict = {"at": 0.0, "products": [], "by_code": {}, "platforms": [], "lexicon": {}}
 
 
@@ -132,7 +138,8 @@ _ROLE_RANK = "CASE l.role WHEN 'primary' THEN 2 WHEN 'compared' THEN 1 ELSE 0.5 
 
 
 def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[int], order: str,
-               fast: bool = False):
+               fast: bool = False, vec: Optional[tuple] = None,
+               kw_tokens: Optional[List[str]] = None):
     """해석·범위 → (SQL, params).
 
     범위는 세 방식으로 건다.
@@ -188,7 +195,7 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
         terms = [] if fast else [t for s in it.symptoms for t in O.symptom_terms(s)]
         for clause in expansion_clauses(terms, prefix="xs").values():
             if clause:
-                hits.append(f"SELECT v.id, 'TS' FROM voc_active v{js('v.id')} WHERE {clause[0]}")
+                hits.append(f"SELECT v.id, 'TS' AS src FROM voc_active v{js('v.id')} WHERE {clause[0]}")
                 params.update(clause[1])
     if it.components:
         params["comps"] = it.components
@@ -197,12 +204,25 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
         terms = [] if fast else [t for c in it.components for t in O.component_terms(c)]
         for clause in expansion_clauses(terms, prefix="xc").values():
             if clause:
-                hits.append(f"SELECT v.id, 'TC' FROM voc_active v{js('v.id')} WHERE {clause[0]}")
+                hits.append(f"SELECT v.id, 'TC' AS src FROM voc_active v{js('v.id')} WHERE {clause[0]}")
                 params.update(clause[1])
     if it.topics:
         params["topics"] = it.topics
-        hits.append(f"SELECT v.id, 'T' FROM voc_active v{js('v.id')} "
+        hits.append(f"SELECT v.id, 'T' AS src FROM voc_active v{js('v.id')} "
                     "WHERE v.categories && CAST(:topics AS varchar[])")
+    has_vec = bool(vec and len(vec[0])) and not fast
+    if has_vec:
+        # 벡터 후보 — 순위·유사도는 파이썬(numpy)에서 계산해 넘긴다. rel 은 이 질의 안의 상대값(0~1)
+        params["vids"] = [int(i) for i in vec[0]]
+        params["vrel"] = [float(x) for x in vec[1]]
+        ctes.append("vec AS (SELECT * FROM unnest(CAST(:vids AS bigint[]), "
+                    "CAST(:vrel AS float8[])) AS t(id, rel))")
+        hits.append("SELECT id, 'V' AS src FROM vec")   # 첫 가지가 열 이름을 정한다 — 전부 AS src
+    if kw_tokens and not fast:
+        cl = all_tokens_clause(kw_tokens, prefix="kw")
+        if cl:
+            hits.append(f"SELECT v.id, 'K' AS src FROM voc_active v{js('v.id')} WHERE {cl[0]}")
+            params.update(cl[1])
 
     # ── 필터 ── (후보를 다 모은 뒤 v 에 건다. 필터만 있는 질의는 후보 단계에서 건다)
     where = ["(v.published_at IS NULL OR v.published_at <= now())"]
@@ -248,7 +268,11 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
              "(CASE WHEN 'TS' = ANY(z.srcs) THEN 1.5 ELSE 0 END)",
              "(CASE WHEN 'T' = ANY(z.srcs) THEN 1 ELSE 0 END)",
              "(CASE WHEN 'TC' = ANY(z.srcs) THEN 0.75 ELSE 0 END)",
+             "(CASE WHEN 'K' = ANY(z.srcs) THEN 2 ELSE 0 END)",
              "COALESCE(z.prank, 0)"]
+    if has_vec:
+        flags.append("COALESCE(vx.rel, 0) AS vrel")
+        score.append(f"{_VEC_W} * z.vrel")
 
     def flag(name: str, cond: str, weight: float):
         flags.append(f"({cond}) AS {name}")
@@ -283,8 +307,16 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
     }.get(order, "{t}.score DESC, {t}.published_at DESC NULLS LAST")
     # 순위는 좁은 열(id·플래그·날짜)로 매기고 본문은 상위 N 건만 읽는다. 넓은 행째로 정렬하면
     # 후보 7천 건의 본문을 통째로 끌고 다녀 1.7초가 더 든다(실측 2.9초 → 이 구조).
-    inner = (f"SELECT v.id, v.published_at, v.engagement_score, c.srcs{''.join(', ' + f for f in flags)} "
-             f"FROM cand c JOIN voc_active v ON v.id = c.id{scope_join} WHERE {' AND '.join(where)}")
+    inner_where = list(where)
+    vec_join = ""
+    if has_vec:
+        vec_join = " LEFT JOIN vec vx ON vx.id = v.id"
+        params["vmin"] = _VEC_MIN_CHARS
+        inner_where.append("NOT (c.srcs = ARRAY['V']::text[] AND length(v.content_original) < :vmin)")
+    inner = (f"SELECT v.id, v.published_at, v.engagement_score, v.content_hash, "
+             f"c.srcs{''.join(', ' + f for f in flags)} "
+             f"FROM cand c JOIN voc_active v ON v.id = c.id{scope_join}{vec_join} "
+             f"WHERE {' AND '.join(inner_where)}")
     if filter_scope:     # 넓은 범위 — 그 브랜드·기기에 링크됐거나, 태그 없이 이름이 나오는 글
         inner = (f"SELECT * FROM ({inner}) z0 WHERE z0.prank IS NOT NULL OR z0.f_brandtext")
     sql = f"""WITH {', '.join(ctes)},
@@ -305,7 +337,24 @@ ORDER BY {order_by.format(t='r')}"""
     return sql, params
 
 
-_SRC_LABEL = {"S": "결함 주석(증상)", "C": "결함 주석(부품)", "TS": "본문(증상 동의어)",
+async def _scope_ids(db, sc: Dict):
+    """제품 범위의 VOC id (오름차순) — 벡터 검색을 범위 안에서만 돌린다."""
+    import numpy as np
+    if sc["compare_all"]:
+        sql = text("""SELECT l.voc_id FROM voc_product_links l
+            JOIN (SELECT unnest(CAST(:g_pids AS int[])) AS pid,
+                         unnest(CAST(:g_idx AS int[])) AS gi) g ON g.pid = l.product_id
+            GROUP BY l.voc_id HAVING count(DISTINCT g.gi) = :g_n ORDER BY 1""")
+        p = {"g_pids": [i for g in sc["groups"] for i in g],
+             "g_idx": [gi for gi, g in enumerate(sc["groups"]) for _ in g], "g_n": len(sc["groups"])}
+    else:
+        sql = text("SELECT DISTINCT voc_id FROM voc_product_links "
+                   "WHERE product_id = ANY(CAST(:p AS int[])) ORDER BY 1")
+        p = {"p": sc["pids"]}
+    return np.asarray((await db.execute(sql, p)).scalars().all(), dtype=np.int64)
+
+
+_SRC_LABEL = {"S": "결함 주석(증상)", "C": "결함 주석(부품)", "TS": "본문(증상 동의어)", "K": "낱말 모두 일치",
               "TC": "본문(부품 동의어)", "T": "주제 주석", "P": "제품 범위", "F": "필터"}
 
 
@@ -313,7 +362,9 @@ _PRANK_LABEL = {2.0: "대표 제품", 1.0: "비교 대상 제품", 0.5: "언급�
 
 
 def _explain_row(r: Dict, it: "O.Interpretation") -> List[str]:
-    out = [_SRC_LABEL.get(s, s) for s in sorted(r.get("srcs") or []) if s not in ("P", "F")]
+    out = [_SRC_LABEL.get(s, s) for s in sorted(r.get("srcs") or []) if s not in ("P", "F", "V")]
+    if r.get("vrel"):
+        out.append(f"의미 유사({float(r['vrel']):.2f})")
     if r.get("prank") is not None:
         out.append(_PRANK_LABEL.get(float(r["prank"]), "제품 범위"))
     elif r.get("f_brandtext"):
@@ -352,16 +403,52 @@ def _interpretation_view(it: "O.Interpretation", sc: Dict, days: Optional[int]) 
     }
 
 
+def _dedup(rows: List[Dict], limit: int) -> List[Dict]:
+    """같은 본문이 여러 id 로 들어온 글(같은 댓글 재수집)을 하나로 접는다."""
+    seen, out = set(), []
+    for r in rows:
+        key = (r.get("content_hash") or " ".join((r.get("content_original") or "").split())[:200]
+               or ("id", r.get("id")))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+        if len(out) >= limit:
+            break
+    return out
+
+
 async def semantic_search_tool(query: str, product_code: Optional[str] = None, limit: int = 30,
                                days: Optional[int] = None, order: str = "relevance",
                                match: str = "auto") -> Dict:
-    """질의 해석 + 결과. 개념이 없으면 기존 키워드 검색으로 간다(strategy='keyword')."""
+    """질의 해석 + 결과.
+
+    순서 — 사전 해석 → (증상이 없으면) LLM 개념 추론 → 질의 임베딩 → 범위 → SQL.
+    개념도 벡터도 없으면 예전 키워드 검색(strategy='keyword')이다.
+    """
     limit = max(1, min(int(limit or 30), 100))
     t0 = time.monotonic()
     async with get_db_session() as db:
         cat = await _load_catalog(db)
         it = O.interpret(query, channel_lexicon=cat["lexicon"])
-        if not it.has_concepts and not product_code:
+        llm = []
+        if not it.symptoms and (it.residual or not it.has_concepts):
+            llm = await infer_symptoms(query)
+            if llm:
+                O.add_symptoms(it, llm, via="LLM 추론")
+                it.notes.append("사전에 없는 표현이라 LLM 이 증상을 추론했다: "
+                                + ", ".join(O.label("symptom", k) for k in llm))
+        # 벡터는 사전이 질의를 다 설명하지 못할 때만 쓴다. 사전 개념만으로 설명되는 질의
+        # ('S25 울트라 발열')에 벡터를 섞으면 표기마다 임베딩이 달라 같은 뜻의 결과가 갈린다
+        # (실측 251건 → 499건, 표기별 순위 상이). 개념이 없거나·LLM 이 추론했거나·남는 말이
+        # 있을 때가 벡터가 이득인 경우다.
+        explained = (not it.residual and not llm and any(
+            c.type in ("symptom", "component", "topic") and c.role in ("match", "boost")
+            for c in it.concepts))
+        qvec = None
+        if not explained and V.store() is not None:
+            qvec = await V.embed_query(query)
+        if not it.has_concepts and not product_code and qvec is None:
             from tools.query import search_voc_tool
             rows = await search_voc_tool(query, None, limit, days,
                                          "recent" if order == "relevance" else order, match)
@@ -370,7 +457,7 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
                 r.setdefault("matched", ["키워드 일치"])
             return {"query": query, "strategy": "keyword",
                     "interpretation": {"concepts": [], "notes": [
-                        "온톨로지 개념을 못 찾아 키워드 검색으로 찾았다"], "residual": it.residual},
+                        "온톨로지 개념도 벡터 색인도 없어 키워드 검색으로 찾았다"], "residual": it.residual},
                     "total": len(rows), "elapsed_ms": int((time.monotonic() - t0) * 1000),
                     "results": rows}
         sc = _resolve(it, cat, product_code)
@@ -385,8 +472,23 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
                 # 넓은 범위라도 링크가 적으면(삼성 워치 등) 범위 CTE 가 낫다. 그 위(삼성 전체
                 # 수십만)는 후보에 필터로 건다.
                 sc["broad"] = n > _BROAD_LINKS
+        vec, vec_info = None, {"used": False}
+        if qvec is not None:
+            allowed = None
+            if sc["pids"] and not sc["broad"] and sc["scope_n"] <= _BROAD_LINKS:
+                allowed = await _scope_ids(db, sc)
+            # 전역이면 색인 전체(100만 행·4GB)를 훑는다 — 이벤트 루프를 막지 않게 스레드에서
+            ids, sims = await asyncio.to_thread(V.search, qvec, _VEC_K, allowed)
+            if len(ids):
+                top, floor = float(sims[0]), float(sims[-1])
+                rel = [(float(x) - floor) / (top - floor + 1e-6) for x in sims]
+                vec = (ids, rel)
+                vec_info = {"used": True, "candidates": int(len(ids)), "in_scope": allowed is not None,
+                            "top_sim": round(top, 3), "floor_sim": round(floor, 3)}
         eff_days = days or it.days
-        sql, params = _build_sql(it, sc, limit=limit, days=eff_days, order=order)
+        kw = it.residual if not it.has_concepts else None
+        fetch = min(limit * 2, 200)          # 중복 본문을 접고도 limit 를 채우려고 넉넉히
+        sql, params = _build_sql(it, sc, limit=fetch, days=eff_days, order=order, vec=vec, kw_tokens=kw)
         await db.execute(text(f"SET LOCAL statement_timeout = '{_TIMEOUT_S}s'"))
         try:
             rows = [dict(r) for r in (await db.execute(text(sql), params)).mappings().all()]
@@ -396,21 +498,24 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
             # 넓은 질의가 시간을 넘기면 실패 대신 주석(결함·주제·제품)만으로 다시 찾는다
             await db.rollback()
             sc["notes"].append(f"{_TIMEOUT_S}초 안에 끝나지 않아 본문 동의어 없이 주석만으로 찾았다")
-            sql, params = _build_sql(it, sc, limit=limit, days=eff_days, order=order, fast=True)
+            sql, params = _build_sql(it, sc, limit=fetch, days=eff_days, order=order, fast=True)
             await db.execute(text(f"SET LOCAL statement_timeout = '{_TIMEOUT_S}s'"))
             rows = [dict(r) for r in (await db.execute(text(sql), params)).mappings().all()]
     total = int(rows[0]["total"]) if rows else 0
     results = []
-    for r in rows:
+    for r in _dedup(rows, limit):
         r["matched"] = _explain_row(r, it)
         r["score"] = float(r["score"])
-        for k in [k for k in r if k.startswith("f_") or k in ("srcs", "total", "prank", "engagement_score")]:
+        for k in [k for k in r if k.startswith("f_") or k in (
+                "srcs", "total", "prank", "engagement_score", "vrel", "content_hash")]:
             r.pop(k, None)
         results.append(r)
-    return {"query": query, "strategy": "semantic",
-            "interpretation": _interpretation_view(it, sc, eff_days),
-            "total": total, "elapsed_ms": int((time.monotonic() - t0) * 1000),
-            "results": results}
+    view = _interpretation_view(it, sc, eff_days)
+    view["vector"] = vec_info
+    view["llm_symptoms"] = llm
+    return {"query": query, "strategy": "semantic" if it.has_concepts else "vector",
+            "interpretation": view, "total": total,
+            "elapsed_ms": int((time.monotonic() - t0) * 1000), "results": results}
 
 
 async def get_ontology_tool(concept: Optional[str] = None) -> Dict:
