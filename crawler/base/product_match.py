@@ -1477,6 +1477,14 @@ _SPACED_A = re.compile(r"a\s+\d")
 _BRAND_TAIL = re.compile(r"(?:galaxy|samsung|갤럭시|삼성|갤)\s*$")
 _CHIP_AFTER = re.compile(r"\s*(?:bionic|chip|fusion|processor|soc)\b")
 _APPLE_NEAR = re.compile(r"iphone|ipad|apple|bionic|macbook")
+# 게이밍 노트북 'ASUS TUF A15/A16/A17' — GA15 가 카탈로그에 들어오면서(0044) DB 까지 닿는다
+# (홀드아웃 오답 'asus tuf a15 2022 ryzen 9 rtx 3060')
+# 맨 'laptop'·'노트북' 은 넣지 않는다 — 폰을 노트북에 꽂는 글('A55 … transfer to a laptop')이 빠졌다.
+_LAPTOP_NEAR = re.compile(r"asus|\btuf\b|\brog\b|zenbook|vivobook|lenovo|legion|\bacer\b|\bmsi\b|"
+                          r"ryzen|\brtx\b|\bgtx\b")
+# ARM 코어 이름 — 'cortex a15'(띄어 씀)·'a15's in the omap5'. 하이픈 형('cortex-a55')만 막던 것을
+# 넓혔다(GA14·GA15 후보 45건 판정에서 오답 4건 중 3건).
+_CORE_NEAR = re.compile(r"cortex|\barm\b|omap|tegra|\bmali\b|big\.little")
 _BARE_NOTE = re.compile(r"note\s*\d{1,2}")
 # 폰 S6~S10 은 탭 S6~S10 과 번호를 공유한다. 레거시의 's9 plus'·'s10 plus' 는 폰으로
 # 가는데, 2025~26 글에서 'tab' 을 빼고 쓴 탭이 많다(홀드아웃 오류 6건 중 4건 —
@@ -1517,6 +1525,14 @@ def _legacy_span_ok(norm: str, s: int, e: int, code: str) -> bool:
             return False
         if _APPLE_NEAR.search(norm[max(0, s - 40):e + 40]):      # 'iphone 13 … a15'
             return False
+        if _LAPTOP_NEAR.search(norm[max(0, s - 40):e + 40]):     # 'asus tuf a15'
+            return False
+        if _CORE_NEAR.search(norm[max(0, s - 40):e + 40]):       # 'cortex a15'
+            return False
+    # 타사 브랜드가 바로 앞 — 'oppo a15'(오포 A15). 계열어 게이트(accept_legacy_code)는
+    # note·watch·fold 등만 보므로 A 시리즈 같은 맨 번호는 여기서 막는다.
+    if code.startswith("G") and _ADJ_RIVAL_RE.search(norm[max(0, s - _ADJ_WINDOW):s]):
+        return False
     if _BARE_NOTE.fullmatch(hit) and not brand_before and norm[e:e + 1] in (".", ":", ")"):
         return False
     # 창은 ±300자 — 제목에서 'tablet' 이라 하고 본문 셋째 줄에서 's8 plus' 를 다시 쓰는 글이 있다.

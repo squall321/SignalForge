@@ -896,6 +896,9 @@ MODEL_MAP: dict = {
     "galaxy note 4": "GN4", "note 4": "GN4", "갤럭시 노트 4": "GN4",
     "galaxy note 3": "GN3", "note 3": "GN3", "갤럭시 노트 3": "GN3",
     "galaxy note 2": "GN2", "note 2": "GN2", "갤럭시 노트 2": "GN2",
+    # 로마 숫자 표기(2012~13 기사) — 'Galaxy Note II'·'Galaxy S III'. 'galaxy' 가 붙은 것만 받는다.
+    "galaxy note iii": "GN3", "galaxy note ii": "GN2",
+    "galaxy s iii": "GS3", "galaxy siii": "GS3", "galaxy s ii": "GS2", "galaxy sii": "GS2",
     # ── Galaxy Z Fold 5~8 (R7 신규) ────────────────────────────────
     "galaxy z fold8": "GZF8", "z fold 8": "GZF8", "z fold8": "GZF8", "폴드8": "GZF8",
     "galaxy z fold7": "GZF7", "z fold 7": "GZF7", "z fold7": "GZF7",

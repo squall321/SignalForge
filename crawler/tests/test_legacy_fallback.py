@@ -67,6 +67,8 @@ RECOVERED = [
     ("플립3은 그거 안된대", "GZFL3"),                                   # 한글 조사는 경계로 본다
     ("Galaxy Watch 4 Classic Bugs after Update", "GW4C"),
     ("I've been spending weeks with the HTC U11 and it blows the Galaxy S8 out of the water", "GS8"),
+    ("google assistant will not work when phone is off on a samsung a15", "GA15"),   # 0044 로 카탈로그 등록
+    ("can someone re explain how i clear cache on an a14?", "GA14"),
 ]
 
 
@@ -101,6 +103,9 @@ REJECTED = [
     "la prima equivale a 12 días de salario por cada año",
     "my age settings are for a 13 year old",
     "six cortex-a55 cores up to 1.8ghz",
+    "dude can you review (gaming) asus tuf a15 2022 ryzen 9 rtx 3060",
+    "samsung exynos 5250 dual-core cortex a15 1.7ghz + arm mali-t604 gpu",
+    "need help with power okay so, i dropped my oppo a15 in the toilet",
     # 목록 번호
     "&restrict_sr=on&t=all&sort=new). note 2. join our irc and telegram chat-rooms!",
     # 'tab' 을 뺀 탭 S6~S10
