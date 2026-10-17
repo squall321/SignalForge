@@ -36,4 +36,4 @@
 - [x] up.sh — sf-mcp 에 /crawler 바인드, 재기동 (바인드 없으면 키워드 검색으로 강등)
 - [x] 테스트 — test_ontology 32 · test_semantic_search 11 · keyword 동의어 6, mcp 127 passed
 - [x] 문서 — context-notes, mcp README, cae00 적용 항목
-- [ ] 커밋 · push · 메모리
+- [x] 커밋 · push · 메모리 (9fad381)
