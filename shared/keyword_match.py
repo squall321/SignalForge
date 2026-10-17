@@ -75,6 +75,11 @@ def resolve_mode(keyword: str, match: str = "auto") -> str:
     return "phrase" if is_multi_token(keyword) else "fts"
 
 
+def _like_pattern(term: str) -> str:
+    esc = (term or "").replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{esc}%"
+
+
 def keyword_clause(keyword: str, match: str = "auto"):
     """(SQL 조건, params, 적용된 모드).
 
@@ -82,8 +87,116 @@ def keyword_clause(keyword: str, match: str = "auto"):
     """
     mode = resolve_mode(keyword, match)
     if mode == "substring":
-        esc = (keyword or "").replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        return _SUBSTR_CLAUSE, {"kw_like": f"%{esc}%"}, "substring"
+        return _SUBSTR_CLAUSE, {"kw_like": _like_pattern(keyword)}, "substring"
     if mode == "phrase":
         return _PHRASE_CLAUSE, {"keyword": keyword}, "phrase"
     return _FTS_CLAUSE, {"keyword": keyword}, "fts"
+
+
+# ── 동의어 묶음 (시맨틱 검색의 본문 경로) ─────────────────────────────────
+# 한 검색어씩 keyword_clause 를 OR 로 이으면 느리다. 실측(2026-10-17, 활성 99만 행) —
+#   한국어 5개 부분일치 × 두 컬럼              7.5초
+#   같은 5개, language_detected='ko' 원문만    0.40초 (누락 12/1,838 = 0.7% — 언어 오탐 행)
+#   영어 4개를 tsquery 하나로 OR(||)          1.3초 (GIN 인덱스)
+# 그래서 경로별로 한 번에 묶는다.
+#   · 한글이 든 말 → 한국어 원문 부분일치. 번역문은 영어라 볼 필요가 없다.
+#   · ASCII        → tsquery 하나로 합친 FTS (한 토큰 plainto, 여러 토큰 phraseto —
+#                    keyword_clause 와 같은 판정).
+#   · 그 밖의 비ASCII(일본어·러시아어·악센트 등)는 쓰지 않는다. 그 언어 글은 영어
+#     번역문이 있어 FTS 쪽에서 잡힌다.
+_HANGUL_RE = re.compile(r"[가-힣]")
+_FTS_DOC = "to_tsvector('english', COALESCE(v.content_translated, ''))"
+
+# PostgreSQL 'english' 설정의 불용어(snowball). 구절에서 이 말들은 **사라진다** —
+# phraseto_tsquery('too hot') = 'hot', ('heats up') = 'heat'. 그러면 정밀한 구절이 흔한
+# 낱말 하나가 되어 'hot deal'·'heat sink' 까지 끌고 온다. 그래서 불용어를 빼고 내용어가
+# 하나만 남는 구절은 동의어로 쓰지 않는다(실측: 발열 동의어 묶음 1,239건·0.36초 —
+# 이 구절들이 섞이면 시간 초과).
+_EN_STOP = set(
+    "a about above after again against all am an and any are as at be because been before being "
+    "below between both but by can did do does doing don down during each few for from further had "
+    "has have having he her here hers herself him himself his how i if in into is it its itself just "
+    "me more most my myself no nor not now of off on once only or other our ours ourselves out over "
+    "own s same she should so some such t than that the their theirs them themselves then there these "
+    "they this those through to too under until up very was we were what when where which while who "
+    "whom why will with you your yours yourself yourselves".split())
+
+
+def fts_safe(term: str) -> bool:
+    """FTS 동의어로 써도 뜻이 유지되는가 — 불용어가 빠진 뒤 내용어가 남아야 한다."""
+    toks = re.findall(r"[a-z0-9]+", (term or "").lower())
+    content = [t for t in toks if t not in _EN_STOP]
+    if not content:
+        return False
+    return len(toks) < 2 or len(content) >= 2
+
+
+def expansion_clauses(terms, prefix: str = "x"):
+    """동의어 목록 → {'fts': (sql, params) | None, 'ko': (sql, params) | None}.
+
+    두 조건은 따로 쓰라고 나눠 준다. 하나의 OR 로 묶으면 부분일치 쪽 때문에 FTS 도
+    인덱스를 못 타고 행마다 to_tsvector 를 계산한다.
+    """
+    seen, fts_parts, fts_params, ko_pats = set(), [], {}, []
+    for term in terms or ():
+        t = " ".join((term or "").split())
+        if not t or t.lower() in seen:
+            continue
+        seen.add(t.lower())
+        if _HANGUL_RE.search(t):
+            ko_pats.append(_like_pattern(t))
+        elif not _NON_ASCII_RE.search(t) and fts_safe(t):
+            name = f"{prefix}_f{len(fts_parts)}"
+            fn = "phraseto_tsquery" if is_multi_token(t) else "plainto_tsquery"
+            fts_parts.append(f"{fn}('english', :{name})")
+            fts_params[name] = t
+    out = {"fts": None, "ko": None}
+    if fts_parts:
+        out["fts"] = (f"{_FTS_DOC} @@ ({' || '.join(fts_parts)})", fts_params)
+    if ko_pats:
+        out["ko"] = (f"(v.language_detected = 'ko' AND v.content_original ILIKE ANY(:{prefix}_ko))",
+                     {f"{prefix}_ko": ko_pats})
+    return out
+
+
+def fts_groups_clause(groups, prefix: str = "g"):
+    """[[동의어…], [동의어…]] → 그룹끼리는 AND, 그룹 안은 OR 인 FTS 조건 하나. 없으면 None.
+
+    제품 태그가 없는 글을 '삼성 + 태블릿' 범위에 넣을 때 쓴다. 부분일치를 섞으면 인덱스를
+    못 타므로 ASCII 말만 쓴다 — 한국어 글도 영어 번역문이 있어 여기서 잡힌다.
+    """
+    gparts, params = [], {}
+    for gi, terms in enumerate(groups or ()):
+        parts = []
+        for term in terms or ():
+            t = " ".join((term or "").split())
+            if not t or _NON_ASCII_RE.search(t) or not fts_safe(t):
+                continue
+            name = f"{prefix}{gi}_{len(parts)}"
+            fn = "phraseto_tsquery" if is_multi_token(t) else "plainto_tsquery"
+            parts.append(f"{fn}('english', :{name})")
+            params[name] = t
+        if parts:
+            gparts.append("(" + " || ".join(parts) + ")")
+    if not gparts:
+        return None
+    return f"{_FTS_DOC} @@ ({' && '.join(gparts)})", params
+
+
+def like_any_clause(terms, name: str):
+    """낱말 목록 중 하나라도 원문·번역문에 있는가 — 이미 좁혀진 후보에 거는 조건.
+
+    후보 행마다 to_tsvector 를 계산하면 긴 기사에서 행당 수 ms 가 든다(실측: 후보 3,600건에
+    10초대). ILIKE 는 그보다 수십 배 싸다. 인덱스가 필요한 전체 검색에는 쓰지 않는다.
+    """
+    pats = [_like_pattern(" ".join(t.split())) for t in terms or () if t and t.strip()]
+    if not pats:
+        return "FALSE", {}
+    return (f"(v.content_original ILIKE ANY(:{name}) OR v.content_translated ILIKE ANY(:{name}))",
+            {name: pats})
+
+
+def token_like_clause(token: str, name: str):
+    """한 낱말이 원문·번역문 어디든 있는가 — 순위 가산용(필터가 아니다)."""
+    return (f"(v.content_original ILIKE :{name} OR v.content_translated ILIKE :{name})",
+            {name: _like_pattern(token)})

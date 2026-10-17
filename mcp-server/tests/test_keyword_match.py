@@ -227,3 +227,48 @@ def test_note_states_the_gap():
     r = asyncio.run(resolve_product_keyword_tool("Galaxy S25 Ultra"))
     assert "GS25U" in r["note"]
     assert "product_code" in r["note"], "정확한 경로를 알려주지 않는다"
+
+
+# ── 동의어 묶음 (시맨틱 검색) ─────────────────────────────────────────────
+from keyword_match import (  # noqa: E402
+    expansion_clauses, fts_groups_clause, fts_safe, like_any_clause,
+)
+
+
+@pytest.mark.parametrize("term,ok", [
+    ("overheat", True), ("hot to the touch", True), ("thermal throttling", True),
+    ("too hot", False),      # 'too' 가 불용어라 'hot' 하나가 된다 → 'hot deal' 까지
+    ("heats up", False),     # 'up' 불용어 → 'heat' → 'heat sink'
+    ("the", False),
+])
+def test_stopword_phrases_are_not_fts_synonyms(term, ok):
+    """실측 2026-10-17 — 이 구절들이 섞이면 '발열' 검색이 20초 시간 초과였다(빼면 0.36초)."""
+    assert fts_safe(term) is ok
+
+
+def test_expansion_routes_by_script():
+    out = expansion_clauses(["발열", "overheat", "too hot", "Überhitzung", "발열"], prefix="t")
+    fts_sql, fts_p = out["fts"]
+    ko_sql, ko_p = out["ko"]
+    assert list(fts_p.values()) == ["overheat"], fts_p           # 불용어 구절·비ASCII 제외
+    assert "||" not in fts_sql and "@@" in fts_sql
+    assert ko_p == {"t_ko": ["%발열%"]}, "한국어가 중복 제거·부분일치로 가야 한다"
+    assert "language_detected = 'ko'" in ko_sql, "한국어는 한국어 원문만 본다(7.5초 → 0.4초)"
+
+
+def test_expansion_merges_fts_into_one_tsquery():
+    """검색어마다 따로 @@ 하면 인덱스를 못 탄다 — tsquery 하나로 합쳐야 한다."""
+    sql, p = expansion_clauses(["overheat", "thermal throttling"], prefix="t")["fts"]
+    assert sql.count("@@") == 1 and sql.count("||") == 1
+    assert "phraseto_tsquery" in sql and "plainto_tsquery" in sql
+
+
+def test_fts_groups_and_between_or_within():
+    sql, p = fts_groups_clause([["samsung", "galaxy"], ["tablet"]], prefix="g")
+    assert sql.count("&&") == 1 and sql.count("||") == 1 and len(p) == 3
+
+
+def test_like_any_escapes_and_covers_both_columns():
+    sql, p = like_any_clause(["100%", "삼성"], "b")
+    assert p == {"b": ["%100\\%%", "%삼성%"]}
+    assert "content_original" in sql and "content_translated" in sql

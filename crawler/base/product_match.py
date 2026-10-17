@@ -1525,11 +1525,11 @@ def _legacy_span_ok(norm: str, s: int, e: int, code: str) -> bool:
     return True
 
 
-def legacy_fallback_code(text: Optional[str]) -> Optional[str]:
-    """라이브 사전이 빈손일 때 레거시 사전에서 구형 모델 코드를 찾는다. 없으면 None.
+def legacy_fallback_match(text: Optional[str]) -> Optional[Tuple[str, str, int, int]]:
+    """legacy_fallback_code 와 같은 판정이되 (code, norm, start, end) 를 준다.
 
-    후보를 우선순위 순으로 훑어 게이트를 모두 통과한 첫 코드를 돌려준다 — 첫 후보가
-    거부돼도 다음 후보를 본다('galaxy fold 3' 은 'galaxy fold' 를 지나 'fold 3' 에 닿는다).
+    norm 은 레거시 정규화(소문자·공백 축약·노이즈 마스킹) 본문이고 위치는 그 안이다.
+    질의 해석(shared/ontology)이 매칭된 구간을 질의에서 지우는 데 쓴다.
     """
     global _legacy_iter
     if not text:
@@ -1552,8 +1552,18 @@ def legacy_fallback_code(text: Optional[str]) -> Optional[str]:
             continue
         if _brand_of(up) == "samsung" and not accept_legacy_code(text, up):
             continue
-        return up
+        return up, norm, s, e
     return None
+
+
+def legacy_fallback_code(text: Optional[str]) -> Optional[str]:
+    """라이브 사전이 빈손일 때 레거시 사전에서 구형 모델 코드를 찾는다. 없으면 None.
+
+    후보를 우선순위 순으로 훑어 게이트를 모두 통과한 첫 코드를 돌려준다 — 첫 후보가
+    거부돼도 다음 후보를 본다('galaxy fold 3' 은 'galaxy fold' 를 지나 'fold 3' 에 닿는다).
+    """
+    m = legacy_fallback_match(text)
+    return m[0] if m else None
 
 
 def infer_product_code(text: Optional[str]) -> Optional[str]:

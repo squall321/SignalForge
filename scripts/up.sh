@@ -207,8 +207,11 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
+# /crawler — 시맨틱 검색(shared/ontology.py)이 제품 매처·결함 렉시콘·주제 사전의 **정본**을
+# 그대로 import 한다. MCP 에 사전을 옮겨 적으면 수집 쪽과 갈라진다(2026-10-17).
 sf_up sf-mcp "ss -tln 2>/dev/null | grep -E '[:.]${MCP_PORT:-8001}\b' >/dev/null" \
   --bind "$MCP_DIR:/mcp-server" --bind "$PROJECT_ROOT/shared:/shared" \
+  --bind "$CRAWLER_DIR:/crawler" \
   --env MCP_PORT="${MCP_PORT:-8001}" --env DATABASE_URL="$DB_URL" \
   "$SIF_DIR/mcp.sif"
 

@@ -7,6 +7,26 @@ from typing import Optional
 import os, asyncio
 
 from tools.query import query_voc_tool, get_top_issues_tool, search_voc_tool, resolve_product_keyword_tool
+
+# 시맨틱 검색은 crawler 의 정본 사전(/crawler 바인드)을 import 한다. 바인드가 빠진 채
+# 재기동되면 여기서 실패하는데, 그 때문에 도구 35개 전체가 죽으면 안 된다 —
+# 검색은 예전 키워드 검색으로 돌리고, 원인을 로그와 결과(notes)에 남긴다.
+try:
+    from tools.semantic import semantic_search_tool, get_ontology_tool
+except Exception as _sem_err:  # noqa: BLE001
+    import logging as _logging
+    _logging.getLogger(__name__).exception("시맨틱 검색 비활성 — 온톨로지 import 실패")
+    _SEM_NOTE = f"온톨로지를 불러오지 못해 키워드 검색으로 찾았다 ({_sem_err!r}) — sf-mcp 에 /crawler 바인드가 필요하다"
+
+    async def semantic_search_tool(query, product_code=None, limit=30, days=None,
+                                   order="relevance", match="auto"):
+        rows = await search_voc_tool(query, product_code, min(limit, 100), days,
+                                     "recent" if order == "relevance" else order, match)
+        return {"query": query, "strategy": "keyword", "interpretation": {"notes": [_SEM_NOTE]},
+                "total": len(rows), "results": rows}
+
+    async def get_ontology_tool(concept=None):
+        return {"error": _SEM_NOTE}
 from tools.analytics import (
     analyze_sentiment_trend_tool,
     compare_products_tool,
@@ -115,39 +135,84 @@ async def search_voc(
     product_code: Optional[str] = None,
     limit: int = 30,
     days: Optional[int] = None,
-    order: str = "recent",
+    order: str = "relevance",
     match: str = "auto",
+    semantic: bool = True,
 ) -> list:
     """
-    키워드로 VOC 를 검색합니다. **한국어·영어 모두 가능합니다.**
+    VOC 를 **뜻으로** 검색합니다. 한국어·영어·섞어 써도 됩니다 — 온톨로지가 자동 해석합니다.
 
-    매칭 경로는 키워드 성격에 따라 자동으로 갈립니다 —
-      · ASCII 한 토큰   → FTS 인덱스 (어간 처리로 overheating↔overheat 매칭)
-      · ASCII 여러 토큰 → **구절 검색** (인접 요구 — 같은 FTS 인덱스를 씁니다)
-      · 한국어 등        → 원문·번역문 부분일치 (재현율 100%, 약 1.2초)
-    한국어가 FTS 로는 재현율 1.1% 밖에 안 나오기 때문입니다(교착어 + 번역본만 색인).
-
-    ⚠ **제품을 묻는 질문이면 keyword 가 아니라 product_code 를 쓰십시오.**
-    자유 텍스트는 표기에 따라 결과가 크게 흔들립니다(2026-10-15 실측) —
-      'S25 Ultra' 9,680 · 'Galaxy S25 Ultra' 2,296 · 'S25Ultra' 315 ·
-      '갤럭시 S25 울트라' 88   (제품 태깅 기준 GS25U = 9,502)
-    제품명을 코드로 바꾸려면 resolve_product_keyword 를 먼저 부르십시오.
+    검색어를 개념(제품·세대·브랜드·기기 / 부품·증상 / 주제 / 시장·채널)으로 바꿔
+    말뭉치의 개념 주석(제품 링크·결함 부품×증상·주제)과 다국어 동의어로 찾습니다.
+    그래서 표기·언어가 달라도 뜻이 같으면 결과가 같습니다 —
+      'S25 울트라 발열' = 'Galaxy S25 Ultra overheating' = 's25u 발열 문제'
+      '폴드7 힌지 먼지' · '노트9 배터리' · 'S25 시리즈 배터리 광탈'(세대 전 모델) ·
+      '레딧에서 픽셀 10 발열'(채널) · '인도 S25 불만'(시장) · 'S25 vs 아이폰 16 배터리'(둘 다 언급한 글)
+    각 결과의 matched 에 왜 걸렸는지(결함 주석·본문 동의어·대표 제품 …)가 있습니다.
+    해석 내용(무엇을 무엇으로 봤는지)은 semantic_search 로 확인하십시오.
+    개념을 하나도 못 찾으면 예전 키워드 검색으로 찾습니다(semantic=False 와 같다).
 
     결과의 product_name 이 비어 있으면 본문에 특정 모델명이 없는 글입니다(일반 토론·짧은
     댓글·브랜드만 언급) — 처리 실패가 아닙니다. 현재 태깅률은 get_unmapped_voc 의 coverage.
 
     Args:
-        keyword: 검색 키워드. 한국어 그대로 넣어도 됩니다
-        product_code: 특정 제품으로 범위 한정 — 선택
-        limit: 반환 건수 (기본 30)
-        days: 최근 N일(발행일 기준)로 한정 — 선택. "최근 이슈" 질문엔 30~90 권장
-        order: 'recent'(기본, 발행일 최신순) | 'engagement'(참여도순)
-               engagement 는 **날짜 필터 없이 쓰면 역대 바이럴 글이 독식**합니다.
-               바이럴 발굴은 get_engagement_leaders(period_days 내장) 쪽이 낫습니다.
-        match: 'auto'(기본) | 'phrase' | 'fts' | 'substring' — 경로를 강제할 때만.
-               'fts' 는 토큰 AND(어디든 같이 나오면 매칭)라 제품명에는 부적합합니다.
+        keyword: 검색어. 자연어 그대로 ('S25 울트라 발열 불만', '최근 폴드 주름')
+        product_code: 특정 제품으로 범위 한정 — 선택 (해석된 제품보다 우선)
+        limit: 반환 건수 (기본 30, 최대 100)
+        days: 최근 N일(발행일 기준) — 선택. 검색어에 '최근'·'요즘' 이 있으면 90일로 본다
+        order: 'relevance'(기본, 관련도→최신) | 'recent'(최신순) | 'engagement'(참여도순)
+        match: 키워드 검색으로 갈 때의 경로 — 'auto' | 'phrase' | 'fts' | 'substring'
+        semantic: False 면 온톨로지 없이 예전 키워드 검색만 씁니다
     """
-    return await search_voc_tool(keyword, product_code, limit, days, order, match)
+    if not semantic:
+        return await search_voc_tool(keyword, product_code, min(limit, 100), days,
+                                     "recent" if order == "relevance" else order, match)
+    r = await semantic_search_tool(keyword, product_code, limit, days, order, match)
+    return r["results"]
+
+
+@mcp.tool()
+async def semantic_search(
+    query: str,
+    product_code: Optional[str] = None,
+    limit: int = 30,
+    days: Optional[int] = None,
+    order: str = "relevance",
+) -> dict:
+    """search_voc 와 같은 시맨틱 검색에 **해석 내용**을 함께 돌려줍니다.
+
+    interpretation —
+      concepts  인식한 개념 [{type, key, label, via(근거 표현), role}]
+                role: scope(범위) · match(후보) · boost(가산) · derived(관계로 추가)
+      scope     실제로 건 제품 범위 (세대 확장·비교 의도면 '모두 언급' 포함)
+      expansion 증상·부품별로 본문에서 찾은 다국어 동의어
+      notes     판단 근거 ('S25' 는 기본 모델로 봤다 — 전 세대는 'S25 시리즈' 등)
+    total 은 조건을 만족한 전체 건수, results 는 관련도 순 상위 limit 건입니다.
+
+    Args:
+        query: 검색어 (자연어)
+        product_code: 제품 범위 강제 — 선택
+        limit: 반환 건수 (기본 30, 최대 100)
+        days: 최근 N일 — 선택
+        order: 'relevance' | 'recent' | 'engagement'
+    """
+    return await semantic_search_tool(query, product_code, limit, days, order)
+
+
+@mcp.tool()
+async def get_ontology(concept: Optional[str] = None) -> dict:
+    """VOC 온톨로지(개념 그래프)를 둘러봅니다.
+
+    concept 없이 부르면 전체 구조 — 개념 종류(제품·세대·시리즈·폼팩터·기기·브랜드·
+    부품 16·증상 32·주제 13·시장), 증상→함의 부품·심각도·주제 관계, 개념별 본문 검색어,
+    말뭉치에서 그 개념으로 주석된 VOC 수.
+    concept 를 주면 그 개념 하나 — 'overheat' · 'symptom:burn_in' · 'hinge' · 'battery'(주제) ·
+    'GS25U'(제품: 세대·같은 세대 모델·링크된 VOC 수). 키가 아니면 질의로 해석해 보여줍니다.
+
+    Args:
+        concept: 개념 키 또는 자연어 — 선택
+    """
+    return await get_ontology_tool(concept)
 
 
 @mcp.tool()

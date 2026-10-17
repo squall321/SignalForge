@@ -48,7 +48,26 @@ Samsung Galaxy VOC 데이터베이스에 자연어로 질문하는 MCP 서버. F
 - **포트**: `MCP_PORT` env. 기본 8001 이지만 이 호스트는 AIDataHub 가 8001 점유 → **8013**.
 - **인증(단독 기동 시)**: `.env` 의 `SF_MCP_TOKEN` 이 있으면 순수 ASGI `_BearerGate` 가 모든 요청의 `Authorization: Bearer <token>` 검증(틀리면 401). 없으면 무인증 standalone. **정적 pre-shared 토큰이며 발급/회전 없음** — 발급은 상위 게이트웨이 몫.
 - **기동**: `./mcp-server/start_mcp.sh` (컨테이너로는 `sf-mcp` instance, `scripts/up.sh` 가 관리).
-- **도구 수**: 22개 (`@mcp.tool` — server.py). 조회 7 · 운영/브리핑 4 · 차트 5 · 차원분석 6.
+- **도구 수**: 37개 (2026-10-17, `@mcp.tool` — server.py).
+- **바인드**: `/mcp-server` · `/shared` · **`/crawler`**. 시맨틱 검색이 crawler 의 정본 사전(제품 매처·
+  결함 렉시콘·주제 사전)을 import 한다. 바인드가 빠지면 서버는 뜨지만 검색이 키워드 검색으로 떨어지고
+  결과 notes 에 원인이 찍힌다.
+
+### 시맨틱 검색 (2026-10-17)
+
+`search_voc` 는 기본이 **뜻 검색**이다. 검색어를 온톨로지 개념(제품·세대·브랜드·기기 / 부품 16·
+증상 32 / 주제 13 / 시장·채널)으로 바꿔, 말뭉치의 개념 주석(`voc_product_links`·`voc_defects`·
+`categories`)과 다국어 동의어로 찾는다. 표기·언어가 달라도 뜻이 같으면 결과가 같다
+('S25 울트라 발열' = 'Galaxy S25 Ultra overheating').
+
+| 도구 | 용도 |
+|---|---|
+| `search_voc(keyword, …, semantic=True)` | 결과 목록. 행마다 `matched`(왜 걸렸나)·`score` |
+| `semantic_search(query, …)` | 해석(무엇을 무엇으로 봤나)·범위·동의어·notes + 결과 |
+| `get_ontology(concept=None)` | 개념 그래프 — 증상→함의 부품·심각도·주제, 개념별 주석 VOC 수 |
+
+개념이 하나도 없으면 예전 키워드 검색이다(`semantic=False` 와 같다). 설계·실측은
+`docs/semantic-search/context-notes.md`.
 
 ---
 
@@ -63,7 +82,7 @@ MCP 도구를 쓰면 아래가 전부 가려지지만, DB 를 직접 건드릴 �
 | 카테고리 기간 | 차트류는 `published_at` 기준 | "최근 수집" 은 `collected_at` 기준. 목적에 맞게 선택. |
 | 레코드 테이블 | `voc_records` (활성 뷰 `voc_active`) | `voc_entries` 아님. |
 
-**도구 파라미터 워트**: `search_voc` 는 검색어를 `query` 가 아니라 **`keyword`** 로 받는다. `get_voc_summary`·`get_top_issues` 는 `product_code` 필수.
+**도구 파라미터 워트**: `search_voc` 는 검색어를 `query` 가 아니라 **`keyword`** 로 받는다(`semantic_search` 는 `query`). `get_voc_summary`·`get_top_issues` 는 `product_code` 필수.
 
 ---
 
