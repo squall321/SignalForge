@@ -142,6 +142,14 @@ def test_residual_keeps_noun_of_verb_and_brand_compound():
     assert O.interpret("갤럭시처럼 발열").residual == [], "조사만 남은 토막은 남는 말이 아니다"
 
 
+def test_noise_cancelling_is_not_a_noise_defect():
+    """'노이즈캔슬링'(ANC)은 기능이다 — 잡음 결함으로 보면 ANC 불만 질의가 잡음 글로 간다."""
+    assert "noise" not in O.interpret("버즈3 프로 노이즈캔슬링 불만이에요").symptoms
+    assert "noise" not in O.interpret("노이즈 캔슬링이 약해요").symptoms
+    assert "noise" in O.interpret("버즈3 노이즈가 심해요").symptoms
+    assert "noise" in O.interpret("통화할 때 지지직 잡음").symptoms
+
+
 @pytest.mark.parametrize("word,stem", [
     ("알림이", "알림"), ("결제가", "결제"), ("배터리는", "배터리"), ("충전을", "충전"), ("카메라로", "카메라"),
     ("폰으로", "폰"), ("갤럭시와", "갤럭시"), ("업데이트에서", "업데이트"),

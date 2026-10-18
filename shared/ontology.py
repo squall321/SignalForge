@@ -130,7 +130,8 @@ QUERY_SYMPTOM_SRC: Dict[str, str] = {
     "gap": r"유격|틈새|\bgaps?\b",
     "dust_ingress": r"먼지|이물질|이물|\bdust\b|\bdebris\b|\blint\b",
     "discolor": r"변색|누렇|황변|\bdiscolou?r\w*|\byellowing\b",
-    "noise": r"잡음|소음|노이즈|지직|\bbuzz\w*|\bcrackl\w*|\brattl\w*",
+    # '노이즈캔슬링'(ANC)은 기능이지 잡음 결함이 아니다 — '버즈3 노이즈캔슬링 불만' 이 잡음으로 잡혔다
+    "noise": r"잡음|소음|노이즈(?!\s*캔슬)|지직|\bbuzz\w*|\bcrackl\w*|\brattl\w*",
     "blurry": r"흐릿|흐림|초점|블러|\bblurr?y\b|\bout\s+of\s+focus\b",
     "disconnect": r"끊김|끊겨|연결\s*끊|\bdisconnect\w*",
     "no_signal": r"신호\s*(?:없|안)|안\s*터짐|\bno\s+(?:signal|service)\b",
