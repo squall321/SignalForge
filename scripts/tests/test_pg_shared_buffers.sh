@@ -7,8 +7,11 @@
 #   T5. 다른 값 → 한 줄로 교체
 #   T6. 형식 오류 → rc 1, 파일 그대로
 #   T7. 메모리 40% 초과 → rc 1, 파일 그대로
-#   T8. (SF_PG_IT=1 일 때만) 임시 postgres 인스턴스 — 쓴 값으로 실제로 뜨는지, 안 뜨는 값을
-#       .sf-bak 로 되돌리면 다시 뜨는지. 운영 DB·인스턴스는 건드리지 않는다.
+#   T8. (SF_PG_IT=1 일 때만) 임시 postgres 인스턴스 — 쓴 값으로 실제로 뜨는지, 안 뜨는 값이면
+#       postmaster 가 남지 않는지(up.sh 의 되돌리기 조건), .sf-bak 로 되돌리면 다시 뜨는지.
+#       운영 DB·인스턴스는 건드리지 않는다.
+#   T9. (SF_PG_IT=1) up.sh 의 postgres 구간을 그대로 임시 인스턴스로 — 새 DB 는 알림, 다시 띄우면
+#       적용·.sf-bak 정리, 바꾼 실행이 끊겨 .sf-bak 만 남은 변경은 다음 실행이 되돌린다.
 set -uo pipefail
 PASS=0; FAIL=0
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -122,6 +125,13 @@ if [[ "${SF_PG_IT:-0}" == 1 ]]; then
       fail "1kB 로 떴다 — 실패 경로를 시험하지 못했다"
     else
       pass "1kB 로는 안 뜬다"
+      # up.sh 는 postmaster 가 죽었을 때만 되돌린다(복구 중인 서버는 기다린다) — 그 판정이 맞는지
+      pmpid="$(head -n1 "$D/data/pgdata/postmaster.pid" 2>/dev/null | tr -dc '0-9' || true)"
+      if [[ -n "$pmpid" ]] && kill -0 "$pmpid" 2>/dev/null; then
+        fail "실패한 기동인데 postmaster($pmpid)가 살아 있다 — up.sh 가 되돌리지 못한다"
+      else
+        pass "실패한 기동 뒤 postmaster 없음 — up.sh 의 되돌리기 조건이 선다"
+      fi
       it_stop
       mv -f "$ITCONF.sf-bak" "$ITCONF"
       if it_start && it_ready 60 && [[ "$(it_sb)" == 256MB ]]; then
@@ -135,8 +145,57 @@ if [[ "${SF_PG_IT:-0}" == 1 ]]; then
     fail "임시 인스턴스가 뜨지 않았다"
     it_stop
   fi
+
+  echo "[T9] up.sh 의 postgres 구간 그대로 — 새 DB·적용·끊긴 변경 되돌리기"
+  SECTION="$TMP/pg_section.sh"
+  sed -n '/^# >>> postgres/,/^# <<< postgres/p' "$SCRIPTS_DIR/up.sh" > "$SECTION"
+  INST2="sf_pgtest2_$$"
+  PORT2=$(( 55500 + $$ % 100 ))
+  D2="$TMP/pg2"; mkdir -p "$D2/postgres" "$D2/postgres-run"
+  CONF2="$D2/postgres/pgdata/postgresql.auto.conf"
+  up_pg() {  # $1=PG_SHARED_BUFFERS — up.sh 와 같은 셸 옵션으로 구간을 돌린다
+    ( set -euo pipefail
+      DATA_DIR="$D2"; LOG_DIR="$TMP"; SIF_DIR="$APPT_DIR/sif"; INST_POSTGRES="$INST2"
+      POSTGRES_PORT="$PORT2"; POSTGRES_USER=t; POSTGRES_PASSWORD=t; POSTGRES_DB=t; PG_SHARED_BUFFERS="$1"
+      # shellcheck source=/dev/null
+      source "$SECTION" ) 2>&1
+  }
+  sb2() {
+    apptainer exec --env PGPASSWORD=t "instance://$INST2" psql -h 127.0.0.1 -p "$PORT2" -U t -d t -tAc \
+      "SHOW shared_buffers" 2>/dev/null
+  }
+  stop2() { apptainer instance stop "$INST2" >/dev/null 2>&1 || true; }
+  trap 'it_stop; stop2; rm -rf "$TMP"' EXIT
+
+  if ! grep -q "^pg_instance_start() {" "$SECTION"; then
+    fail "up.sh 에서 '# >>> postgres' ~ '# <<< postgres' 구간을 못 찾았다"
+  else
+    out=$(up_pg 256MB)
+    if [[ "$(sb2)" == 128MB ]] && grep -q "NOTE" <<<"$out"; then
+      pass "새 DB — initdb 전이라 128MB 로 뜨고 [NOTE] 로 알린다"
+    else
+      fail "새 DB: $(sb2) / $(tail -2 <<<"$out")"
+    fi
+    stop2
+    out=$(up_pg 256MB)
+    if [[ "$(sb2)" == 256MB && ! -e "$CONF2.sf-bak" ]]; then
+      pass "다시 띄우면 256MB, 뜬 뒤 .sf-bak 정리"
+    else
+      fail "적용: $(sb2) / .sf-bak $([[ -e "$CONF2.sf-bak" ]] && echo 남음) / $(tail -2 <<<"$out")"
+    fi
+    stop2
+    # 1kB 를 쓴 실행이 띄우기 전에 끊겼다고 친다(.sf-bak 만 남음) — 다음 실행(워치독)이 되돌려야 한다
+    pg_write_shared_buffers "$CONF2" 1kB
+    out=$(up_pg 1kB)
+    if [[ "$(sb2)" == 256MB && ! -e "$CONF2.sf-bak" ]] && grep -q "원래 설정으로 되돌려" <<<"$out"; then
+      pass "끊긴 변경을 다음 실행이 되돌린다 — 256MB 로 다시 떴다"
+    else
+      fail "되돌리지 못했다: $(sb2) / $(tail -3 <<<"$out")"
+    fi
+    stop2
+  fi
 else
-  echo "[T8] 건너뜀 — 임시 postgres 로 실제 기동까지 보려면 SF_PG_IT=1"
+  echo "[T8·T9] 건너뜀 — 임시 postgres 로 실제 기동까지 보려면 SF_PG_IT=1"
 fi
 
 echo

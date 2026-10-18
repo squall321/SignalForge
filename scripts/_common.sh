@@ -212,11 +212,9 @@ pg_size_bytes() {  # '2GB' → 바이트. PostgreSQL 단위(kB·MB·GB)의 정�
   esac
 }
 
-# $1=postgresql.auto.conf  $2=값(예: 2GB). 바꿨으면 0, 그대로 두면 1(비움·같은 값·형식 오류·
-# 메모리 40% 초과). 바꿀 때 원본을 <conf>.sf-bak 로 남긴다 — 그 값으로 안 뜨면 up.sh 가 되돌린다.
-pg_write_shared_buffers() {
-  local conf="$1" want="${2:-}" want_b mem_kb
-  [[ -n "$want" && -f "$conf" ]] || return 1
+# 쓸 수 있는 값인가 — kB·MB·GB 정수, 메모리 40% 이하. 통과하면 바이트를 찍고, 아니면 [WARN].
+pg_shared_buffers_bytes() {
+  local want="${1:-}" want_b mem_kb
   if ! want_b=$(pg_size_bytes "$want"); then
     echo "[WARN] PG_SHARED_BUFFERS='$want' — kB·MB·GB 정수가 아니다(예: 2GB). 건너뜀" >&2
     return 1
@@ -226,6 +224,16 @@ pg_write_shared_buffers() {
     echo "[WARN] PG_SHARED_BUFFERS=$want 가 메모리 $((mem_kb / 1048576))GB 의 40% 를 넘는다. 건너뜀" >&2
     return 1
   fi
+  echo "$want_b"
+}
+
+# $1=postgresql.auto.conf  $2=값(예: 2GB). 바꿨으면 0, 그대로 두면 1(비움·같은 값·형식 오류·
+# 메모리 40% 초과). 바꿀 때 원본을 <conf>.sf-bak 로 남긴다 — up.sh 가 그 값으로 뜨면 지우고,
+# postgres 가 죽어 버리면 되돌린다.
+pg_write_shared_buffers() {
+  local conf="$1" want="${2:-}"
+  [[ -n "$want" && -f "$conf" ]] || return 1
+  pg_shared_buffers_bytes "$want" >/dev/null || return 1
   grep -qxF "shared_buffers = '$want'" "$conf" && return 1
   cp -p "$conf" "$conf.sf-bak"
   { grep -v '^shared_buffers[[:space:]]*=' "$conf.sf-bak" || true; echo "shared_buffers = '$want'"; } > "$conf"
