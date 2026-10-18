@@ -190,7 +190,7 @@ async def semantic_search(
       scope     실제로 건 제품 범위 (세대 확장·비교 의도면 '모두 언급' 포함)
       expansion 증상·부품별로 본문에서 찾은 다국어 동의어
       notes     판단 근거 ('S25' 는 기본 모델로 봤다 — 전 세대는 'S25 시리즈' 등)
-      llm_symptoms  사전에 없는 표현에서 LLM 이 추론한 증상 키 (role='inferred')
+      llm_symptoms  사전에 없는 표현에서 LLM 이 추론한 증상 키 (role='inferred', 사전 증상의 절반으로 친다)
       vector    임베딩 사용 여부·후보 수 (사전이 다 설명하면 쓰지 않는다)
     strategy — semantic(개념) · vector(개념 없이 임베딩·낱말) · keyword(둘 다 없을 때 예전 검색)
     total 은 조건을 만족한 전체 건수, results 는 관련도 순 상위 limit 건(같은 본문은 접는다).

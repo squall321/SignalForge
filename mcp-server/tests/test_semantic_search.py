@@ -137,6 +137,22 @@ def test_fast_plan_drops_text_branches():
     assert branch in full and branch not in fast and "FROM voc_defects d " in fast
 
 
+def test_inferred_symptom_weighs_half_of_dictionary_symptom():
+    """LLM 이 추론한 증상은 SI·TSI 로 따로 걸고 사전 증상(S 3·TS 1.5)의 절반으로 친다 — 같은 무게면
+    '삼성페이 결제가 자꾸 실패해요' 가 주어(삼성페이)와 무관한 '작동 안 함' 글로 덮였다."""
+    import ontology as O
+    import tools.semantic as S
+    sc = {"pids": [], "groups": [], "labels": [], "compare_all": False, "text_groups": [],
+          "platform_ids": [], "notes": [], "scoped": False, "broad": False, "scope_n": 0}
+    it = O.interpret("결제가 자꾸 실패해요")
+    O.add_symptoms(it, ["not_working"], via="LLM 추론")
+    sql, params = S._build_sql(it, sc, limit=5, days=None, order="relevance")
+    assert "'SI' AS src" in sql and "'S' AS src" not in sql and params["syms_SI"] == ["not_working"]
+    assert "WHEN 'SI' = ANY(z.srcs) THEN 1.5" in sql and "WHEN 'TSI' = ANY(z.srcs) THEN 0.75" in sql
+    sql2, _ = S._build_sql(O.interpret("결제 오류 발열"), sc, limit=5, days=None, order="relevance")
+    assert "'S' AS src" in sql2 and "'SI' AS src" not in sql2, "사전 증상은 그대로 S"
+
+
 # ── 2단계: LLM 개념 추론 + 벡터 (색인·ollama 가 있을 때) ───────────────────
 def _vec_ready():
     try:
@@ -146,9 +162,11 @@ def _vec_ready():
         return False
 
 
+_EVIDENCE = ("결함 주석(증상)", "본문(증상 동의어)", "결함 주석(추론 증상)", "본문(추론 증상 동의어)")
+
+
 def _evidence(r, k=10):
-    return sum(1 for x in r["results"][:k]
-               if any(m in ("결함 주석(증상)", "본문(증상 동의어)") for m in x["matched"]))
+    return sum(1 for x in r["results"][:k] if any(m in _EVIDENCE for m in x["matched"]))
 
 
 @pytest.mark.skipif(not _vec_ready(), reason="벡터 색인 없음")

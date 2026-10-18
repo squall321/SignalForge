@@ -188,14 +188,21 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
     js = lambda col: f" JOIN scope s ON s.id = {col}" if drive else ""  # noqa: E731
 
     # ── 후보 경로 ──
-    if it.symptoms:
-        params["syms"] = it.symptoms
-        hits.append(f"SELECT d.voc_id AS id, 'S' AS src FROM voc_defects d{js('d.voc_id')} "
-                    "WHERE d.symptom = ANY(CAST(:syms AS varchar[]))")
-        terms = [] if fast else [t for s in it.symptoms for t in O.symptom_terms(s)]
-        for clause in expansion_clauses(terms, prefix="xs").values():
+    # LLM 이 추론한 증상(role=inferred)은 따로 걸어 사전 증상의 절반으로 친다(SI·TSI). 같은 무게면
+    # '삼성페이 결제가 자꾸 실패해요' 가 '작동 안 함' 글 1.9만 건 아무거나를 위로 올리고, 질의의
+    # 주어(남는 말 '삼성페이'·벡터)는 묻혔다. 추론은 틀릴 수도 있다('하루를 못 버텨요' → 발열).
+    inferred = {c.key for c in it.concepts if c.type == "symptom" and c.role == "inferred"}
+    for tag, syms in (("S", [x for x in it.symptoms if x not in inferred]),
+                      ("SI", [x for x in it.symptoms if x in inferred])):
+        if not syms:
+            continue
+        params[f"syms_{tag}"] = syms
+        hits.append(f"SELECT d.voc_id AS id, '{tag}' AS src FROM voc_defects d{js('d.voc_id')} "
+                    f"WHERE d.symptom = ANY(CAST(:syms_{tag} AS varchar[]))")
+        terms = [] if fast else [t for x in syms for t in O.symptom_terms(x)]
+        for clause in expansion_clauses(terms, prefix=f"x{tag.lower()}").values():
             if clause:
-                hits.append(f"SELECT v.id, 'TS' AS src FROM voc_active v{js('v.id')} WHERE {clause[0]}")
+                hits.append(f"SELECT v.id, 'T{tag}' AS src FROM voc_active v{js('v.id')} WHERE {clause[0]}")
                 params.update(clause[1])
     if it.components:
         params["comps"] = it.components
@@ -264,8 +271,10 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
     # ── 가산 ── 조건은 안쪽에서 한 번만 계산하고(f_*), 점수는 바깥에서 합한다
     flags = [f"{prank_sql} AS prank"]
     score = ["(CASE WHEN 'S' = ANY(z.srcs) THEN 3 ELSE 0 END)",
+             "(CASE WHEN 'SI' = ANY(z.srcs) THEN 1.5 ELSE 0 END)",
              "(CASE WHEN 'C' = ANY(z.srcs) THEN 2 ELSE 0 END)",
              "(CASE WHEN 'TS' = ANY(z.srcs) THEN 1.5 ELSE 0 END)",
+             "(CASE WHEN 'TSI' = ANY(z.srcs) THEN 0.75 ELSE 0 END)",
              "(CASE WHEN 'T' = ANY(z.srcs) THEN 1 ELSE 0 END)",
              "(CASE WHEN 'TC' = ANY(z.srcs) THEN 0.75 ELSE 0 END)",
              "(CASE WHEN 'K' = ANY(z.srcs) THEN 2 ELSE 0 END)",
@@ -355,6 +364,7 @@ async def _scope_ids(db, sc: Dict):
 
 
 _SRC_LABEL = {"S": "결함 주석(증상)", "C": "결함 주석(부품)", "TS": "본문(증상 동의어)", "K": "낱말 모두 일치",
+              "SI": "결함 주석(추론 증상)", "TSI": "본문(추론 증상 동의어)",
               "TC": "본문(부품 동의어)", "T": "주제 주석", "P": "제품 범위", "F": "필터"}
 
 
