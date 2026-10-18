@@ -31,4 +31,6 @@ crawler/data/vectors 에 float32 조각 파일로 두고 MCP 가 mmap 으로 읽
 - [x] semantic 결합 — V·K 경로, 상대 유사도, 짧은 글 제외, 중복 접기, 사전이 다 설명하면 벡터 생략
 - [x] 증분 임베딩 스케줄 — beat embed-new-2h (예산 600초)
 - [x] 테스트 — vector_store 10 · build_embeddings 3 · llm_concepts 8 · semantic 15 (MCP 전체 139, crawler 1,840 — 실패 7 은 세션 전 dacf20a 에서도 같다)
-- [ ] 재기동·문서(cae00)·커밋·push·메모리
+- [x] 재기동·문서(cae00)·커밋·push·메모리 (dd825ad·1e667e1)
+- [x] 전량 적재 완료 992,284건·83분 — 활성 행과 정확히 일치, 전역 0.18~0.27초
+- [x] 새 질의 점검 — 잔여어 오염 5종·추론 증상 가중 누락 고침, 차가운 캐시 지연 원인 규명(인프라 결정 대기)
