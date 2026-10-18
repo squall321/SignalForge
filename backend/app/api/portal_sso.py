@@ -61,9 +61,12 @@ async def _verify_portal_token(token: str) -> dict[str, Any]:
     if key is None:
         raise HTTPException(status_code=401, detail="portal JWKS has no usable key")
     try:
+        # python-jose silently ignores a PyJWT-style "require": [...] list — each claim needs its own
+        # require_* flag. With the list form a token without aud skipped the audience check and one
+        # without jti/exp 500'd on the replay guard below instead of a 401.
         claims = jwt.decode(
             token, key, algorithms=["RS256"], audience=settings.PORTAL_AUDIENCE,
-            options={"require": ["exp", "aud", "sub", "jti"]},
+            options={"require_exp": True, "require_aud": True, "require_sub": True, "require_jti": True},
         )
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=401, detail="launch token rejected") from e
