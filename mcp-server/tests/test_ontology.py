@@ -128,6 +128,31 @@ def test_residual_is_clean():
     assert O.interpret("카카오톡 알림").residual == ["카카오톡", "알림"]
 
 
+def test_residual_drops_endings_glued_to_concepts():
+    """증상에 붙은 어미('버벅'+'여요')·맨 '폰'·빈도 부사는 남는 말이 아니다 — '폰이' 를 남기면
+    부분일치로 '아이폰이' 글에 가산이 붙었다(2026-10-18 실측)."""
+    assert O.interpret("유튜브 볼 때 폰이 버벅여요").residual == ["유튜브"]
+    assert O.interpret("갤럭시가 찜질팩처럼 뜨끈해요").residual == ["찜질팩"]
+
+
+def test_residual_keeps_noun_of_verb_and_brand_compound():
+    """'실패해요' → '실패'(활용형은 본문에 거의 없다). 브랜드 합성어는 통째로 — '페이' 만 남기면
+    네이버페이·카카오페이 글까지 가산을 받았다."""
+    assert O.interpret("삼성페이 결제가 자꾸 실패해요").residual == ["삼성페이", "결제", "실패"]
+    assert O.interpret("갤럭시처럼 발열").residual == [], "조사만 남은 토막은 남는 말이 아니다"
+
+
+@pytest.mark.parametrize("word,stem", [
+    ("알림이", "알림"), ("결제가", "결제"), ("배터리는", "배터리"), ("충전을", "충전"), ("카메라로", "카메라"),
+    ("폰으로", "폰"), ("갤럭시와", "갤럭시"), ("업데이트에서", "업데이트"),
+    ("삼성페이", "삼성페이"), ("디스플레이", "디스플레이"), ("딜레이", "딜레이"), ("와이파이", "와이파이"),
+    ("손난로", "손난로"),   # 받침 있는 음절 뒤 '로' 는 조사가 아니다
+])
+def test_particle_follows_batchim(word, stem):
+    """받침에 따라 갈리는 조사는 앞 음절 받침을 본다 — '페이' 의 '이' 를 떼지 않는다."""
+    assert O._strip_particle(word) == stem
+
+
 def test_no_concept_means_keyword_fallback():
     assert not O.interpret("카카오톡 알림").has_concepts
 

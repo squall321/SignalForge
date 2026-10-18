@@ -350,14 +350,45 @@ _STOP_KO = set("관련 관해 대한 대해 대해서 어때 어때요 어떤가
                "진짜 그냥 것 거 때 후 전 중 등 및 또는 그리고 하는 하고 되는 돼요 됩니다 합니다 있는 없는 있음 "
                "없음 같은 같아요 현상 증상 사례 글 내용 정보 반응 여론 사용자 유저 사람들 많이 많은 자주 계속 "
                "심하게 생김 생겨요 발생 경우 알려줘 찾아줘 보여줘 검색 모음 정리 "
-               "와요 와 가요 해요 나요 줘요 됨 함 음 임 네요 어요 아요".split())
+               "와요 와 가요 해요 나요 줘요 됨 함 음 임 네요 어요 아요 "
+               "자꾸 자꾸만 매번 항상 가끔 갑자기 늘 또 "
+               "폰 폰이 폰은 폰을 폰도 폰에 폰으로 폰에서 폰이랑 폰의 폰만".split())
 _STOP_EN = set("the a an of for on in at to with about and or is are was were be been my your our any some "
                "how what why when does do did it its this that these those people users user posts post "
                "reports report getting get gets having has have show find search me".split())
-# 조사 떼기는 부분일치 검색어용이라 넉넉히 뗀다. '손난로' → '손난' 처럼 명사 끝을 떼도
-# '손난로' 를 여전히 찾지만, '알림이' 를 그대로 두면 '알림' 을 못 찾는다(재현율이 더 중요하다).
-_PARTICLE = re.compile(r"(?:으로|에서|이랑|하고|까지|부터|처럼|보다|이|가|은|는|을|를|의|에|도|만|로|랑|과|와)$")
+# 조사 떼기 — '알림이' 를 그대로 두면 '알림' 을 못 찾는다. 받침에 따라 갈리는 조사(이/가·은/는·
+# 을/를·과/와·으로/로)는 앞 음절 받침을 보고 뗀다. 안 보면 '삼성페이'·'디스플레이'·'딜레이' 의
+# '이', '손난로' 의 '로' 까지 떼어 낱말이 잘렸다. 받침과 무관한 조사(도·만·에 …)는 그대로 뗀다.
+_PARTICLE_ANY = re.compile(r"(?:에서|이랑|하고|까지|부터|처럼|보다|의|에|도|만|랑)$")
+_PARTICLE_COND = (("으로", "batchim_not_l"), ("이", "batchim"), ("은", "batchim"), ("을", "batchim"),
+                  ("과", "batchim"), ("가", "open"), ("는", "open"), ("를", "open"), ("와", "open"),
+                  ("로", "open_or_l"))
+
+
+def _strip_particle(t: str) -> str:
+    """끝 조사 하나를 뗀다. 조사가 아니면 그대로."""
+    m = _PARTICLE_ANY.search(t)
+    if m:
+        return t[:m.start()]
+    for p, rule in _PARTICLE_COND:
+        if not t.endswith(p) or len(t) == len(p):
+            continue
+        prev = ord(t[-len(p) - 1]) - 0xAC00
+        if not 0 <= prev < 11172:
+            continue
+        jong = prev % 28                      # 0 = 받침 없음, 8 = ㄹ
+        ok = {"batchim": jong != 0, "open": jong == 0, "open_or_l": jong in (0, 8),
+              "batchim_not_l": jong not in (0, 8)}[rule]
+        if ok:
+            return t[:-len(p)]
+    return t if not (t in dict(_PARTICLE_COND) or _PARTICLE_ANY.fullmatch(t)) else ""
+
+# 남는 말이 '실패해요'·'충전돼요' 처럼 명사+하다/되다 활용이면 명사만 남긴다 — 활용형 그대로는
+# 본문에서 거의 안 나온다('실패해요' 부분일치 대신 '실패').
+_VERB_END = re.compile(r"(?:했어요|했는데|했어|했다|합니다|하네요|하는데|해서|해요|해도|하고|하면|하는|하네|"
+                       r"됐어요|됐는데|됐어|됩니다|되네요|되는데|돼서|돼요|되요|돼도|되고|되면|되는|함|됨)$")
 _TOKEN_RE = re.compile(r"[0-9a-z가-힣][0-9a-z가-힣+\-']*")
+_WORD_CHAR = re.compile(r"[0-9a-z가-힣]")
 
 
 def _c(src: str) -> re.Pattern:
@@ -519,22 +550,45 @@ class _Spans:
     """질의에서 개념이 차지한 구간. 남는 말(잔여어)을 구하는 데 쓴다."""
 
     def __init__(self, norm: str):
-        self.norm, self.taken = norm, []
+        self.norm, self.taken, self.glued, self.compound = norm, [], [], []
 
     def free(self, s: int, e: int) -> bool:
         return not any(s < te and ts < e for ts, te in self.taken)
 
-    def take(self, s: int, e: int):
+    def take(self, s: int, e: int, *, glue: bool = False, compound: bool = False):
+        """glue — 어미가 붙는 개념(증상·부품·감성). 남는 말을 구할 때 그 낱말 끝까지 지운다
+        ('버벅여요' 에서 '버벅' 을 잡으면 '여요' 는 남는 말이 아니다).
+        compound — 브랜드. 두 글자 넘는 말이 붙어 있으면 남는 말은 합성어 통째다 — '삼성페이' 의
+        '페이' 만 남기면 네이버페이·카카오페이 글까지 가산을 받았다(2026-10-18 실측)."""
         self.taken.append((s, e))
+        if glue:
+            self.glued.append((s, e))
+        if compound:
+            self.compound.append((s, e))
 
-    def masked(self, fill: str = " ") -> str:
+    def masked(self, fill: str = " ", *, whole_words: bool = False) -> str:
         """차지된 구간을 fill 로 가린 질의. 길이는 그대로다.
 
         레거시 매처에 넘길 때는 공백이 아닌 문자('\\x00')로 가린다 — 레거시 정규화가
-        연속 공백을 하나로 줄여 위치가 어긋나기 때문이다.
+        연속 공백을 하나로 줄여 위치가 어긋나기 때문이다. whole_words 면 glue 구간을 낱말
+        끝까지 넓히고, 합성어에 붙은 브랜드는 가리지 않는다(잔여어용).
         """
         chars = list(self.norm)
-        for s, e in self.taken:
+        spans = list(self.taken)
+        if whole_words:
+            for s, e in self.compound:
+                j = e
+                while j < len(chars) and _WORD_CHAR.match(chars[j]):
+                    j += 1
+                rest = self.norm[e:j]                    # '페이'·'헬스' 는 합성어, '가'·'처럼'·'폰이' 는 아니다
+                stem = _strip_particle(rest)
+                if len(rest) >= 2 and stem and stem not in _STOP_KO:
+                    spans = [sp for sp in spans if sp != (s, e)]
+            for s, e in self.glued:
+                while e < len(chars) and _WORD_CHAR.match(chars[e]):
+                    e += 1
+                spans.append((s, e))
+        for s, e in spans:
             for i in range(s, min(e, len(chars))):
                 chars[i] = fill
         return "".join(chars)
@@ -664,7 +718,7 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
         for key, rx in _BRAND_RE.items():
             m = _find(rx, norm, spans)
             if m:
-                spans.take(m.start(), m.end())
+                spans.take(m.start(), m.end(), compound=True)
                 if not any(b == key for _, b in it.categories):
                     it.brands.append(key)
                 _add(it, "brand", key, m.group(0), "scope")
@@ -695,7 +749,7 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
             (it.boost_components if it.symptoms else it.components).append(key)
             _add(it, "component", key, norm[hits[0][0]:hits[0][1]], role)
     for s, e in sym_spans + comp_spans:
-        spans.take(s, e)
+        spans.take(s, e, glue=True)
 
     # 5) 주제 — 증상·부품과 같은 말에서 나온 주제는 관계로 붙은 것(가산만)
     for key, rx in _Q_TOPIC.items():
@@ -757,7 +811,7 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
         m = _find(rx, norm, spans, require_free=False)
         if m:
             it.sentiment = it.sentiment or label
-            spans.take(m.start(), m.end())
+            spans.take(m.start(), m.end(), glue=True)
     for rx, days in RECENCY:
         m = rx.search(norm)
         if m:
@@ -772,9 +826,14 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
 
     # 10) 남는 말 — 순위 가산용
     rest = []
-    for t in _TOKEN_RE.findall(spans.masked()):
+    for t in _TOKEN_RE.findall(spans.masked(whole_words=True)):
+        if re.search(r"[가-힣]", t) and not _strip_particle(t):
+            continue                          # 조사만 남은 토막('갤럭시처럼' 의 '처럼')
         if re.search(r"[가-힣]", t) and len(t) >= 3:
-            t = _PARTICLE.sub("", t)
+            stem = _VERB_END.sub("", t)
+            t = stem if len(stem) >= 2 else t
+            if len(t) >= 3:
+                t = _strip_particle(t)
         if t in _STOP_KO or t in _STOP_EN:
             continue
         if (re.search(r"[가-힣]", t) and len(t) < 2) or (not re.search(r"[가-힣]", t) and len(t) < 3):
