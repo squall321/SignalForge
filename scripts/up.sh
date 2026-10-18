@@ -33,11 +33,8 @@ if [[ ! -f "$SIF_DIR/postgres.sif" ]]; then
   echo "[ERROR] postgres.sif 없음. 먼저: ./scripts/build.sh postgres" >&2; exit 1
 fi
 
-PG_FRESH=0
-if instance_running "$INST_POSTGRES"; then
-  echo "✓ $INST_POSTGRES 이미 실행 중"
-else
-  PG_FRESH=1
+pg_instance_start() {
+  local f pid
   # stale lock 정리
   for f in "$DATA_DIR/postgres-run/.s.PGSQL.${POSTGRES_PORT}.lock" \
            "$DATA_DIR/postgres/pgdata/postmaster.pid"; do
@@ -62,17 +59,60 @@ else
     --env "LANG=C.UTF-8" --env "LC_ALL=C.UTF-8" \
     "$SIF_DIR/postgres.sif" "$INST_POSTGRES" \
     > "$LOG_DIR/postgres-start.log" 2>&1
+}
+
+pg_wait_ready() {
+  local i
+  for i in $(seq 1 60); do
+    if apptainer exec "instance://$INST_POSTGRES" \
+         pg_isready -h 127.0.0.1 -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \
+         >/dev/null 2>&1; then
+      echo "✓ postgres ready (${i}s)"; return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+# shared_buffers — .env 의 PG_SHARED_BUFFERS(예: 2GB). 비우면 아무것도 바꾸지 않는다(dev).
+# 꺼져 있던 postgres 를 띄울 때만 쓴다 — 떠 있는 DB 를 이 스크립트가 재기동하지 않는다.
+PG_AUTO_CONF="$DATA_DIR/postgres/pgdata/postgresql.auto.conf"
+PG_FRESH=0
+PG_SB_CHANGED=0
+if instance_running "$INST_POSTGRES"; then
+  echo "✓ $INST_POSTGRES 이미 실행 중"
+else
+  PG_FRESH=1
+  if pg_write_shared_buffers "$PG_AUTO_CONF" "${PG_SHARED_BUFFERS:-}"; then
+    PG_SB_CHANGED=1
+    echo "→ shared_buffers = $PG_SHARED_BUFFERS (postgresql.auto.conf, 원본은 .sf-bak)"
+  fi
+  pg_instance_start
 fi
 
 echo "→ pg_isready 대기..."
-for i in $(seq 1 60); do
-  if apptainer exec "instance://$INST_POSTGRES" \
-       pg_isready -h 127.0.0.1 -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \
-       >/dev/null 2>&1; then
-    echo "✓ postgres ready (${i}s)"; break
+if ! pg_wait_ready && [[ $PG_SB_CHANGED -eq 1 ]]; then
+  # 메모리를 못 잡는 등 그 값으로 안 뜨면 원래 설정으로 되돌린다 — 안 그러면 워치독이 매분
+  # up.sh 를 불러도 같은 값으로 계속 실패한다.
+  echo "[ERROR] shared_buffers=$PG_SHARED_BUFFERS 로 postgres 가 안 뜬다 — 원래 설정으로 되돌려 다시 띄운다" >&2
+  apptainer instance stop "$INST_POSTGRES" >/dev/null 2>&1 || true
+  mv -f "$PG_AUTO_CONF.sf-bak" "$PG_AUTO_CONF"
+  pg_instance_start
+  pg_wait_ready || echo "[ERROR] 되돌린 뒤에도 postgres 가 안 뜬다 — $LOG_DIR/postgres-start.log 를 보라" >&2
+fi
+if [[ $PG_FRESH -eq 0 && -n "${PG_SHARED_BUFFERS:-}" ]]; then
+  if ! want_b=$(pg_size_bytes "$PG_SHARED_BUFFERS"); then
+    echo "[WARN] PG_SHARED_BUFFERS='$PG_SHARED_BUFFERS' — kB·MB·GB 정수가 아니다(예: 2GB)" >&2
+  else
+    cur_b=$(apptainer exec --env PGPASSWORD="$POSTGRES_PASSWORD" "instance://$INST_POSTGRES" \
+              psql -h 127.0.0.1 -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -tAc \
+              "SELECT setting::bigint * 8192 FROM pg_settings WHERE name = 'shared_buffers'" 2>/dev/null || true)
+    if [[ -n "$cur_b" && "$cur_b" != "$want_b" ]]; then
+      echo "[NOTE] shared_buffers 는 지금 $((cur_b / 1048576))MB — PG_SHARED_BUFFERS=$PG_SHARED_BUFFERS 는" \
+           "postgres 를 다시 띄우면 적용된다(apptainer instance stop $INST_POSTGRES && bash scripts/up.sh)"
+    fi
   fi
-  sleep 1
-done
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. Redis 접속 확인 (시스템 서비스)

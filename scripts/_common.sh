@@ -196,3 +196,38 @@ build_or_pull() {
     _run_with_fallback apptainer pull --force "$sif" "$src"
   fi
 }
+
+# ── PostgreSQL shared_buffers (opt-in: .env 의 PG_SHARED_BUFFERS) ──────────────
+# 기본 128MB 는 거의 전부 OS 페이지 캐시에 기댄다. 캐시가 갈리는 서버에선 브랜드·전역 시맨틱
+# 검색이 6~16초(따뜻하면 1초) 걸렸다(2026-10-18 dev 실측 — dev 는 스왑이 꽉 차 올리지 않는다).
+# 값은 postgres 가 꺼져 있을 때 postgresql.auto.conf 에 쓴다(ALTER SYSTEM 과 같은 파일·형식).
+# postgres.sif 의 startscript 가 인자를 넘기지 않아 '-c shared_buffers=' 는 쓸 수 없다.
+pg_size_bytes() {  # '2GB' → 바이트. PostgreSQL 단위(kB·MB·GB)의 정수가 아니면 실패
+  [[ "${1:-}" =~ ^([0-9]+)(kB|MB|GB)$ ]] || return 1
+  local n="${BASH_REMATCH[1]}"
+  case "${BASH_REMATCH[2]}" in
+    kB) echo $((n * 1024)) ;;
+    MB) echo $((n * 1024 * 1024)) ;;
+    GB) echo $((n * 1024 * 1024 * 1024)) ;;
+  esac
+}
+
+# $1=postgresql.auto.conf  $2=값(예: 2GB). 바꿨으면 0, 그대로 두면 1(비움·같은 값·형식 오류·
+# 메모리 40% 초과). 바꿀 때 원본을 <conf>.sf-bak 로 남긴다 — 그 값으로 안 뜨면 up.sh 가 되돌린다.
+pg_write_shared_buffers() {
+  local conf="$1" want="${2:-}" want_b mem_kb
+  [[ -n "$want" && -f "$conf" ]] || return 1
+  if ! want_b=$(pg_size_bytes "$want"); then
+    echo "[WARN] PG_SHARED_BUFFERS='$want' — kB·MB·GB 정수가 아니다(예: 2GB). 건너뜀" >&2
+    return 1
+  fi
+  mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+  if (( want_b * 10 > mem_kb * 1024 * 4 )); then
+    echo "[WARN] PG_SHARED_BUFFERS=$want 가 메모리 $((mem_kb / 1048576))GB 의 40% 를 넘는다. 건너뜀" >&2
+    return 1
+  fi
+  grep -qxF "shared_buffers = '$want'" "$conf" && return 1
+  cp -p "$conf" "$conf.sf-bak"
+  { grep -v '^shared_buffers[[:space:]]*=' "$conf.sf-bak" || true; echo "shared_buffers = '$want'"; } > "$conf"
+  return 0
+}
