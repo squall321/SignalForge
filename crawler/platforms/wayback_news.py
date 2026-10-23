@@ -96,7 +96,12 @@ class WaybackNewsCrawler(BaseCrawler):
                 if r.status_code != 200:
                     await asyncio.sleep(2.0 * (attempt + 1)); continue
                 rows = r.json()
-                return [row[0] for row in rows[1:]][: self.SNAPSHOTS_PER_YEAR]
+                if not isinstance(rows, list):
+                    # 200 인데 목록이 아닌 JSON({…})으로 답할 때가 있다. 그대로 rows[1:] 하면 KeyError 로
+                    # 그해 수집 전체가 죽고, 커서가 그 연도에 머물러 매일 같은 자리에서 실패했다(2016, 10-22·23).
+                    logger.warning("Wayback CDX 응답이 목록이 아님(%s): %s", type(rows).__name__, str(rows)[:120])
+                    await asyncio.sleep(2.0 * (attempt + 1)); continue
+                return [row[0] for row in rows[1:] if row][: self.SNAPSHOTS_PER_YEAR]
             except (httpx.HTTPError, ValueError):
                 await asyncio.sleep(2.0 * (attempt + 1))
         return []
