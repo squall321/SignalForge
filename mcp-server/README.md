@@ -75,6 +75,15 @@ Samsung Galaxy VOC 데이터베이스에 자연어로 질문하는 MCP 서버. F
 1.5시간, GPU), 증분은 beat `embed-new-2h`. ollama·색인이 없으면 두 기능 다 조용히 빠지고 1단계로
 돈다(결과 notes·interpretation.vector 에 표시). `docs/vector-search/context-notes.md`.
 
+**모델코드 · PLM 과제 (2026-10-23)** — 사내 식별자로도 찾는다.
+- 모델코드(`SM-S938B` 등)는 `crawler/base/model_codes.py` 사전으로 제품에 잇는다(본문 태깅에도 쓴다). 출시 전 세대
+  코드(`SM-S958U`)는 모델을 못 정해 질의에서만 그 세대 전부를 범위로 쓴다.
+- PLM 과제(StandardPlatform 허브의 과제·개발모델)는 `crawler/base/plm_mirror.py` 가 통째로 받아 VOC DB 밖 파일
+  (`crawler/data/plm/sp_mirror.sqlite`)에 둔다 — 과제코드·과제명은 사내 정보라 Drive 백업·덤프에 싣지 않는다.
+  주소 `.env` 의 `SF_SP_CORE_URL`, 토큰은 파일(`crawler/data/plm/sp_token`). 없으면 과제 검색만 꺼진다.
+  과제코드 · 과제명(개발명) · 개발모델명 → 개발모델의 모델코드 → 제품. `get_ontology()` 의 `plm` 이 켜짐 여부.
+  `docs/plm-ontology/context-notes.md`.
+
 ---
 
 ## 스키마 함정 (raw SQL 짤 때 주의 — 도구 쓰면 안 만남)

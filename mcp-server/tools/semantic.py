@@ -34,6 +34,8 @@ from keyword_match import (  # noqa: E402
     all_tokens_clause, expansion_clauses, fts_groups_clause, like_any_clause, token_like_clause,
 )
 from tools import vector as V  # noqa: E402
+from base import plm_mirror as P  # noqa: E402 — ontology 가 /crawler 경로를 잡은 뒤
+from base import model_codes as _MC  # noqa: E402
 from tools.llm_concepts import infer_symptoms  # noqa: E402
 
 _CATALOG_TTL = 600
@@ -99,6 +101,10 @@ def _resolve(it: "O.Interpretation", cat: Dict, product_code: Optional[str]) -> 
                 add_group(fam, f"{fk} 세대({', '.join(fam)})")
             else:
                 add_group([code], f"{code}({by_code[code]['name_en']})")
+        for label, codes in it.product_sets:          # 한 묶음 — 출시 전 세대 모델코드·제품 여럿에 걸린 과제
+            missing = [c for c in codes if c not in by_code]
+            unknown.extend(missing)
+            add_group([c for c in codes if c in by_code], f"{label}({', '.join(codes)})")
         for key in it.series:
             rx = re.compile(O.SERIES[key]["code_regex"])
             add_group([c for c in by_code if rx.match(c)], O.label("series", key))
@@ -440,7 +446,7 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
     t0 = time.monotonic()
     async with get_db_session() as db:
         cat = await _load_catalog(db)
-        it = O.interpret(query, channel_lexicon=cat["lexicon"])
+        it = O.interpret(query, channel_lexicon=cat["lexicon"], plm=P.mirror())
         llm = []
         if not it.symptoms and (it.residual or not it.has_concepts):
             llm = await infer_symptoms(query)
@@ -528,6 +534,17 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
             "elapsed_ms": int((time.monotonic() - t0) * 1000), "results": results}
 
 
+def _plm_status() -> Dict:
+    """PLM 거울(SP 허브의 과제·개발모델) 상태 — 과제코드·과제명 검색이 켜져 있나."""
+    idx = P.mirror()
+    if idx is None:
+        s = P.settings()
+        return {"active": False, "why": "PLM 거울이 없다 — " + ("; ".join(s["problems"]) if s["problems"]
+                                                              else "아직 한 번도 받지 않았다(beat plm-sync-6h)")}
+    return {"active": True, "tasks": len(idx.tasks), "models": len(idx.models), "projects": len(idx.projects),
+            "pulled_at": idx.meta.get("pulled_at"), "host": idx.meta.get("host")}
+
+
 async def get_ontology_tool(concept: Optional[str] = None) -> Dict:
     """온톨로지 둘러보기. concept 없으면 전체 구조, 있으면 그 개념의 정의·관계·말뭉치 규모."""
     async with get_db_session() as db:
@@ -545,6 +562,8 @@ async def get_ontology_tool(concept: Optional[str] = None) -> Dict:
                 if k in d["components"]:
                     d["components"][k]["annotated_voc"] = int(n)
             d["catalog"] = {"products": len(cat["products"]), "platforms": len(cat["platforms"])}
+            d["model_codes"] = {"exact": len(_MC.EXACT), "family": len(_MC.FAMILY)}
+            d["plm"] = _plm_status()
             return d
         key = concept.split(":", 1)[-1].strip()
         low, up = key.lower(), key.upper()

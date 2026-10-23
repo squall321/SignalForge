@@ -27,6 +27,7 @@ for _p in ("/crawler", str(pathlib.Path(__file__).resolve().parents[1] / "crawle
     if pathlib.Path(_p).is_dir() and _p not in sys.path:
         sys.path.append(_p)          # 끝에 붙인다 — 호출부 자신의 모듈(tools·db)이 이긴다
 
+from base import model_codes as _mc  # noqa: E402
 from base import product_match as _pm  # noqa: E402
 from nlp import categorizer as _cat  # noqa: E402
 from nlp import defect_extract as _dx  # noqa: E402
@@ -512,6 +513,8 @@ class Interpretation:
     norm: str
     concepts: List[Concept] = field(default_factory=list)
     products: List[str] = field(default_factory=list)
+    # 한 묶음으로 세는 제품 여럿 — (라벨, 코드들). 출시 전 세대 모델코드·제품 여럿에 걸린 과제. 비교 판정이 하나로 센다.
+    product_sets: List[Tuple[str, Tuple[str, ...]]] = field(default_factory=list)
     family: bool = False
     compare_all: bool = False
     series: List[str] = field(default_factory=list)
@@ -534,7 +537,7 @@ class Interpretation:
 
     @property
     def has_concepts(self) -> bool:
-        return bool(self.products or self.series or self.forms or self.categories or self.brands
+        return bool(self.products or self.product_sets or self.series or self.forms or self.categories or self.brands
                     or self.symptoms or self.components or self.topics or self.markets or self.channels)
 
     def to_dict(self) -> dict:
@@ -607,8 +610,99 @@ def _add(it: Interpretation, ctype: str, key: str, via: str, role: str):
         it.concepts.append(Concept(ctype, key, via, role))
 
 
-def _detect_products(it: Interpretation, spans: _Spans):
+def _add_products(it: Interpretation, codes: Iterable[str], label: str, via: str):
+    """제품 하나면 products(이름으로 찾은 것과 같은 자리 — 같은 뜻 = 같은 결과), 여럿이면 한 묶음(product_sets)."""
+    codes = list(dict.fromkeys(codes))
+    if len(codes) == 1:
+        if codes[0] not in it.products:
+            it.products.append(codes[0])
+            _add(it, "product", codes[0], via, "scope")
+    elif codes:
+        it.product_sets.append((label, tuple(codes)))
+        _add(it, "product", ",".join(codes), via, "scope")
+
+
+def _detect_model_codes(it: Interpretation, spans: _Spans):
+    """모델코드(SM-S938B) — 이름보다 정확하다. 출시 전 세대의 코드는 그 세대 전부를 한 묶음으로."""
+    for raw, base, s, e in _mc.iter_codes(spans.norm):
+        if not spans.free(s, e):
+            continue
+        prods = _mc.family_of(base)
+        if not prods:
+            it.notes.append(f"모델코드 {raw.upper()} 는 사전에 없어 본문 낱말로 찾는다")
+            continue
+        spans.take(s, e)
+        _add_products(it, prods, f"모델코드 {raw.upper()}", raw)
+        if len(prods) > 1:
+            it.notes.append(f"모델코드 {raw.upper()} 는 출시 전이라 모델을 못 정해 세대 전체({', '.join(prods)})로 봤다")
+
+
+_PLM_TOKEN = re.compile(r"[0-9a-z가-힣][0-9a-z가-힣_\-.]*")
+_HANGUL_END = re.compile(r"[가-힣]$")
+
+
+def _plm_products(models: List[dict]) -> Tuple[List[str], List[str]]:
+    """개발모델들 → (제품 코드, 사전에 없는 기본 코드). 모델코드 사전이 다리다(개발모델은 SignalForge 제품을 모른다)."""
+    prods, missing = [], []
+    for m in models:
+        base = next((b for b in (_mc.base_of(str(x)) for x in (m.get("base_code"), m.get("mass_model_code"), m.get("key"))
+                                 if x) if b), None)
+        got = _mc.family_of(base) if base else ()
+        if got:
+            prods.extend(got)
+        elif base:
+            missing.append(base)
+    return list(dict.fromkeys(prods)), sorted(set(missing))
+
+
+def _detect_plm(it: Interpretation, spans: _Spans, plm):
+    """PLM 거울(SP 허브) — 개발모델명·양산모델코드·과제코드·과제명(차수 접미어를 뗀 개발명도) → 그 과제의 제품.
+    제품에 이을 수 없으면 그 말은 남는 말로 둔다(본문에 개발명이 나오는 유출 글을 낱말로 찾게)."""
+    if not plm:
+        return
     norm = spans.norm
+    hits = []                                             # (s, e, kind, models, tasks, raw)
+    for name in plm.multi_names:                          # 띄어 쓴 과제명('감마 프로')은 낱말 하나로 안 잡힌다
+        for m in re.finditer(rf"(?<![0-9a-z가-힣]){re.escape(name)}(?![0-9a-z가-힣])", norm):
+            tks = plm.by_name[name]
+            hits.append((m.start(), m.end(), "name", [x for t in tks for x in plm.task_models(t)], tks, m.group(0)))
+    for m in _PLM_TOKEN.finditer(norm):
+        tok = m.group(0)
+        cands = [tok] + ([_strip_particle(tok)] if _HANGUL_END.search(tok) else [])
+        for c in cands:
+            if c in plm.by_model:
+                model = plm.models[plm.by_model[c]]
+                tasks = [model["task"]] if model.get("task") in plm.tasks else []
+                hits.append((m.start(), m.end(), "model", [model], tasks, tok))
+                break
+            if c in plm.by_code:
+                tk = plm.by_code[c]
+                hits.append((m.start(), m.end(), "task", plm.task_models(tk), [tk], tok))
+                break
+            if c in plm.by_name:
+                tks = plm.by_name[c]
+                hits.append((m.start(), m.end(), "name", [x for t in tks for x in plm.task_models(t)], tks, tok))
+                break
+    for s, e, kind, models, tasks, raw in sorted(hits, key=lambda h: (h[0], -(h[1] - h[0]))):
+        if not spans.free(s, e):
+            continue
+        tlabel = ", ".join(f"{t}({plm.tasks[t]['label']})" for t in dict.fromkeys(tasks) if t in plm.tasks) or "-"
+        prods, missing = _plm_products(models)
+        if not prods:
+            it.notes.append(f"과제 {tlabel} 는 제품에 이어지지 않는다 — 개발모델의 모델코드가 사전에 없다"
+                            f"({', '.join(missing) or '개발모델 없음'}). 본문 낱말로 찾는다")
+            continue
+        spans.take(s, e)
+        what = f"개발모델 {models[0]['key']} · 과제 {tlabel}" if kind == "model" else f"과제 {tlabel}"
+        _add_products(it, prods, what, raw)
+        it.notes.append(f"{what} → {', '.join(prods)}"
+                        + (f" (사전에 없는 모델코드 {', '.join(missing)} 은 뺐다)" if missing else ""))
+
+
+def _detect_products(it: Interpretation, spans: _Spans, plm=None):
+    norm = spans.norm
+    _detect_plm(it, spans, plm)
+    _detect_model_codes(it, spans)
     live = _pm.infer_all_product_codes(norm, legacy=False)
     if live:
         codes = [c for c, _ in live]
@@ -617,6 +711,8 @@ def _detect_products(it: Interpretation, spans: _Spans):
             sp = by.get(code) or []
             if sp:
                 spans.take(*sp[0])
+            if code in it.products:                   # 모델코드로 이미 잡은 제품(길목이 모델코드도 본다)
+                continue
             it.products.append(code)
             _add(it, "product", code, norm[sp[0][0]:sp[0][1]] if sp else code, "scope")
     # 질의 전용 약칭('노트9', '워치4 클래식') — 레거시보다 먼저 봐야 '워치4 클래식' 이
@@ -664,8 +760,9 @@ def _channel_patterns(lexicon: Dict[str, List[str]]):
     return out
 
 
-def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = None) -> Interpretation:
-    """질의 → 개념 해석. channel_lexicon 은 {표면형: [플랫폼 코드]} (호출부가 DB 에서 만든다)."""
+def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = None, plm=None) -> Interpretation:
+    """질의 → 개념 해석. channel_lexicon 은 {표면형: [플랫폼 코드]} (호출부가 DB 에서 만든다).
+    plm 은 PLM 거울 색인(base.plm_mirror.PlmIndex) — 호출부가 넘긴다(이 함수는 파일을 읽지 않는다)."""
     norm = normalize(query)
     it = Interpretation(query=query, norm=norm)
     if not norm:
@@ -686,7 +783,7 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
             _add(it, "channel", ",".join(codes), m.group(0).strip(), "scope")
 
     # 2) 제품 (라이브 + 레거시)
-    _detect_products(it, spans)
+    _detect_products(it, spans, plm)
     if it.products and FAMILY_MARKER.search(norm):
         it.family = True
         m = FAMILY_MARKER.search(norm)
@@ -715,7 +812,7 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
             if (cat, brand) not in it.categories:
                 it.categories.append((cat, brand))
             _add(it, "category", f"{brand or '*'}:{cat}", m.group(0), "scope")
-    if not (it.products or it.series):
+    if not (it.products or it.product_sets or it.series):
         for key, rx in _BRAND_RE.items():
             m = _find(rx, norm, spans)
             if m:
@@ -723,6 +820,17 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
                 if not any(b == key for _, b in it.categories):
                     it.brands.append(key)
                 _add(it, "brand", key, m.group(0), "scope")
+    else:
+        # 제품이 이미 함의하는 브랜드 말('삼성 S25 울트라' · 'Samsung Galaxy S25')은 남는 말이 아니다 — 남기면 벡터가
+        # 섞이고 가산이 붙어 'S25 울트라 발열' 과 결과가 갈렸다(1단계부터). 다른 브랜드('삼성 vs 아이폰 16')는 그대로 둔다.
+        implied = {_pm._brand_of(c) for c in it.products + [c for _, cs in it.product_sets for c in cs]}
+        if it.series:
+            implied.add("samsung")                    # SERIES 는 모두 삼성 라인업이다
+        for key, rx in _BRAND_RE.items():
+            if key in implied:
+                for m in rx.finditer(norm):
+                    if m.end() > m.start() and spans.free(m.start(), m.end()):
+                        spans.take(m.start(), m.end(), compound=True)
 
     # 4) 증상 — 질의 표현 + 문서 렉시콘. 부품 — 문서 렉시콘.
     def _all_free(rx):
@@ -784,7 +892,7 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
             _add(it, "topic", top, f"<{comp}>", "derived")
 
     # 7) 비교 의도 + 제품 둘 이상 → 모든 제품을 함께 언급한 글
-    if ("comparison" in it.topics + it.boost_topics) and len(it.products) >= 2:
+    if ("comparison" in it.topics + it.boost_topics) and len(it.products) + len(it.product_sets) >= 2:
         it.compare_all = True
         it.notes.append("비교 표현이 있어 모든 제품을 함께 언급한 글로 좁혔다")
 

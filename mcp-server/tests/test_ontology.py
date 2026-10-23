@@ -201,3 +201,75 @@ def test_symptom_terms_are_multilingual():
     terms = O.symptom_terms("overheat")
     assert "발열" in terms and "overheating" in terms
     assert "hot" not in terms, "맨 'hot' 은 본문 검색어로 쓰면 'hot deal' 까지 끌고 온다"
+
+
+# ── 모델코드 · PLM 과제 (2026-10-23) ─────────────────────────────────────
+from base import plm_mirror as _plm  # noqa: E402
+
+
+@pytest.fixture
+def plm(tmp_path):
+    data = {
+        "plm_project": [{"key": "P-1", "label": "프로젝트"}],
+        "plm_task": [
+            {"key": "TK-001", "label": "알파", "properties": {"project": "P-1"}, "previous_keys": ["OLD-1"]},
+            {"key": "TK-002", "label": "베타_12", "properties": {"project": "P-1"}},
+            {"key": "TK-003", "label": "감마 프로", "properties": {"project": "P-1"}},
+            {"key": "TK-004", "label": "델타", "properties": {"project": "P-1"}}],
+        "plm_model": [
+            {"key": "SM-S938B_KOR_SKT", "properties": {"task": "TK-001", "base_code": "SM-S938B"}},
+            {"key": "SM-S938N_KOR_KTF", "properties": {"task": "TK-001", "base_code": "SM-S938N"}},
+            {"key": "SM-S931B_EUR_12", "properties": {"task": "TK-002", "base_code": "SM-S931B"}},
+            {"key": "SM-S936B_EUR_12", "properties": {"task": "TK-002", "base_code": "SM-S936B"}},
+            {"key": "SM-F976B_NA", "properties": {"task": "TK-003", "base_code": "SM-F976B"}},
+            {"key": "SM-X100A_KOR_SKT", "properties": {"task": "TK-004", "base_code": "SM-X100A"}}],
+    }
+    _plm.write_snapshot(tmp_path, {"system": "t"}, data)
+    return _plm.PlmIndex(tmp_path / _plm.MIRROR)
+
+
+def test_model_code_query_equals_name_query():
+    """'SM-S938B 발열' = 'S25 울트라 발열' = '삼성 S25 울트라 발열' — 같은 제품·남는 말 없음(같은 결과)."""
+    want = (["GS25U"], [])
+    for q in ("SM-S938B 발열", "S25 울트라 발열", "삼성 S25 울트라 발열", "Samsung Galaxy S25 Ultra overheating"):
+        it = O.interpret(q)
+        assert (it.products, it.residual) == want, (q, it.products, it.residual)
+
+
+def test_unreleased_model_code_scopes_the_generation_as_one_group():
+    it = O.interpret("SM-S958U vs SM-S948B 배터리")
+    assert it.products == ["GS26U"] and [c for _, c in it.product_sets] == [("GS27", "GS27P", "GS27U")]
+    assert it.compare_all, "묶음은 하나로 센다 — 두 쪽 비교"
+
+
+def test_unknown_model_code_stays_as_a_word():
+    it = O.interpret("SM-S937B 화면")
+    assert not it.products and it.residual == ["sm-s937b"] and any("사전에 없어" in n for n in it.notes)
+
+
+def test_task_code_and_name_resolve_to_its_product(plm):
+    for q in ("TK-001 발열", "알파 발열", "알파의 발열", "OLD-1 발열", "SM-S938B_KOR_SKT 발열"):
+        it = O.interpret(q, plm=plm)
+        assert (it.products, it.residual) == (["GS25U"], []), (q, it.products, it.residual, it.notes)
+        assert any("TK-001(알파)" in n and "GS25U" in n for n in it.notes), it.notes
+
+
+def test_task_with_several_products_is_one_group_and_names_drop_revision_suffix(plm):
+    it = O.interpret("베타 배터리", plm=plm)              # 과제명 '베타_12' 의 개발명
+    assert not it.products and [c for _, c in it.product_sets] == [("GS25", "GS25P")], it.product_sets
+
+
+def test_spaced_task_name(plm):
+    it = O.interpret("감마 프로 힌지", plm=plm)
+    assert it.products == ["GZF8"] and it.residual == [], (it.products, it.residual)
+
+
+def test_task_without_known_model_code_falls_back_to_words(plm):
+    it = O.interpret("델타 발열", plm=plm)
+    assert not it.products and "델타" in it.residual
+    assert any("제품에 이어지지 않는다" in n and "X100" in n for n in it.notes), it.notes
+
+
+def test_no_plm_means_names_are_plain_words():
+    it = O.interpret("알파 발열")
+    assert not it.products and it.residual == ["알파"]

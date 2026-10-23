@@ -44,7 +44,8 @@ def _sql_rows(sql, params):
 
 def test_spelling_and_language_do_not_change_results():
     """이게 시맨틱 검색의 존재 이유다 — 글자가 아니라 뜻으로 찾는다."""
-    variants = ["S25 울트라 발열", "Galaxy S25 Ultra overheating", "s25u 발열", "갤럭시 S25 울트라 과열"]
+    variants = ["S25 울트라 발열", "Galaxy S25 Ultra overheating", "s25u 발열", "갤럭시 S25 울트라 과열",
+                "SM-S938B 발열", "삼성 S25 울트라 발열"]       # 모델코드 · 제품이 함의한 브랜드 말(2026-10-23)
     runs = [_run(v, limit=30) for v in variants]
     ids = [[r["id"] for r in x["results"]] for x in runs]
     totals = {x["total"] for x in runs}
@@ -183,3 +184,12 @@ def test_paraphrase_within_product_scope():
     r = _run("S25 울트라 하루를 못 버텨요", limit=10)
     assert r["interpretation"]["llm_symptoms"] == ["drain"]
     assert _evidence(r) >= 7
+
+
+def test_model_code_dictionary_points_at_catalog_products():
+    """모델코드 사전의 제품 코드가 전부 카탈로그에 있어야 한다 — 없는 코드는 범위에서 조용히 빠진다."""
+    import ontology  # noqa: F401 — /crawler 경로
+    from base import model_codes as M
+    codes = {r[0].upper() for r in _sql_rows("SELECT code FROM products", {})}
+    mapped = set(M.EXACT.values()) | {c for t in M.FAMILY.values() for c in t}
+    assert not mapped - codes, sorted(mapped - codes)
