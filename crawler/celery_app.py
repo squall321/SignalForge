@@ -299,6 +299,12 @@ app.conf.beat_schedule = {
         "task": "tasks.run_health_check",
         "schedule": crontab(minute=30),
     },
+    # 2026-10-23 PLM 거울: SP 허브의 과제·개발모델 전체 스냅샷 — 주소·토큰이 없으면 바로 끝난다(not_configured).
+    "plm-sync-6h": {
+        "task": "tasks.run_plm_sync",
+        "schedule": 21600.0,
+        "options": {"expires": 7200},
+    },
     # 2026-10-17 시맨틱 검색 2단계: 새 VOC 임베딩 증분 — 하루 1~2만 건, 회차당 수십 초.
     # 시간 예산 600초. 전량 적재가 잠금을 쥐고 있으면 건너뛴다(멱등·커서 보존).
     "embed-new-2h": {

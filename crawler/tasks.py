@@ -358,6 +358,19 @@ def run_health_check():
     return result
 
 
+@app.task(name="tasks.run_plm_sync", max_retries=0)
+def run_plm_sync() -> dict:
+    """SP 허브의 과제·개발모델·프로젝트를 통째로 받아 PLM 거울(crawler/data/plm, VOC DB 밖)을 바꾼다 — 6h 주기.
+
+    주소(.env SF_SP_CORE_URL)나 토큰 파일이 없으면 not_configured 로 바로 끝난다(오류가 아니다 — 허브를 볼 수
+    있는 서버에서만 켠다). 끝까지 받았을 때만 바꾸고, 한 타입이 절반 넘게 줄면 바꾸지 않는다(held).
+    """
+    from base import plm_mirror as _plm
+    res = _plm.sync()
+    logger.info(f"[plm_sync] {res}")
+    return res
+
+
 @app.task(name="tasks.run_embed_new", max_retries=0)
 def run_embed_new(budget_sec: int = 600) -> dict:
     """새 VOC 를 bge-m3 로 임베딩해 벡터 저장소에 덧붙인다(시맨틱 검색 2단계) — 2h 주기.
