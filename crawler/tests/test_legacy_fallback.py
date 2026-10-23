@@ -98,7 +98,7 @@ REJECTED = [
     "are galaxy buds fe 3 worth it?",
     "usb controlled by connected device on samsung galaxy s9 fe+",
     "keyboard case for the s10 plus tablet",
-    "samsung galaxy a7 tab lite (sm-t225) oem unlock",
+    "samsung galaxy a7 tab lite oem unlock",      # 모델코드가 있으면 아래 시험처럼 그 제품으로 간다
     # 맨 'a NN'
     "la prima equivale a 12 días de salario por cada año",
     "my age settings are for a 13 year old",
@@ -117,6 +117,12 @@ REJECTED = [
 @pytest.mark.parametrize("text", REJECTED)
 def test_known_mismatch_types_are_rejected(text):
     assert _top(text) is None, f"{text!r} → {_top(text)} (기대 None)"
+
+
+def test_model_code_resolves_what_the_gate_rejects():
+    """레거시 게이트는 'galaxy a7 tab lite' 를 A7 폰으로 붙이지 않는다(위). 같은 글에 모델코드가 있으면 그 제품이다 —
+    SM-T225 = Galaxy Tab A7 Lite(2026-10-23 모델코드 사전)."""
+    assert _top("samsung galaxy a7 tab lite (sm-t225) oem unlock") == "GTA7L"
 
 
 def test_live_codes_never_come_from_fallback():

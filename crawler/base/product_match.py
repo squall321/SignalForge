@@ -20,6 +20,8 @@ import re
 import unicodedata
 from typing import Dict, List, Optional, Tuple
 
+from base import model_codes as _mc
+
 # 한글 friendly 경계: 다음 글자가 숫자/영문이 아닐 때만 매칭 (한글·공백·구두점 OK)
 _E = r"(?![0-9a-zA-Z])"
 
@@ -1720,10 +1722,17 @@ def infer_all_product_codes(text: Optional[str], *,
             continue
         kept.append((code, span))
 
+    # 모델코드(SM-S938B)는 이름보다 정확하다 — 이름이 없으면 레거시 사전보다 먼저 보고, 이름이 있으면
+    # 모델코드로만 나온 제품을 함께 언급으로 더한다('Galaxy Watch 46mm (SM-R800)' 는 이름 사전이 못 잡았다).
+    by_code = [c for c, _ in _mc.exact_products(text)]
     if not kept:
+        if by_code:
+            role = "compared" if _COMPARE_RE.search(text) else "mentioned"
+            return [(by_code[0], "primary")] + [(c, role) for c in by_code[1:]]
         code = legacy_fallback_code(text) if legacy else None
         return [(code, "primary")] if code else []
     codes = [c for c, _ in kept]
+    codes += [c for c in by_code if c not in codes]
     primary = _pick_primary(text, codes)
     role = "compared" if _COMPARE_RE.search(text) else "mentioned"
     return ([(primary, "primary")]
