@@ -133,12 +133,29 @@ fi
 # 2. Redis 접속 확인 (시스템 서비스)
 # ─────────────────────────────────────────────────────────────────────────────
 echo "→ Redis 접속 확인..."
-if redis-cli -h "${REDIS_HOST:-127.0.0.1}" -p "${REDIS_PORT:-6379}" \
-     ${REDIS_PASSWORD:+-a "$REDIS_PASSWORD"} --no-auth-warning ping \
-     2>/dev/null | grep -q PONG; then
+_redis_ok=0
+if command -v redis-cli >/dev/null 2>&1; then
+  redis-cli -h "${REDIS_HOST:-127.0.0.1}" -p "${REDIS_PORT:-6379}" \
+    ${REDIS_PASSWORD:+-a "$REDIS_PASSWORD"} --no-auth-warning ping 2>/dev/null | grep -q PONG && _redis_ok=1
+elif timeout 3 bash -c "exec 3<>/dev/tcp/${REDIS_HOST:-127.0.0.1}/${REDIS_PORT:-6379}" 2>/dev/null; then
+  _redis_ok=1      # redis-cli 가 없는 박스 — 포트가 열린 것만 본다(인증은 워커 로그에서)
+fi
+if [[ $_redis_ok -eq 1 ]]; then
   echo "✓ Redis ready"
 else
-  echo "[WARN] Redis 응답 없음 — Celery가 시작되지 않을 수 있음"
+  # 한 줄 [WARN] 은 배포 로그에 묻혔다 — cae00 은 Redis 가 없어 워커·beat 가 07-08 부터 한 번도 일하지
+  # 못했는데(Error 111 Connection refused) 아무도 몰랐다(SG-06). 무엇이 멈추는지까지 크게 적는다.
+  cat >&2 <<WARN
+
+⚠⚠⚠ =============================================================================================
+⚠  Redis(${REDIS_HOST:-127.0.0.1}:${REDIS_PORT:-6379}) 응답 없음 — 수집 워커·beat 가 한 건도 일하지 못한다.
+⚠  그동안 수집 · 태깅 · 결함 추출 · 미리 계산하는 뷰 REFRESH · plm-sync-6h · 수집 멈춤 알림이 모두 멈춘다.
+⚠  덤프로만 받는 서버(워커를 쓰지 않는 서버)면 의도된 상태다 — 병합(scripts/drive-sync/merge-from-drive.sh)이
+⚠  뷰를 다시 채우고, PLM 거울은 bash scripts/plm-sync.sh 를 cron 에 걸어 받는다.
+⚠  수집하는 서버면 Redis 부터 띄운 뒤 bash scripts/up.sh 를 다시 돈다.
+⚠⚠⚠ =============================================================================================
+
+WARN
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
