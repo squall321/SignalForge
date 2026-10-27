@@ -16,6 +16,11 @@ for _p in ("/shared", str(_pathlib.Path(__file__).resolve().parents[2] / "shared
         _sys.path.insert(0, _p)
 from keyword_match import all_tokens_clause, keyword_clause  # noqa: E402
 
+# 이슈가 아닌 메타 태그 — model_mention 은 모델 이름만 나와도, comparison 은 그때마다 가산돼(categorizer)
+# 비교가 없는 글에도 붙는다. 이슈 순위 1·2위를 차지해 '비교' 가 최대 이슈로 읽혔다(SG-10). 이슈를 줄 세우는
+# 곳(차트·상위 이슈·요약·브리핑)에서는 뺀다.
+META_CATEGORIES = ["comparison", "model_mention"]
+
 
 def _parse_dt(s: str):
     """'YYYY-MM-DD' 또는 ISO 타임스탬프 → datetime. asyncpg 는 str 를 안 받으므로 객체로 변환."""
@@ -104,6 +109,7 @@ async def get_top_issues_tool(
         WHERE p.code = :product_code
           AND v.collected_at >= NOW() - make_interval(days => :period_days)
           AND v.categories IS NOT NULL
+          AND cat <> ALL(:meta)
         GROUP BY cat
         ORDER BY total_count DESC
         LIMIT :top_n
@@ -114,6 +120,7 @@ async def get_top_issues_tool(
             "product_code": product_code.upper(),
             "period_days": period_days,
             "top_n": top_n,
+            "meta": META_CATEGORIES,
         })).mappings().all()
         return [dict(r) for r in rows]
 

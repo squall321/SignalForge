@@ -68,7 +68,9 @@ async def _run_async_checks():
 
     # ② 카테고리 분포
     r = await chart_category_distribution_tool(top_n=10)
-    assert set(r.keys()) == STD_KEYS
+    # 메타 태그(comparison·model_mention)는 막대에서 빠져 meta_tags 로 따로 온다(SG-10)
+    assert set(r.keys()) == STD_KEYS | {"meta_tags", "meta_note"}
+    assert not {d["category"] for d in r["raw"]} & {"comparison", "model_mention"}
     json.dumps(r["echarts_option"])
 
     # ③ 위기 정합 (backend /deep/crisis-cases 와 동일 정의)

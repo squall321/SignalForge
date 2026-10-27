@@ -125,20 +125,23 @@ async def get_voc_summary_tool(product_code: str, period_days: int = 7) -> str:
 
     # 상위 카테고리
     cat_stmt = text("""
-        SELECT unnest(v.categories) AS cat, COUNT(*) AS cnt
+        SELECT cat, COUNT(*) AS cnt
         FROM voc_active v
-        JOIN products p ON p.id = v.product_id
+        JOIN products p ON p.id = v.product_id,
+             unnest(v.categories) AS cat
         WHERE p.code = :product_code
           AND v.collected_at >= NOW() - make_interval(days => :period_days)
           AND v.categories IS NOT NULL
+          AND cat <> ALL(:meta)
         GROUP BY cat ORDER BY cnt DESC LIMIT 5
     """)
 
     params = {"product_code": product_code.upper(), "period_days": period_days}
 
+    from tools.query import META_CATEGORIES
     async with get_db_session() as db:
         stats = (await db.execute(stats_stmt, params)).mappings().one_or_none()
-        cats = (await db.execute(cat_stmt, params)).mappings().all()
+        cats = (await db.execute(cat_stmt, {**params, "meta": META_CATEGORIES})).mappings().all()
         if not stats or stats["total"] == 0:
             # '데이터 없음' 을 사실처럼 말하지 않는다 — 태깅이 비었는지·카탈로그에 없는지·기간에만 없는지
             # (cae00 2026-10-27, 제품 A 를 가리키는 voc 0건인데 이름이 든 글은 수백 건, SG-02)

@@ -9,6 +9,7 @@ from typing import Optional, List
 from sqlalchemy import text
 
 from db import get_db_session
+from tools.query import META_CATEGORIES
 
 
 # ── 한국어/영어 불용어 (간단한 토크나이저용) ─────────────────────────────────
@@ -100,10 +101,11 @@ async def daily_briefing_tool(date: Optional[str] = None) -> str:
     """)
 
     top_categories_stmt = text("""
-        SELECT unnest(v.categories) AS cat, COUNT(*) AS cnt
-        FROM voc_active v
+        SELECT cat, COUNT(*) AS cnt
+        FROM voc_active v, unnest(v.categories) AS cat
         WHERE v.collected_at >= :start AND v.collected_at < :end
           AND v.categories IS NOT NULL
+          AND cat <> ALL(:meta)
         GROUP BY cat ORDER BY cnt DESC LIMIT 5
     """)
 
@@ -120,7 +122,7 @@ async def daily_briefing_tool(date: Optional[str] = None) -> str:
     async with get_db_session() as db:
         overall = (await db.execute(overall_stmt, params)).mappings().one_or_none()
         top_products = (await db.execute(top_products_stmt, params)).mappings().all()
-        top_cats = (await db.execute(top_categories_stmt, params)).mappings().all()
+        top_cats = (await db.execute(top_categories_stmt, {**params, "meta": META_CATEGORIES})).mappings().all()
         neg_spikes = (await db.execute(neg_spike_stmt, params)).mappings().all()
 
     if not overall or overall["total"] == 0:

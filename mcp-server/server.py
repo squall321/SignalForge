@@ -452,6 +452,9 @@ async def chart_category_distribution(
 ) -> dict:
     """카테고리별 VOC 분포를 가로 막대 차트 규격으로 반환. product_code 생략 시 전체.
 
+    막대는 이슈 카테고리만입니다. comparison(경쟁사 비교)·model_mention(모델 언급)은 글의 성격 표지라
+    meta_tags 로 따로 줍니다 — 모델 이름만 나와도 붙어 '최대 이슈' 로 읽으면 틀립니다.
+
     Args:
         product_code: 제품 한정 — 선택
         top_n: 상위 카테고리 수 (기본 15, 최대 50)

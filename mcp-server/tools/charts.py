@@ -11,6 +11,7 @@ from datetime import date
 from typing import Optional, List
 from sqlalchemy import text
 from db import get_db_session
+from tools.query import META_CATEGORIES   # 이슈가 아닌 메타 태그(comparison·model_mention) — 막대에서 뺀다(SG-10)
 from tools.chart_spec import (
     build_line, build_bar, build_timeline, build_graph, chart_response,
 )
@@ -104,7 +105,9 @@ async def chart_category_distribution_tool(
     product_code: Optional[str] = None, top_n: int = 15,
     days: int = 0, country: Optional[str] = None,
 ) -> dict:
-    """카테고리별 VOC 분포 → 가로 막대. days=0 전기간, country 지정 시 해당국으로 드릴다운."""
+    """카테고리별 VOC 분포 → 가로 막대. days=0 전기간, country 지정 시 해당국으로 드릴다운.
+
+    메타 태그(comparison · model_mention)는 막대에서 빼고 meta_tags 로 따로 준다."""
     top_n = max(1, min(top_n, 50))
     filt = "AND p.code = :code" if product_code else ""
     dfilt = "AND v.published_at >= NOW() - make_interval(days => :days)" if days else ""
@@ -114,9 +117,9 @@ async def chart_category_distribution_tool(
                ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
         FROM voc_active v {"JOIN products p ON p.id = v.product_id" if product_code else ""}
         WHERE v.categories IS NOT NULL {filt} {dfilt} {cfilt}
-        GROUP BY cat ORDER BY cnt DESC LIMIT :top_n
+        GROUP BY cat ORDER BY cnt DESC
     """)
-    params: dict = {"top_n": top_n}
+    params: dict = {}
     if product_code:
         params["code"] = product_code.upper()
     if days:
@@ -125,8 +128,10 @@ async def chart_category_distribution_tool(
         params["country"] = country.upper()
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
-    raw = [{"category": r["cat"], "voc_count": int(r["cnt"]),
-            "avg_score": float(r["avg_score"] or 0)} for r in rows]
+    cats = [{"category": r["cat"], "voc_count": int(r["cnt"]),
+             "avg_score": float(r["avg_score"] or 0)} for r in rows]
+    raw = [c for c in cats if c["category"] not in META_CATEGORIES][:top_n]
+    meta = [c for c in cats if c["category"] in META_CATEGORIES]
     scope = []
     if product_code: scope.append(product_code.upper())
     if country: scope.append(country.upper())
@@ -134,8 +139,12 @@ async def chart_category_distribution_tool(
     label = " — ".join(scope)
     opt = build_bar([d["category"] for d in raw], [d["voc_count"] for d in raw],
                     f"카테고리별 VOC 분포 ({label})", horizontal=True)
-    return chart_response("bar", raw, opt,
-                          f"{label} 상위 {len(raw)}개 카테고리 / 1위 {raw[0]['category'] if raw else '-'}")
+    out = chart_response("bar", raw, opt,
+                         f"{label} 상위 {len(raw)}개 이슈 카테고리 / 1위 {raw[0]['category'] if raw else '-'}")
+    out["meta_tags"] = meta
+    out["meta_note"] = ("comparison · model_mention 은 이슈가 아니라 글의 성격 표지라 막대에서 뺐다 — "
+                        "model_mention 은 모델 이름만 나와도, comparison 은 그때마다 함께 붙어 비교가 없는 글에도 있다")
+    return out
 
 
 # ── ③ 위기 타임라인 ──────────────────────────────────────────
