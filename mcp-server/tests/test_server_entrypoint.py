@@ -42,3 +42,19 @@ def test_all_defined_tools_are_before_entrypoint():
     missing = [d for d in defined if d not in before]
     assert not missing, f"기동 블록 뒤에 묻힌 도구: {missing}"
     assert len(defined) >= 34, f"도구가 {len(defined)}개뿐이다 — 회귀 의심"
+
+
+def test_server_imports_registers_every_tool_and_semantic():
+    """server.py 를 실제로 import 해 도구가 다 등록되고 시맨틱 import 가 서는지 본다 — 소스만 읽는 위 시험은
+    의존성 고장을 못 잡는다. 2026-10-27 실측: requirements 를 풀어 둔 채 다시 지은 이미지는 mcp 2.x 가 깔려
+    `mcp.server.fastmcp` 가 없어 서버가 아예 안 떴고, cae00 이미지는 numpy 가 없어 시맨틱이 꺼져 있었다."""
+    import asyncio
+    import importlib
+    import sys
+
+    sys.path.insert(0, str(SERVER.parent))
+    server = importlib.import_module("server")
+    tools = asyncio.run(server.mcp.list_tools())
+    defined = re.findall(r"@mcp\.tool\(\)\s*\nasync def (\w+)", SERVER.read_text())
+    assert len(tools) == len(defined), (len(tools), len(defined))
+    assert getattr(server, "_SEM_NOTE", None) is None, server._SEM_NOTE

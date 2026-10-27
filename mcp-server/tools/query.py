@@ -14,7 +14,7 @@ import sys as _sys  # noqa: E402
 for _p in ("/shared", str(_pathlib.Path(__file__).resolve().parents[2] / "shared")):
     if _p not in _sys.path:
         _sys.path.insert(0, _p)
-from keyword_match import keyword_clause  # noqa: E402
+from keyword_match import all_tokens_clause, keyword_clause  # noqa: E402
 
 
 def _parse_dt(s: str):
@@ -159,9 +159,50 @@ async def search_voc_tool(
     keyword: str, product_code: Optional[str] = None, limit: int = 30,
     days: Optional[int] = None, order: str = "recent", match: str = "auto",
 ) -> List[dict]:
+    return (await search_voc_detail(keyword, product_code, limit, days, order, match))["results"]
+
+
+async def search_voc_detail(
+    keyword: str, product_code: Optional[str] = None, limit: int = 30,
+    days: Optional[int] = None, order: str = "recent", match: str = "auto",
+) -> dict:
+    """키워드 검색 — {total, truncated, results, match_mode, notes}.
+
+    auto 로 0건이면 더 느슨한 경로로 다시 찾는다(SG-07). 한국어 여러 낱말은 auto 가 통째 부분일치라
+    '폴드 힌지 먼지' 처럼 낱말 순서·띄어쓰기가 조금만 달라도 0건이었다(match='fts' 면 2건).
+    차례 — 낱말 모두 일치(순서 무관) → 번역문 FTS(AND). 빈 결과에는 왜 비었는지 notes 를 단다.
+    """
+    rows, used = await _search_rows(keyword, product_code, limit, days, order, match)
+    tried, notes = [used], []
+    if not rows and (match or "auto").lower() == "auto" and len((keyword or "").split()) > 1:
+        for alt in ("all_tokens", "fts"):
+            if alt == used:
+                continue
+            rows, alt_used = await _search_rows(keyword, product_code, limit, days, order, alt)
+            tried.append(alt_used)
+            if rows:
+                notes.append(f"'{used}' 로 0건이라 '{alt_used}'(" + ("낱말 모두 · 순서 무관" if alt == "all_tokens"
+                             else "영어 번역문 FTS · 낱말 모두") + ")로 찾았다")
+                used = alt_used
+                break
+    if not rows:
+        notes.append(f"키워드 '{keyword}' 에 맞는 글이 없다(시도한 경로: {', '.join(tried)})"
+                     + (f" — 제품 {product_code} 범위 안에서" if product_code else "")
+                     + (f" · 최근 {days}일" if days else ""))
+    return {"total": len(rows), "truncated": len(rows) >= limit, "results": rows,
+            "match_mode": used, "notes": notes}
+
+
+async def _search_rows(keyword, product_code, limit, days, order, match):
     # products 는 LEFT JOIN — 제품 태깅은 일부라 INNER JOIN 시 미태깅 VOC 가 조용히
     # 누락된다. 검색은 전체 voc_active 를 대상으로 해야 한다(product_code 지정 시만 좁힘).
-    kw_clause, kw_params, used_match = _keyword_clause(keyword, match)
+    if match == "all_tokens":
+        cl = all_tokens_clause((keyword or "").split(), prefix="kt")
+        if not cl:
+            return [], "all_tokens"
+        kw_clause, kw_params, used_match = cl[0], cl[1], "all_tokens"
+    else:
+        kw_clause, kw_params, used_match = _keyword_clause(keyword, match)
     conditions = [kw_clause]
     params: dict = {"limit": limit, **kw_params}
 
@@ -203,7 +244,7 @@ async def search_voc_tool(
 
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
-        return [dict(r) for r in rows]
+        return [dict(r) for r in rows], used_match
 
 
 # ── 제품명 → 제품 코드 해석 ───────────────────────────────────────────────

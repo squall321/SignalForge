@@ -6,24 +6,43 @@ from mcp.server.fastmcp import FastMCP
 from typing import Optional
 import os, asyncio
 
-from tools.query import query_voc_tool, get_top_issues_tool, search_voc_tool, resolve_product_keyword_tool
+from tools.query import (query_voc_tool, get_top_issues_tool, search_voc_detail,
+                         resolve_product_keyword_tool)
 
-# 시맨틱 검색은 crawler 의 정본 사전(/crawler 바인드)을 import 한다. 바인드가 빠진 채
-# 재기동되면 여기서 실패하는데, 그 때문에 도구 35개 전체가 죽으면 안 된다 —
+# 시맨틱 검색은 crawler 의 정본 사전(/crawler 바인드)과 numpy(이미지)를 import 한다. 어느 하나가
+# 빠진 채 재기동되면 여기서 실패하는데, 그 때문에 도구 전체가 죽으면 안 된다 —
 # 검색은 예전 키워드 검색으로 돌리고, 원인을 로그와 결과(notes)에 남긴다.
+# 원인은 예외 종류로 가른다 — 2026-10-27 cae00 은 numpy 가 없는 이미지였는데 문구가 '/crawler 바인드'
+# 를 짚어 엉뚱한 곳을 보게 했다.
+_CODE_MODULES = {"base", "nlp", "ontology", "keyword_match", "tools"}
+
+
+def _semantic_import_note(err: Exception) -> str:
+    name = (getattr(err, "name", None) or "").split(".")[0]
+    if isinstance(err, ModuleNotFoundError) and name and name not in _CODE_MODULES:
+        return (f"sf-mcp 이미지에 파이썬 패키지 '{name}' 가 없다 — mcp-server/requirements.txt 로 "
+                f"apptainer/sif/mcp.sif 를 다시 지어야 한다(키워드 검색으로 찾았다)")
+    if isinstance(err, ModuleNotFoundError) and name in _CODE_MODULES:
+        return (f"코드 모듈 '{name}' 를 못 찾는다 — sf-mcp 에 /crawler·/shared 바인드가 있어야 한다"
+                f"(scripts/up.sh 로 다시 띄운다, 키워드 검색으로 찾았다)")
+    return f"온톨로지를 불러오지 못해 키워드 검색으로 찾았다 ({err!r})"
+
+
 try:
     from tools.semantic import semantic_search_tool, get_ontology_tool
+    print("[semantic] semantic import ok", flush=True)        # 기동 스모크 — up.sh 가 이 줄을 본다
 except Exception as _sem_err:  # noqa: BLE001
     import logging as _logging
     _logging.getLogger(__name__).exception("시맨틱 검색 비활성 — 온톨로지 import 실패")
-    _SEM_NOTE = f"온톨로지를 불러오지 못해 키워드 검색으로 찾았다 ({_sem_err!r}) — sf-mcp 에 /crawler 바인드가 필요하다"
+    _SEM_NOTE = _semantic_import_note(_sem_err)
+    print(f"[semantic] semantic import FAILED — {_SEM_NOTE}", flush=True)
 
     async def semantic_search_tool(query, product_code=None, limit=30, days=None,
                                    order="relevance", match="auto"):
-        rows = await search_voc_tool(query, product_code, min(limit, 100), days,
-                                     "recent" if order == "relevance" else order, match)
-        return {"query": query, "strategy": "keyword", "interpretation": {"notes": [_SEM_NOTE]},
-                "total": len(rows), "results": rows}
+        d = await search_voc_detail(query, product_code, min(limit, 100), days,
+                                    "recent" if order == "relevance" else order, match)
+        return {"query": query, "strategy": "keyword", "match_mode": d["match_mode"],
+                "interpretation": {"notes": [_SEM_NOTE] + d["notes"]}, "total": d["total"], "results": d["results"]}
 
     async def get_ontology_tool(concept=None):
         return {"error": _SEM_NOTE}
@@ -138,7 +157,7 @@ async def search_voc(
     order: str = "relevance",
     match: str = "auto",
     semantic: bool = True,
-) -> list:
+) -> dict:
     """
     VOC 를 **뜻으로** 검색합니다. 한국어·영어·섞어 써도 됩니다 — 온톨로지가 자동 해석합니다.
 
@@ -162,6 +181,10 @@ async def search_voc(
     결과의 product_name 이 비어 있으면 본문에 특정 모델명이 없는 글입니다(일반 토론·짧은
     댓글·브랜드만 언급) — 처리 실패가 아닙니다. 현재 태깅률은 get_unmapped_voc 의 coverage.
 
+    반환은 늘 객체입니다 — {total, results, strategy, match_mode, notes}. results 가 비었으면
+    notes 에 까닭(시도한 경로·범위·기간)이 있습니다 — 0건을 "VOC 가 없다" 로 단정하지 마십시오.
+    strategy 가 'keyword' 면 시맨틱이 꺼졌거나 개념을 못 찾은 것이니 notes 를 함께 전하십시오.
+
     Args:
         keyword: 검색어. 자연어 그대로 ('S25 울트라 발열 불만', '최근 폴드 주름')
         product_code: 특정 제품으로 범위 한정 — 선택 (해석된 제품보다 우선)
@@ -172,10 +195,14 @@ async def search_voc(
         semantic: False 면 온톨로지 없이 예전 키워드 검색만 씁니다
     """
     if not semantic:
-        return await search_voc_tool(keyword, product_code, min(limit, 100), days,
-                                     "recent" if order == "relevance" else order, match)
+        d = await search_voc_detail(keyword, product_code, min(limit, 100), days,
+                                    "recent" if order == "relevance" else order, match)
+        return {"total": d["total"], "truncated": d["truncated"], "results": d["results"], "strategy": "keyword",
+                "match_mode": d["match_mode"], "notes": d["notes"]}
     r = await semantic_search_tool(keyword, product_code, limit, days, order, match)
-    return r["results"]
+    return {"total": r["total"], "results": r["results"], "strategy": r["strategy"],
+            "match_mode": r.get("match_mode") or r["strategy"],
+            "notes": (r.get("interpretation") or {}).get("notes", [])}
 
 
 @mcp.tool()

@@ -43,7 +43,7 @@ def test_unknown_order_falls_back_to_recent():
 def test_days_param_exists_and_uses_published_at():
     """collected_at 은 백필 때문에 옛 글도 최근값이라 날짜 필터로 못 쓴다."""
     fn = _q().search_voc_tool
-    src = inspect.getsource(fn)
+    src = inspect.getsource(_q()._search_rows)          # SQL 은 _search_rows 가 짓는다(2026-10-27 폴백 분리)
     assert "days" in inspect.signature(fn).parameters
     m = re.search(r"make_interval\(days => :days\)", src)
     assert m, "days 필터가 없다"
@@ -57,7 +57,7 @@ def test_recent_order_excludes_future_dates():
     한국 커뮤니티의 연도 없는 'MM-DD' 를 올해로 가정하면 연말 글이 미래가 된다.
     실측 — 오늘이 2026-09-12 인데 2026-12-27·12-22·12-18 이 검색 1위였다.
     """
-    src = inspect.getsource(_q().search_voc_tool)
+    src = inspect.getsource(_q()._search_rows)
     assert "published_at <= NOW()" in src, "미래 날짜 방어가 없다"
     # engagement 정렬에는 걸지 않는다(바이럴 발굴은 정렬이 날짜와 무관)
     assert "order_sql_is_recent" in src
@@ -114,3 +114,35 @@ def test_underscore_escaped():
 def test_match_override_respected():
     assert _q()._keyword_clause("발열", "fts")[2] == "fts"
     assert _q()._keyword_clause("overheating", "substring")[2] == "substring"
+
+
+
+def test_auto_zero_hits_falls_back_to_looser_paths():
+    """auto 의 통째 부분일치가 0건이면 낱말 모두 → 번역문 FTS 로 다시 찾는다(SG-07 — 세 낱말 한국어 질의가
+    0건, match='fts' 면 2건). 그리고 빈 결과에도 왜 비었는지 notes 가 붙는다."""
+    import asyncio
+    calls = []
+
+    async def fake_rows(keyword, product_code, limit, days, order, match):
+        calls.append(match)
+        if match in ("auto", "substring"):
+            return [], "substring"
+        if match == "all_tokens":
+            return [], "all_tokens"
+        return [{"id": 1}], "fts"
+
+    q = _q()
+    orig = q._search_rows
+    q._search_rows = fake_rows
+    try:
+        d = asyncio.run(q.search_voc_detail("폴드 힌지 먼지", limit=5))
+        assert calls == ["auto", "all_tokens", "fts"] and d["match_mode"] == "fts" and d["total"] == 1
+        assert any("0건이라" in n for n in d["notes"]), d["notes"]
+
+        async def none_rows(*a, **k):
+            return [], "substring"
+        q._search_rows = none_rows
+        d = asyncio.run(q.search_voc_detail("없는 말 조합", limit=5))
+        assert d["total"] == 0 and d["results"] == [] and any("맞는 글이 없다" in n for n in d["notes"]), d
+    finally:
+        q._search_rows = orig

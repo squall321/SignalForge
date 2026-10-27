@@ -465,15 +465,16 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
         if not explained and V.store() is not None:
             qvec = await V.embed_query(query)
         if not it.has_concepts and not product_code and qvec is None:
-            from tools.query import search_voc_tool
-            rows = await search_voc_tool(query, None, limit, days,
+            from tools.query import search_voc_detail
+            kd = await search_voc_detail(query, None, limit, days,
                                          "recent" if order == "relevance" else order, match)
+            rows = kd["results"]
             for r in rows:
                 r.setdefault("score", None)
                 r.setdefault("matched", ["키워드 일치"])
-            return {"query": query, "strategy": "keyword",
+            return {"query": query, "strategy": "keyword", "match_mode": kd["match_mode"],
                     "interpretation": {"concepts": [], "notes": [
-                        "온톨로지 개념도 벡터 색인도 없어 키워드 검색으로 찾았다"], "residual": it.residual},
+                        "온톨로지 개념도 벡터 색인도 없어 키워드 검색으로 찾았다"] + kd["notes"], "residual": it.residual},
                     "total": len(rows), "elapsed_ms": int((time.monotonic() - t0) * 1000),
                     "results": rows}
         sc = _resolve(it, cat, product_code)
@@ -529,6 +530,16 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
     view = _interpretation_view(it, sc, eff_days)
     view["vector"] = vec_info
     view["llm_symptoms"] = llm
+    if not total:
+        # 빈 결과가 '없음' 인지 '범위가 비어 못 찾음' 인지 가른다(SG-07) — 제품으로 좁혔는데 그 제품에
+        # 붙은 글이 0이면 태깅이 비었거나 카탈로그가 어긋난 서버다(cae00 2026-10-27, SG-02)
+        if sc["pids"] and not sc["scope_n"]:
+            view["notes"].append("해석한 제품 범위에 태깅된 글이 0건이다 — 이 서버의 제품 태깅이 비었을 수 있다. "
+                                 "semantic=False(키워드 검색)로 본문을 다시 찾아 보라")
+        else:
+            view["notes"].append("해석한 조건에 맞는 글이 없다"
+                                 + (f"(최근 {eff_days}일)" if eff_days else "")
+                                 + " — 기간·시장·채널을 넓히거나 semantic=False 로 키워드 검색을 해 보라")
     return {"query": query, "strategy": "semantic" if it.has_concepts else "vector",
             "interpretation": view, "total": total,
             "elapsed_ms": int((time.monotonic() - t0) * 1000), "results": results}
