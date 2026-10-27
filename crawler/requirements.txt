@@ -14,3 +14,6 @@ anthropic>=0.30.0
 openai>=1.40.0
 python-dotenv>=1.0.0
 tenacity>=8.3.0
+# 시맨틱 검색 2단계 벡터 저장소·임베딩 적재(base/vector_store·scripts/build_embeddings)가 쓴다 —
+# dev 는 호스트 ~/.local 의 numpy 로 돌아 빠진 줄 몰랐다(2026-10-27)
+numpy>=1.26,<3
