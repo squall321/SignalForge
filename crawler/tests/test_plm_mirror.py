@@ -146,3 +146,41 @@ def test_token_file_forms(tmp_path):
     with pytest.raises(P.NotConfigured) as e:
         P.read_token(bad)
     assert "x" not in str(e.value).replace(str(bad), "")
+
+
+def test_rootdesign_style_key_is_name_code_in_task_code_and_aliases(tmp_path):
+    """코어(rootdesign)는 plm_task key = 과제명, 과제코드는 properties.task_code·별칭, 개명은 renamed_from,
+    개발모델 코드는 model_code 다(cae00 2026-10-27, SG-03·09·12)."""
+    root = tmp_path / "plm"
+    data = {
+        "plm_project": [],
+        "plm_task": [
+            {"key": "감마_C2", "label": "감마_C2", "properties": {"task_code": "TK-77"},
+             "aliases": [{"alias": "TK-77A"}, "GAMMA-C2"], "renamed_from": "감마_C1"},
+            {"key": "델타", "label": "델타", "properties": {}}],          # task_code 없는 과제도 이름으로 찾힌다
+        "plm_model": [{"key": "SM-S938N_KOR", "properties": {"task": "감마_C2", "model_code": "SM-S938N"}}],
+    }
+    P.write_snapshot(root, {}, data)
+    idx = P.PlmIndex(root / P.MIRROR)
+    assert idx.key_is_name
+    assert idx.by_code["tk-77"] == "감마_C2" and idx.by_code["tk-77a"] == "감마_C2" and idx.by_code["gamma-c2"] == "감마_C2"
+    assert "감마_c2" not in idx.by_code, "key(과제명)를 과제코드로 보지 않는다"
+    assert idx.by_name["감마_c2"] == ["감마_C2"] and idx.by_name["감마_c1"] == ["감마_C2"] and idx.by_name["감마"] == ["감마_C2"]
+    assert idx.by_name["델타"] == ["델타"]
+    assert idx.models["SM-S938N_KOR"]["model_code"] == "SM-S938N" and idx.by_model["sm-s938n"] == "SM-S938N_KOR"
+    assert idx.tasks["감마_C2"]["display"] == "TK-77(감마_C2)"
+
+
+def test_old_mirror_file_without_aliases_column_still_reads(tmp_path):
+    import sqlite3
+    root = tmp_path / "plm"
+    root.mkdir()
+    con = sqlite3.connect(root / P.MIRROR)
+    con.executescript("""CREATE TABLE objects (type TEXT, key TEXT, label TEXT, properties TEXT, previous_keys TEXT,
+                         merged_into TEXT, updated_at TEXT, PRIMARY KEY (type, key));
+                         CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT);
+                         INSERT INTO objects VALUES ('plm_task','TK-1','알파','{}','[]',NULL,NULL);""")
+    con.commit()
+    con.close()
+    idx = P.PlmIndex(root / P.MIRROR)
+    assert idx.by_code["tk-1"] == "TK-1" and idx.tasks["TK-1"]["aliases"] == []

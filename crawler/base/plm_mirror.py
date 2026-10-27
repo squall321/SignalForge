@@ -199,9 +199,28 @@ def pull(hub: Hub) -> Tuple[dict, Dict[str, List[dict]]]:
 # ── 쓰기 ────────────────────────────────────────────────────────────────
 _SCHEMA = """
 CREATE TABLE objects (type TEXT NOT NULL, key TEXT NOT NULL, label TEXT, properties TEXT, previous_keys TEXT,
-                      merged_into TEXT, updated_at TEXT, PRIMARY KEY (type, key));
+                      merged_into TEXT, updated_at TEXT, aliases TEXT, PRIMARY KEY (type, key));
 CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT);
 """
+
+
+def _strings(value) -> List[str]:
+    """한 값·목록·{alias|value|name|text: …} 목록 → 글자 목록. 별칭 봉투의 꼴이 허브마다 달라 넉넉히 받는다."""
+    if value is None:
+        return []
+    items = value if isinstance(value, (list, tuple)) else [value]
+    out = []
+    for v in items:
+        if isinstance(v, dict):
+            v = next((v[k] for k in ("alias", "value", "name", "text", "key") if v.get(k)), None)
+        if isinstance(v, (str, int)) and str(v).strip():
+            out.append(str(v).strip())
+    return out
+
+
+def _old_keys(item: dict) -> List[str]:
+    """옛 키 — previous_keys 와 행 봉투의 renamed_from(코어는 개명을 이걸로 보낸다, SG-12)."""
+    return list(dict.fromkeys(_strings(item.get("previous_keys")) + _strings(item.get("renamed_from"))))
 
 
 def _counts(path: Path) -> Dict[str, int]:
@@ -239,9 +258,10 @@ def write_snapshot(root: Path, meta: dict, data: Dict[str, List[dict]], *, host:
         con.executescript(_SCHEMA)
         for slug, items in data.items():
             con.executemany(
-                "INSERT OR REPLACE INTO objects VALUES (?,?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO objects VALUES (?,?,?,?,?,?,?,?)",
                 [(slug, str(it["key"]), it.get("label"), json.dumps(it.get("properties") or {}, ensure_ascii=False),
-                  json.dumps(it.get("previous_keys") or [], ensure_ascii=False), it.get("merged_into"), it.get("updated_at"))
+                  json.dumps(_old_keys(it), ensure_ascii=False), it.get("merged_into"), it.get("updated_at"),
+                  json.dumps(_strings(it.get("aliases")), ensure_ascii=False))
                  for it in items])
         at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         con.executemany("INSERT INTO meta VALUES (?,?)", [
@@ -292,48 +312,70 @@ def _fold(text: str) -> str:
 
 
 class PlmIndex:
-    """거울 파일 하나의 조회 색인. 과제코드(옛 코드 포함)·과제명(차수 접미어를 뗀 것도)·개발모델명·양산모델코드 → 과제."""
+    """거울 파일 하나의 조회 색인 — 과제코드·별칭 → by_code, 과제명(옛 이름·차수 접미어를 뗀 개발명) → by_name,
+    개발모델명·모델코드·양산모델코드 → by_model.
+
+    허브마다 과제의 key 가 다르다. SP 기본 정의(plm-core)는 key = 과제코드인데, 코어 온톨로지(rootdesign —
+    자주검증 Datahub)는 key = **과제명**이고 과제코드는 `properties.task_code` 와 별칭에 있다(cae00 2026-10-27:
+    plm_task 5,663 중 task_code 3,263). task_code 가 하나라도 오면 rootdesign 꼴로 보고 key 를 이름 쪽에 둔다(SG-03).
+    """
 
     def __init__(self, path: Path):
         self.path = Path(path)
         con = sqlite3.connect(f"file:{self.path}?mode=ro", uri=True)
         try:
-            rows = con.execute("SELECT type, key, label, properties, previous_keys FROM objects").fetchall()
+            cols = {r[1] for r in con.execute("PRAGMA table_info(objects)")}
+            alias_col = "aliases" if "aliases" in cols else "NULL"          # 10-27 이전 거울 파일엔 칸이 없다
+            rows = con.execute(f"SELECT type, key, label, properties, previous_keys, {alias_col} FROM objects").fetchall()
             self.meta = {k: v for k, v in con.execute("SELECT k, v FROM meta")}
         finally:
             con.close()
         self.tasks: Dict[str, dict] = {}
         self.models: Dict[str, dict] = {}
         self.projects: Dict[str, str] = {}
-        for typ, key, label, props, prev in rows:
+        for typ, key, label, props, prev, aliases in rows:
             p = json.loads(props or "{}")
             if typ == "plm_task":
                 self.tasks[key] = {"key": key, "label": label or "", "project": p.get("project"),
-                                   "status": p.get("task_status"), "previous_keys": json.loads(prev or "[]"), "models": []}
+                                   "status": p.get("task_status"), "task_code": _strings(p.get("task_code")),
+                                   "previous_keys": json.loads(prev or "[]"), "aliases": json.loads(aliases or "[]"),
+                                   "models": []}
             elif typ == "plm_model":
                 self.models[key] = {"key": key, "label": label or key, "task": p.get("task"),
-                                    "base_code": p.get("base_code"), "mass_model_code": p.get("mass_model_code"),
+                                    "model_code": p.get("model_code"), "base_code": p.get("base_code"),
+                                    "mass_model_code": p.get("mass_model_code"),
                                     "model_kind": p.get("model_kind"), "product_text": p.get("product_text")}
             elif typ == "plm_project":
                 self.projects[key] = label or key
         for m in self.models.values():
             if m["task"] in self.tasks:
                 self.tasks[m["task"]]["models"].append(m["key"])
+        self.key_is_name = any(t["task_code"] for t in self.tasks.values())
         self.by_code: Dict[str, str] = {}
         self.by_name: Dict[str, List[str]] = {}
         self.by_model: Dict[str, str] = {}
+
+        def add_name(name: str, key: str):
+            name = _fold(name)
+            if len(name) < 2:
+                return
+            if key not in self.by_name.setdefault(name, []):
+                self.by_name[name].append(key)
+            core = _REV_SUFFIX.match(name)
+            if core and len(core.group(1)) >= 2 and key not in self.by_name.setdefault(core.group(1), []):
+                self.by_name[core.group(1)].append(key)
+
         for t in self.tasks.values():
-            self.by_code[_fold(t["key"])] = t["key"]
-            for old in t["previous_keys"]:
-                self.by_code.setdefault(_fold(str(old)), t["key"])
-            name = _fold(t["label"])
-            if len(name) >= 2:
-                self.by_name.setdefault(name, []).append(t["key"])
-                core = _REV_SUFFIX.match(name)
-                if core and len(core.group(1)) >= 2:
-                    self.by_name.setdefault(core.group(1), []).append(t["key"])
+            codes = t["task_code"] + t["aliases"] + ([] if self.key_is_name else [t["key"]] + t["previous_keys"])
+            for c in codes:
+                self.by_code.setdefault(_fold(str(c)), t["key"])
+            for n in [t["label"]] + ([t["key"]] + t["previous_keys"] if self.key_is_name else []):
+                add_name(str(n), t["key"])
+            code = (t["task_code"] or [t["key"]])[0]
+            name = t["label"] or t["key"]
+            t["display"] = code if _fold(code) == _fold(name) else f"{code}({name})"
         for m in self.models.values():
-            for name in (m["key"], m["label"], m["mass_model_code"]):
+            for name in (m["key"], m["label"], m["model_code"], m["mass_model_code"]):
                 if name:
                     self.by_model.setdefault(_fold(str(name)), m["key"])
         # 띄어 쓴 과제명은 질의의 낱말 하나로 안 잡힌다 — 질의 해석이 통째로 찾는다(긴 것부터)

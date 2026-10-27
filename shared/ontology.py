@@ -645,8 +645,9 @@ def _plm_products(models: List[dict]) -> Tuple[List[str], List[str]]:
     """개발모델들 → (제품 코드, 사전에 없는 기본 코드). 모델코드 사전이 다리다(개발모델은 SignalForge 제품을 모른다)."""
     prods, missing = [], []
     for m in models:
-        base = next((b for b in (_mc.base_of(str(x)) for x in (m.get("base_code"), m.get("mass_model_code"), m.get("key"))
-                                 if x) if b), None)
+        # 코어(rootdesign)는 model_code, SP 기본 정의는 base_code·mass_model_code 를 쓴다 — model_code 를 먼저(SG-09)
+        base = next((b for b in (_mc.base_of(str(x)) for x in (m.get("model_code"), m.get("base_code"),
+                                                              m.get("mass_model_code"), m.get("key")) if x) if b), None)
         got = _mc.family_of(base) if base else ()
         if got:
             prods.extend(got)
@@ -686,7 +687,7 @@ def _detect_plm(it: Interpretation, spans: _Spans, plm):
     for s, e, kind, models, tasks, raw in sorted(hits, key=lambda h: (h[0], -(h[1] - h[0]))):
         if not spans.free(s, e):
             continue
-        tlabel = ", ".join(f"{t}({plm.tasks[t]['label']})" for t in dict.fromkeys(tasks) if t in plm.tasks) or "-"
+        tlabel = ", ".join(plm.tasks[t].get("display") or t for t in dict.fromkeys(tasks) if t in plm.tasks) or "-"
         prods, missing = _plm_products(models)
         if not prods:
             it.notes.append(f"과제 {tlabel} 는 제품에 이어지지 않는다 — 개발모델의 모델코드가 사전에 없다"

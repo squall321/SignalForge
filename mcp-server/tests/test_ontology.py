@@ -273,3 +273,15 @@ def test_task_without_known_model_code_falls_back_to_words(plm):
 def test_no_plm_means_names_are_plain_words():
     it = O.interpret("알파 발열")
     assert not it.products and it.residual == ["알파"]
+
+
+def test_rootdesign_task_code_and_model_code_resolve(tmp_path):
+    """rootdesign 꼴 — key=과제명, 과제코드는 task_code, 개발모델은 model_code(SG-03·09)."""
+    data = {"plm_project": [], "plm_model": [{"key": "M-1", "properties": {"task": "감마_C2", "model_code": "SM-S938N"}}],
+            "plm_task": [{"key": "감마_C2", "label": "감마_C2", "properties": {"task_code": "TK-77"}}]}
+    _plm.write_snapshot(tmp_path, {}, data)
+    idx = _plm.PlmIndex(tmp_path / _plm.MIRROR)
+    for q in ("TK-77 발열", "감마 발열", "감마_C2 발열"):
+        it = O.interpret(q, plm=idx)
+        assert it.products == ["GS25U"] and it.residual == [], (q, it.products, it.residual, it.notes)
+        assert any("TK-77(감마_C2)" in n for n in it.notes), it.notes
