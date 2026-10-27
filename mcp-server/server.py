@@ -386,12 +386,14 @@ async def alert_check() -> dict:
 
 
 @mcp.tool()
-async def site_health() -> list:
+async def site_health() -> dict:
     """
-    플랫폼(사이트)별 최근 24시간 활동 현황을 반환합니다.
+    플랫폼(사이트)별 수집 현황과 수집 워커 생존을 반환합니다.
 
-    각 플랫폼의 24h 수집량, 부정 건수, 평균 감성, 마지막 수집 시각,
-    그리고 상태(healthy / quiet / stale / no_data_ever)를 포함합니다.
+    반환 — {stale_hours, worker, summary, platforms}. platforms 는 각 플랫폼의 24h 수집량·부정 건수·
+    평균 감성, **전 기간** 마지막 수집 시각, 상태(healthy / stale / no_data_ever)입니다. 정체(stale)는
+    alert_check 와 같은 기준(마지막 수집이 12시간 넘음)입니다. worker.status 가 never_ran 이면 이 서버는
+    수집하지 않고 덤프로만 받는 서버라 마지막 수집 시각은 원천 서버의 것입니다.
     """
     return await site_health_tool()
 

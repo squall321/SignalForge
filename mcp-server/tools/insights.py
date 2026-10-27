@@ -11,6 +11,13 @@ from sqlalchemy import text
 from db import get_db_session
 from tools.query import META_CATEGORIES
 
+# 수집 정체 기준 — alert_check 와 site_health 가 같은 값을 쓴다. 따로 쓰던 때 site_health 는 24시간
+# 창으로만 봐 정체를 'healthy'·'no_data_ever' 로 보였고 alert_check 와 말이 달랐다(SG-08).
+STALE_HOURS = 12
+# 수집 워커 생존 — crawl_jobs 의 마지막 시작이 이보다 오래면 멈춘 것으로 본다
+# (dev 7일 실측 crawl 간격 최대 1h44m · p99 1h, 2026-10-27)
+WORKER_STALE_HOURS = 3
+
 
 # ── 한국어/영어 불용어 (간단한 토크나이저용) ─────────────────────────────────
 _STOPWORDS_EN = {
@@ -217,11 +224,12 @@ async def alert_check_tool() -> dict:
     stale_stmt = text("""
         SELECT pl.code, pl.name,
                MAX(v.collected_at) AS last_seen,
-               EXTRACT(EPOCH FROM (NOW() - MAX(v.collected_at))) / 3600 AS hours_since
+               EXTRACT(EPOCH FROM (NOW() - MAX(v.collected_at))) / 3600 AS hours_since,
+               count(*) OVER () AS stale_total
         FROM platforms pl LEFT JOIN voc_active v ON v.platform_id = pl.id
         GROUP BY pl.code, pl.name
         HAVING MAX(v.collected_at) IS NULL
-            OR MAX(v.collected_at) < NOW() - INTERVAL '12 hours'
+            OR MAX(v.collected_at) < NOW() - make_interval(hours => :stale_h)
         ORDER BY hours_since DESC NULLS FIRST LIMIT 15
     """)
 
@@ -232,14 +240,15 @@ async def alert_check_tool() -> dict:
         surge = (await db.execute(surge_stmt, {
             "min_vol": MIN_VOLUME, "surge": NEG_SURGE_RATIO
         })).mappings().all()
-        stale = (await db.execute(stale_stmt)).mappings().all()
+        stale = (await db.execute(stale_stmt, {"stale_h": STALE_HOURS})).mappings().all()
+    stale_total = int(stale[0]["stale_total"]) if stale else 0
 
     return {
         "thresholds": {
             "neg_ratio": NEG_RATIO_THRESHOLD,
             "min_volume": MIN_VOLUME,
             "neg_surge_ratio": NEG_SURGE_RATIO,
-            "stale_hours": 12,
+            "stale_hours": STALE_HOURS,
         },
         "high_negative_ratio": [
             {
@@ -255,6 +264,7 @@ async def alert_check_tool() -> dict:
                 "surge_ratio": float(r["surge_ratio"]) if r["surge_ratio"] is not None else None,
             } for r in surge
         ],
+        "stale_total": stale_total,
         "stale_platforms": [
             {
                 "platform_code": r["code"], "platform_name": r["name"],
@@ -264,58 +274,99 @@ async def alert_check_tool() -> dict:
         ],
         "summary": (
             f"부정비율 경보 {len(high_neg)}건 · 부정급증 {len(surge)}건 · "
-            f"수집정체 플랫폼 {len(stale)}개"
+            f"수집정체 플랫폼 {stale_total}개" + (f"(목록은 상위 {len(stale)}개)" if stale_total > len(stale) else "")
         ),
     }
 
 
 # ── 3. site_health() ─────────────────────────────────────────────────────────
-async def site_health_tool() -> List[dict]:
-    """플랫폼(사이트)별 최근 24h 활동 현황."""
+async def site_health_tool() -> dict:
+    """플랫폼(사이트)별 수집 현황 — 24h 활동 · 전 기간 마지막 수집 · 정체 판정 · 수집 워커 생존.
+
+    예전에는 마지막 수집을 24시간 창 안에서만 구해, 24h 에 1건이면 'healthy', 0건이면 'no_data_ever'
+    였다(정체에 닿지 않았다). 마지막 수집은 전 기간에서 따로 구하고 정체는 alert_check 와 같은 기준이다.
+    """
     stmt = text("""
-        SELECT
-            pl.code, pl.name, pl.region,
-            COUNT(v.id) AS voc_24h,
-            COUNT(v.id) FILTER (WHERE v.sentiment_label = 'negative') AS neg_24h,
-            ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score,
-            MAX(v.collected_at) AS last_collected,
-            EXTRACT(EPOCH FROM (NOW() - MAX(v.collected_at))) / 3600 AS hours_since_last
+        WITH last AS (
+            SELECT platform_id, MAX(collected_at) AS last_collected
+            FROM voc_active GROUP BY platform_id
+        ),
+        day AS (
+            SELECT platform_id, COUNT(*) AS voc_24h,
+                   COUNT(*) FILTER (WHERE sentiment_label = 'negative') AS neg_24h,
+                   ROUND(AVG(sentiment_score)::numeric, 3) AS avg_score
+            FROM voc_active
+            WHERE collected_at > NOW() - INTERVAL '24 hours'
+            GROUP BY platform_id
+        )
+        SELECT pl.code, pl.name, pl.region, pl.is_active,
+               COALESCE(d.voc_24h, 0) AS voc_24h, COALESCE(d.neg_24h, 0) AS neg_24h, d.avg_score,
+               l.last_collected,
+               EXTRACT(EPOCH FROM (NOW() - l.last_collected)) / 3600 AS hours_since_last
         FROM platforms pl
-        LEFT JOIN voc_active v
-               ON v.platform_id = pl.id
-              AND v.collected_at > NOW() - INTERVAL '24 hours'
-        GROUP BY pl.code, pl.name, pl.region
+        LEFT JOIN last l ON l.platform_id = pl.id
+        LEFT JOIN day d  ON d.platform_id = pl.id
         ORDER BY voc_24h DESC, pl.code
+    """)
+    worker_stmt = text("""
+        SELECT MAX(started_at) AS last_started,
+               EXTRACT(EPOCH FROM (NOW() - MAX(started_at))) / 3600 AS hours_since,
+               COUNT(*) FILTER (WHERE started_at > NOW() - INTERVAL '24 hours') AS jobs_24h,
+               COUNT(*) FILTER (WHERE started_at > NOW() - INTERVAL '24 hours'
+                                  AND status = 'failed') AS failed_24h
+        FROM crawl_jobs
     """)
 
     async with get_db_session() as db:
         rows = (await db.execute(stmt)).mappings().all()
+        w = (await db.execute(worker_stmt)).mappings().one()
 
-    out = []
+    platforms = []
     for r in rows:
         hrs = r["hours_since_last"]
         last = r["last_collected"]
-        if r["voc_24h"] and r["voc_24h"] > 0:
-            status = "healthy"
-        elif hrs is not None and hrs <= 24:
-            status = "quiet"
-        elif hrs is None:
+        if last is None:
             status = "no_data_ever"
-        else:
+        elif hrs > STALE_HOURS:
             status = "stale"
-
-        out.append({
+        else:
+            status = "healthy"
+        platforms.append({
             "platform_code": r["code"],
             "platform_name": r["name"],
             "region": r["region"],
-            "voc_24h": r["voc_24h"] or 0,
-            "negative_24h": r["neg_24h"] or 0,
+            "is_active": r["is_active"],
+            "voc_24h": r["voc_24h"],
+            "negative_24h": r["neg_24h"],
             "avg_sentiment": float(r["avg_score"]) if r["avg_score"] is not None else None,
             "last_collected": last.isoformat() if last else None,
             "hours_since_last": round(float(hrs), 1) if hrs is not None else None,
             "status": status,
         })
-    return out
+
+    if w["last_started"] is None:
+        wstatus, wnote = "never_ran", ("이 서버에서 수집 워커가 한 번도 일하지 않았다(crawl_jobs 0행) — 데이터는 "
+                                      "덤프 병합으로만 들어오므로 마지막 수집 시각은 원천 서버의 것이다")
+    elif float(w["hours_since"]) > WORKER_STALE_HOURS:
+        wstatus, wnote = "stalled", (f"마지막 수집 작업이 {float(w['hours_since']):.1f}시간 전이다 — 워커·beat·"
+                                     f"Redis 가 살아 있는지 본다")
+    else:
+        wstatus, wnote = "alive", None
+    counts = Counter(p["status"] for p in platforms)
+    return {
+        "stale_hours": STALE_HOURS,
+        "worker": {
+            "status": wstatus,
+            "last_job_started": w["last_started"].isoformat() if w["last_started"] else None,
+            "hours_since_last_job": round(float(w["hours_since"]), 1) if w["hours_since"] is not None else None,
+            "jobs_24h": int(w["jobs_24h"] or 0),
+            "failed_24h": int(w["failed_24h"] or 0),
+            **({"note": wnote} if wnote else {}),
+        },
+        "summary": (f"healthy {counts.get('healthy', 0)} · stale {counts.get('stale', 0)} · "
+                    f"no_data_ever {counts.get('no_data_ever', 0)} (정체 기준 {STALE_HOURS}h) · 워커 {wstatus}"),
+        "platforms": platforms,
+    }
 
 
 # ── 4. top_emerging_keywords(period_days) ────────────────────────────────────

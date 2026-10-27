@@ -64,12 +64,17 @@ async def _run_async_tests():
     print(f"[2] alert_check OK  {alerts['summary']}")
 
     # 3. site_health
-    sites = await site_health_tool()
-    assert isinstance(sites, list) and len(sites) > 0
+    sh = await site_health_tool()
+    # 객체로 바뀌었다 — 전 기간 마지막 수집 · alert_check 와 같은 12h 정체 기준 · 워커 생존(SG-08)
+    sites = sh["platforms"]
+    assert sh["stale_hours"] == alerts["thresholds"]["stale_hours"] and len(sites) > 0
+    assert sh["worker"]["status"] in {"alive", "stalled", "never_ran"}
     statuses = {s["status"] for s in sites}
-    assert statuses & {"healthy", "quiet", "stale", "no_data_ever"}
+    assert statuses <= {"healthy", "stale", "no_data_ever"}
+    stale_n = sum(1 for s in sites if s["status"] in ("stale", "no_data_ever"))
+    assert stale_n == alerts["stale_total"], "site_health 와 alert_check 가 정체 수에서 같은 말을 한다"
     healthy_n = sum(1 for s in sites if s["status"] == "healthy")
-    print(f"[3] site_health OK  플랫폼 {len(sites)}개 (healthy={healthy_n})")
+    print(f"[3] site_health OK  플랫폼 {len(sites)}개 (healthy={healthy_n}, 워커 {sh['worker']['status']})")
 
     # 4. top_emerging_keywords (7일, 전체)
     kw = await top_emerging_keywords_tool(period_days=7, top_n=10)
