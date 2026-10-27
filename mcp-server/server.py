@@ -86,9 +86,20 @@ from tools.coverage import (
     get_kg_relations_tool,
     get_unmapped_voc_tool,
 )
+from tools.pii import masked
+
+
+class _MaskedFastMCP(FastMCP):
+    """나가는 응답은 개인정보를 기본으로 가린다(SG-18 (가)) — 도구마다 잊지 않게 등록 길목에서 감싼다.
+    원문(작성자·연락처·계정)은 SignalForge 화면에서 본다. 가리는 범위는 tools/pii.py."""
+
+    def tool(self, *args, **kwargs):
+        register = super().tool(*args, **kwargs)
+        return lambda fn: register(masked(fn))
+
 
 # @lat: mcp — [[mcp-server]] 참조. 7개 도구 정의.
-mcp = FastMCP(
+mcp = _MaskedFastMCP(
     name="SignalForge VOC Intelligence",
     instructions="Samsung Galaxy 제품군 VOC 데이터베이스에 질문하는 MCP 서버",
     port=int(os.getenv("MCP_PORT", "8001")),
@@ -184,6 +195,7 @@ async def search_voc(
     반환은 늘 객체입니다 — {total, results, strategy, match_mode, notes}. results 가 비었으면
     notes 에 까닭(시도한 경로·범위·기간)이 있습니다 — 0건을 "VOC 가 없다" 로 단정하지 마십시오.
     strategy 가 'keyword' 면 시맨틱이 꺼졌거나 개념을 못 찾은 것이니 notes 를 함께 전하십시오.
+    작성자 이름·계정·메일·전화·IMEI·일련번호 꼴은 가려서 나갑니다(개인정보 기본 가림, 모든 도구 공통).
 
     Args:
         keyword: 검색어. 자연어 그대로 ('S25 울트라 발열 불만', '최근 폴드 주름')
