@@ -1,7 +1,27 @@
 # MCP 보강 R2 — matview/미태깅 차원 도구. 제품 생애주기·지식그래프 관계·미태깅 VOC 점검.
+import logging
+import re
 from typing import Optional, List
 from db import get_db_session
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
+
+log = logging.getLogger(__name__)
+
+# 미리 계산하는 뷰가 아직 비면 SQL 원문 오류가 사용자에게 그대로 갔다(cae00 2026-10-27 — Redis 가 없어
+# beat 가 한 번도 REFRESH 하지 못했다, SG-06). '집계 준비 중' 으로 답하고 로그에 남긴다.
+_UNPOPULATED = re.compile(r'materialized view "([^"]+)" has not been populated')
+
+
+def _not_ready(err: Exception) -> Optional[dict]:
+    m = _UNPOPULATED.search(str(err))
+    if not m:
+        return None
+    view = m.group(1)
+    log.warning("[mv] %s 가 아직 채워지지 않아 '집계 준비 중' 으로 답한다", view)
+    return {"status": "aggregating", "view": view,
+            "note": (f"집계 준비 중 — 미리 계산하는 뷰 {view} 가 이 서버에서 아직 채워지지 않았다(집계 배치가 "
+                     f"돌지 않았다). REFRESH MATERIALIZED VIEW {view} 뒤에 다시 물어 보라")}
 
 
 async def get_product_timeline_tool(
@@ -24,7 +44,13 @@ async def get_product_timeline_tool(
     if recent_months > 0:
         params["rm"] = recent_months
     async with get_db_session() as db:
-        rows = (await db.execute(stmt, params)).mappings().all()
+        try:
+            rows = (await db.execute(stmt, params)).mappings().all()
+        except DBAPIError as e:
+            nr = _not_ready(e)
+            if nr is None:
+                raise
+            return {"product_code": product_code.upper(), "timeline": [], **nr}
     if not rows:
         return {"product_code": product_code.upper(), "timeline": [], "note": "no timeline data"}
     meta = rows[0]
@@ -73,7 +99,13 @@ async def get_kg_relations_tool(
         LIMIT :top_n
     """)
     async with get_db_session() as db:
-        rows = (await db.execute(stmt, params)).mappings().all()
+        try:
+            rows = (await db.execute(stmt, params)).mappings().all()
+        except DBAPIError as e:
+            nr = _not_ready(e)
+            if nr is None:
+                raise
+            return [nr]
         return [dict(r) for r in rows]
 
 

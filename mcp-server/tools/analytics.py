@@ -139,9 +139,12 @@ async def get_voc_summary_tool(product_code: str, period_days: int = 7) -> str:
     async with get_db_session() as db:
         stats = (await db.execute(stats_stmt, params)).mappings().one_or_none()
         cats = (await db.execute(cat_stmt, params)).mappings().all()
-
-    if not stats or stats["total"] == 0:
-        return f"{product_code}: 최근 {period_days}일간 VOC 데이터 없음"
+        if not stats or stats["total"] == 0:
+            # '데이터 없음' 을 사실처럼 말하지 않는다 — 태깅이 비었는지·카탈로그에 없는지·기간에만 없는지
+            # (cae00 2026-10-27, 제품 A 를 가리키는 voc 0건인데 이름이 든 글은 수백 건, SG-02)
+            from tools.query import product_zero_diagnosis
+            d = await product_zero_diagnosis(db, product_code, period_days)
+            return f"{product_code}: 최근 {period_days}일간 이 제품으로 집계된 VOC 0건 [{d['status']}] — {d['note']}"
 
     total = stats["total"]
     pos_rate = round(stats["positive"] / total * 100, 1) if total else 0

@@ -7,10 +7,41 @@ voc_defects / voc_product_links / v_voc_lifecycle 은 적재만 돼 있고 API·
 - 세대 비교는 released_at + predecessor_code 로 **동일 라이프사이클 주차**를 맞춘다.
   신제품은 원래 출시 직후 급등하므로 자기 과거가 아니라 이전 세대와 비교해야 한다.
 """
+import time
 from typing import Optional
 
 from db import get_db_session
 from sqlalchemy import text
+
+
+# ── 파이프라인 상태 ──────────────────────────────────────────────────────
+# voc_defects 가 비면 모든 결함 도구가 빈 배열을 줬다 — '결함 급등 없음' 이 측정값처럼 읽혔다
+# (cae00 2026-10-27, voc_defects 0행 · voc_product_links 0행, SG-05). 결함·제품 링크는 수집할 때
+# (base/crawler.py) 붙고 옛 글은 백필 스크립트가 채운다 — 수집하지 않고 덤프로 받는 서버는 덤프 병합이
+# 함께 옮겨야 한다. 빈 테이블은 '없음' 이 아니라 '측정하지 않음' 이라고 응답에 싣는다.
+_PIPE: dict = {"at": 0.0, "has": None}
+_PIPE_TTL_S = 300
+_NOT_RUN_NOTE = {
+    "voc_defects": ("결함 추출(voc_defects)이 이 서버에 한 건도 없다 — 빈 결과는 '결함 없음' 이 아니라 "
+                    "'측정하지 않음' 이다. 결함은 수집할 때 붙고 옛 글은 crawler/scripts/backfill_defects.py 가 "
+                    "채운다. 덤프로 받는 서버는 병합(scripts/drive-sync/merge-from-drive.sh)이 옮긴다"),
+    "voc_product_links": ("제품 링크(voc_product_links)가 이 서버에 한 건도 없어 결함을 제품에 잇지 못한다 — "
+                          "빈 결과는 '결함 없음' 이 아니라 '측정하지 않음' 이다. 옛 글은 "
+                          "crawler/scripts/backfill_product_links.py 가 채운다"),
+}
+
+
+async def pipeline_status(db) -> dict:
+    """{'pipeline_status': 'ok'} 또는 not_run + 안내 — 결과가 비었을 때 까닭을 가른다."""
+    now = time.monotonic()
+    if _PIPE["has"] is None or now - _PIPE["at"] > _PIPE_TTL_S:
+        row = (await db.execute(text(
+            "SELECT EXISTS (SELECT 1 FROM voc_defects), EXISTS (SELECT 1 FROM voc_product_links)"))).one()
+        _PIPE.update(at=now, has={"voc_defects": bool(row[0]), "voc_product_links": bool(row[1])})
+    for table in ("voc_defects", "voc_product_links"):
+        if not _PIPE["has"][table]:
+            return {"pipeline_status": "not_run", "pipeline_note": _NOT_RUN_NOTE[table]}
+    return {"pipeline_status": "ok"}
 
 
 
@@ -101,7 +132,9 @@ async def defect_profile_tool(
     """)
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
+        pipe = await pipeline_status(db)
     return {
+        **pipe,
         "period_days": period_days,
         "filters": {"product_code": product_code, "component": component,
                     "severity": severity, "symptom": symptom, "modality": modality,
@@ -138,7 +171,9 @@ async def defect_anomalies_tool(limit: int = 20, severity: Optional[str] = None)
     """)
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
+        pipe = await pipeline_status(db)
     return {
+        **pipe,
         "anomalies": [dict(r) for r in rows],
         "note": ("baseline_mode=lifecycle 은 이전 세대의 동일 출시후 구간과 비교한 것 "
                  "— 출시 효과를 제거한 값이다"),
@@ -180,11 +215,16 @@ async def lifecycle_compare_tool(
     async with get_db_session() as db:
         rows = (await db.execute(stmt, {"code": product_code.upper(),
                                         "max_week": max_week})).mappings().all()
+        pipe = await pipeline_status(db)
     data = [dict(r) for r in rows]
+    if pipe["pipeline_status"] != "ok":
+        for r in data:                    # 0 이 아니라 '모름' — 결함률 0.0% 가 측정값처럼 읽힌다(SG-05)
+            r["with_defect"] = r["defect_pct"] = None
     if defect_only:
         data = [r for r in data if (r.get("with_defect") or 0) > 0]
     pred = data[0]["predecessor_code"] if data else None
     return {
+        **pipe,
         "product_code": product_code.upper(),
         "predecessor_code": pred,
         "weeks": data,
@@ -222,9 +262,11 @@ async def defect_timeline_tool(
     """)
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
+        pipe = await pipeline_status(db)
     series = [dict(r) for r in rows]
     first_seen = series[0]["bucket"].isoformat() if series else None
     return {
+        **pipe,
         "interval": bucket, "period_days": period_days, "filters": filters,
         "first_seen": first_seen,
         "series": series,
@@ -267,7 +309,8 @@ async def defect_breakdown_tool(
     """)
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
-    return {"by": label, "period_days": period_days, "filters": filters,
+        pipe = await pipeline_status(db)
+    return {**pipe, "by": label, "period_days": period_days, "filters": filters,
             "rows": [dict(r) for r in rows]}
 
 
@@ -299,7 +342,8 @@ async def defect_cooccurrence_tool(
     """)
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
-    return {"period_days": period_days, "filters": filters,
+        pipe = await pipeline_status(db)
+    return {**pipe, "period_days": period_days, "filters": filters,
             "pairs": [dict(r) for r in rows],
             "note": "동시 등장이지 인과가 아니다. 한 글이 여러 불만을 나열한 것일 수 있다."}
 
@@ -332,7 +376,8 @@ async def defect_onset_tool(period_days: int = 730, **filters) -> dict:
     """)
     async with get_db_session() as db:
         row = (await db.execute(stmt, params)).mappings().first()
-    out = dict(row) if row else {}
+        pipe = await pipeline_status(db)
+    out = {**pipe, **(dict(row) if row else {})}
     out.update({"period_days": period_days, "filters": filters,
                 "note": ("median 이 작고 within_30d 비중이 높으면 초기불량, "
                          "after_1y 가 크면 마모·열화 패턴이다. "
@@ -367,6 +412,7 @@ async def defect_evidence_tool(
     """)
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
-    return {"period_days": period_days, "filters": filters,
+        pipe = await pipeline_status(db)
+    return {**pipe, "period_days": period_days, "filters": filters,
             "samples": [dict(r) for r in rows],
             "note": "source_url 기준 중복 제거 — 같은 글의 페이지 분할을 한 건으로 센다."}

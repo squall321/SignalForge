@@ -285,13 +285,57 @@ _RESOLVE_SQL = text("""
 """)
 
 
+def _matcher_codes(keyword: str) -> List[str]:
+    """제품 매처(태깅의 정본 별칭 사전 — 한국어·마케팅명·약칭)가 키워드에서 읽는 제품 코드.
+
+    카탈로그 이름(name_en·name_ko)은 '갤럭시 Z 폴드8' 한 표기뿐이라 'S26U'·'폴드 와이드'·'z폴드8' 같은
+    말은 못 잡는다. 매처는 /crawler 바인드에 있다 — 없으면 이 폴백만 건너뛴다.
+    """
+    for _p in ("/crawler", str(_pathlib.Path(__file__).resolve().parents[2] / "crawler")):
+        if _pathlib.Path(_p).is_dir() and _p not in _sys.path:
+            _sys.path.append(_p)
+    try:
+        from base import product_match as _pm
+    except Exception:  # noqa: BLE001
+        return []
+    return [c for c, _role in _pm.infer_all_product_codes(keyword)]
+
+
+_BY_CODES_SQL = text("""
+    SELECT p.code, p.name_en, p.name_ko, p.brand, p.category,
+           count(v.id)::int AS tagged_count, false AS exact
+    FROM products p
+    LEFT JOIN voc_records v ON v.product_id = p.id AND v.archived_at IS NULL
+    WHERE p.code = ANY(:codes)
+    GROUP BY p.code, p.name_en, p.name_ko, p.brand, p.category
+""")
+
+
+def no_tagged_note(code: str, keyword_hits: int, keyword: str, match_mode: str) -> str:
+    """태깅 0 · 키워드 >0 — '데이터 없음' 이 아니라 '이 서버의 제품 태깅이 비었다' 이다(SG-02)."""
+    return (f"no_tagged_records — 제품 {code} 로 태깅된 글이 이 서버에 0건이지만 키워드 '{keyword}' 로는 "
+            f"{keyword_hits:,}건이 있다({match_mode}). 'VOC 없음' 이 아니라 제품 태깅이 비었거나 카탈로그 id 가 "
+            f"어긋난 서버다 — 제품 축 통계 대신 search_voc(keyword='{keyword}', semantic=False) 로 본문을 보라")
+
+
 async def resolve_product_keyword_tool(keyword: str) -> dict:
     """키워드가 가리키는 제품을 카탈로그로 확정하고, 키워드 검색과의 차이를 보여준다."""
     kw_clause, kw_params, used_match = _keyword_clause(keyword)
     _nk = _norm_name(keyword)
+    via = "catalog_name"
     async with get_db_session() as db:
         matches = [dict(r) for r in (await db.execute(
             _RESOLVE_SQL, {"k": _nk, "klike": f"%{_nk}%"})).mappings().all()]
+        if not matches or not matches[0]["exact"]:
+            # 카탈로그 이름에 없거나 부분일치뿐이면 태깅과 같은 별칭 사전으로 다시 본다(SG-04)
+            codes = _matcher_codes(keyword)
+            if codes:
+                found = {r["code"]: dict(r) for r in (await db.execute(
+                    _BY_CODES_SQL, {"codes": codes})).mappings().all()}
+                alias = [found[c] for c in codes if c in found]
+                if alias:
+                    matches = alias + [m for m in matches if m["code"] not in found]
+                    via = "alias"
         kw_count = (await db.execute(text(f"""
             SELECT count(*)::int FROM voc_records v
             WHERE v.archived_at IS NULL AND {kw_clause}
@@ -302,14 +346,20 @@ async def resolve_product_keyword_tool(keyword: str) -> dict:
         "keyword": keyword,
         "match_mode": used_match,
         "keyword_hits": kw_count,
-        "candidates": matches,
+        "candidates": matches[:5],
         "resolved_code": best["code"] if best else None,
+        "resolved_via": via if best else None,
         "tagged_count": best["tagged_count"] if best else None,
+        "status": "resolved" if best else "no_catalog_match",
     }
-    if best:
+    if best and best["tagged_count"] == 0 and kw_count > 0:
+        out["status"] = "no_tagged_records"
+        out["note"] = no_tagged_note(best["code"], kw_count, keyword, used_match)
+    elif best:
         gap = best["tagged_count"] - kw_count
         out["note"] = (
-            f"키워드 '{keyword}' 는 제품 {best['code']}({best['name_en']}) 로 해석된다. "
+            f"키워드 '{keyword}' 는 제품 {best['code']}({best['name_en']}) 로 해석된다"
+            + (" (별칭 사전)" if via == "alias" else "") + ". "
             f"키워드 검색 {kw_count}건 vs 제품 태깅 {best['tagged_count']}건"
             f"(차이 {gap:+d}). 제품 단위 질문이면 "
             f"search_voc(product_code='{best['code']}') 또는 제품 축 통계를 쓰는 것이 "
@@ -317,7 +367,38 @@ async def resolve_product_keyword_tool(keyword: str) -> dict:
         )
     else:
         out["note"] = (
-            f"'{keyword}' 와 일치하는 카탈로그 제품이 없다. 일반 키워드로 보고 "
+            f"'{keyword}' 와 일치하는 카탈로그 제품이 없다(이름·별칭 사전 모두). 일반 키워드로 보고 "
             f"{used_match} 경로로 {kw_count}건을 찾았다."
         )
     return out
+
+
+async def product_zero_diagnosis(db, product_code: str, days: Optional[int] = None) -> dict:
+    """제품 단위 도구가 0건일 때 — 카탈로그에 없나 · 태깅이 비었나(키워드로는 있나) · 기간에만 없나."""
+    code = product_code.upper()
+    p = (await db.execute(text("SELECT id, name_en, name_ko FROM products WHERE code = :c"),
+                          {"c": code})).mappings().first()
+    if not p:
+        return {"status": "unknown_product",
+                "note": f"{code} 는 이 서버 카탈로그에 없는 제품 코드다 — resolve_product_keyword 로 이름에서 코드를 찾는다"}
+    tagged_all, last = (await db.execute(text(
+        "SELECT count(*), max(collected_at) FROM voc_active WHERE product_id = :pid"), {"pid": p["id"]})).one()
+    period = "AND v.collected_at >= NOW() - make_interval(days => :days)" if days else ""
+    hits, used, name = 0, "-", None
+    for nm in (p["name_ko"], p["name_en"]):
+        if not nm:
+            continue
+        cl, prm, mode = _keyword_clause(nm)
+        n = (await db.execute(text(f"SELECT count(*) FROM voc_active v WHERE {cl} {period}"),
+                              {**prm, **({"days": days} if days else {})})).scalar_one()
+        if n > hits:
+            hits, used, name = n, mode, nm
+    if not tagged_all and hits:
+        return {"status": "no_tagged_records", "keyword_hits": hits, "tagged_all": 0,
+                "note": no_tagged_note(code, hits, name, used)}
+    if tagged_all:
+        return {"status": "none_in_period", "tagged_all": tagged_all, "keyword_hits": hits,
+                "note": (f"{code} 로 태깅된 글은 전 기간 {tagged_all:,}건(마지막 수집 "
+                         f"{last.date().isoformat() if last else '-'})인데 이 기간에는 없다")}
+    return {"status": "no_records", "tagged_all": 0, "keyword_hits": 0,
+            "note": f"{code} 는 태깅·이름 키워드 모두 0건이다"}

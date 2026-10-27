@@ -147,6 +147,9 @@ async def corpus_overview(execute, days: Optional[int] = None) -> dict:
     base = (await execute(stmt, params)).mappings().first()
     dfx = (await execute(defect_stmt, params)).mappings().first()
     cats = (await execute(cat_stmt)).mappings().all()
+    # 결함 추출이 이 서버에서 돈 적이 없으면(voc_defects 0행) 결함률은 0.0% 가 아니라 '모름' 이다
+    # — cae00 2026-10-27 은 0.0% 로 보여 측정값처럼 읽혔다(SG-05)
+    defects_ran = bool((await execute(text("SELECT EXISTS (SELECT 1 FROM voc_defects)"))).scalar())
     b = dict(base or {})
     total = b.get("voc_total") or 0
     return {
@@ -173,10 +176,15 @@ async def corpus_overview(execute, days: Optional[int] = None) -> dict:
             "negative_pct": round(100.0 * (b.get("negative") or 0) / total, 1) if total else 0.0,
         },
         "defects": {
+            "pipeline_status": "ok" if defects_ran else "not_run",
             "docs": dfx.get("defect_docs") if dfx else 0,
             "records": dfx.get("defect_records") if dfx else 0,
             "firsthand": dfx.get("firsthand") if dfx else 0,
-            "defect_rate_pct": round(100.0 * (dfx.get("defect_docs") or 0) / total, 2) if total and dfx else 0.0,
+            "defect_rate_pct": (None if not defects_ran else
+                                round(100.0 * (dfx.get("defect_docs") or 0) / total, 2) if total and dfx else 0.0),
+            **({} if defects_ran else {"pipeline_note": (
+                "결함 추출(voc_defects)이 이 서버에 한 건도 없다 — 결함률은 0% 가 아니라 측정하지 않은 것이다. "
+                "결함은 수집할 때 붙고, 덤프로 받는 서버는 병합(scripts/drive-sync/merge-from-drive.sh)이 옮긴다")}),
         },
         "note": ("tagged_pct 가 낮은 것은 결함이 아니다 — 코퍼스에 일반 IT 담론이 섞여 있고 "
                  "제품이 특정되지 않는 글이 다수다. categorized_pct 도 토픽이 없으면 비는 것이 정상이다. "
