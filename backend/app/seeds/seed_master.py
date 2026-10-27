@@ -3,8 +3,11 @@
 실행: python -m app.seeds.seed_master
 """
 import asyncio
+import datetime
+import json
+import pathlib
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -167,8 +170,48 @@ VOC_CATEGORIES = [
 ]
 
 
+# ── dev 카탈로그 내보내기(export_catalog.py) ─────────────────────────────
+# 아래 손으로 적은 목록은 초기 일부뿐이다. dev 카탈로그의 다른 일부(GS26 계열 · Fold8/Flip8 · Buds4 · 공식 커뮤니티
+# 앱 플랫폼 …)는 마이그레이션도 seed 도 아닌 길로 들어와, 새로 깐 서버에는 그 행이 없었다(cae00 2026-10-27, SG-04).
+# 그래서 dev 카탈로그 전체를 파일로 두고 먼저 넣는다. 열은 DB 에 실제로 있는 것만 쓴다(ORM 모델에 없는
+# predecessor_code · kind 도 넣는다).
+_SEED_DIR = pathlib.Path(__file__).resolve().parent
+
+
+def _catalog(fname: str) -> list:
+    path = _SEED_DIR / fname
+    if not path.exists():
+        return []
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    for r in rows:
+        if r.get("released_at"):
+            r["released_at"] = datetime.date.fromisoformat(r["released_at"])   # asyncpg 는 문자열 날짜를 거부한다
+    return rows
+
+
+async def _seed_catalog(db: AsyncSession, table: str, rows: list) -> int:
+    """code 로 없는 행만 넣는다(멱등) — 있는 행은 바꾸지 않는다(덤프 병합이 더 새 값을 가져올 수 있다)."""
+    if not rows:
+        return 0
+    have = {r[0] for r in (await db.execute(text(
+        "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = :t"),
+        {"t": table})).all()}
+    keys = [k for k in rows[0] if k in have]
+    stmt = text(f"INSERT INTO {table} ({', '.join(keys)}) VALUES ({', '.join(':' + k for k in keys)}) "
+                f"ON CONFLICT (code) DO NOTHING")
+    added = 0
+    for r in rows:
+        added += (await db.execute(stmt, {k: r.get(k) for k in keys})).rowcount or 0
+    await db.commit()
+    return added
+
+
 async def seed(db: AsyncSession):
     print("🌱 마스터 데이터 시딩 시작...")
+
+    for table, fname in (("products", "catalog_products.json"), ("platforms", "catalog_platforms.json")):
+        rows = _catalog(fname)
+        print(f"  ✅ {table} 카탈로그: {len(rows)}개 중 {await _seed_catalog(db, table, rows)}개 새로 넣음")
 
     # Products
     for p in PRODUCTS:
