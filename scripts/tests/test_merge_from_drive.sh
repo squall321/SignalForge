@@ -30,7 +30,7 @@ drop_all() {
   local d; for d in "$SRC" "$DST" "${DST}_mergestage"; do
     PIN postgres -q -c "DROP DATABASE IF EXISTS \"$d\" WITH (FORCE);" >/dev/null
   done
-  rm -rf "$TMP"
+  rm -rf "$TMP" "/tmp/sf-merge-${DST}.sql" "/tmp/sf-merge-${DST}.log" "/tmp/sf-merge-${DST}.lock"
 }
 trap drop_all EXIT
 
