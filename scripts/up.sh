@@ -258,8 +258,10 @@ sf_up() {
   # 거꾸로 — 쓸모없는 usage 4줄이 배포 로그를 덮고 진짜 오류는 숨는다(cae00 실측).
   apptainer instance stop "$name" >/dev/null 2>&1 || true
   echo "→ instance $name"
+  STARTED_NOW+=" $name"
   apptainer instance start "$@" "$name" > "$LOG_DIR/$name.log" 2>&1
 }
+STARTED_NOW=""
 
 # backend 는 _internal 운영 엔드포인트에서 crawler/insight 를 import 한다
 # (_ensure_crawler_on_path 가 /crawler 를 sys.path 에 넣는다). 그 바인드가 없어
@@ -287,6 +289,19 @@ sf_up sf-mcp "ss -tln 2>/dev/null | grep -E '[:.]${MCP_PORT:-8001}\b' >/dev/null
   --bind "$CRAWLER_DIR:/crawler" \
   --env MCP_PORT="${MCP_PORT:-8001}" --env DATABASE_URL="$DB_URL" \
   "$SIF_DIR/mcp.sif"
+
+# 기동 스모크 — 시맨틱 검색이 실제로 서는가(이미지의 numpy · /crawler·/shared 바인드). 서지 않아도 MCP 는
+# 키워드 검색으로 떠서 기동은 성공으로 보인다 — cae00 은 numpy 없는 이미지로 시맨틱·온톨로지·PLM 해석이
+# 통째로 꺼진 채 돌았다(2026-10-27, SG-01). 새로 띄웠을 때만(워치독 매분 호출 때는 건너뛴다), SF_SMOKE=1 이면 늘.
+if [[ " $STARTED_NOW " == *" sf-mcp "* || "${SF_SMOKE:-0}" == "1" ]]; then
+  if _smoke=$(apptainer exec "instance://sf-mcp" sh -c 'cd /mcp-server && python3 -c "import tools.semantic"' 2>&1); then
+    echo "✓ sf-mcp semantic import ok"
+  else
+    echo "⚠ sf-mcp semantic import FAILED — 시맨틱 검색·get_ontology·PLM 해석이 꺼져 있다(키워드 검색만)." >&2
+    grep -E "Error|error" <<<"$_smoke" | tail -2 | sed 's/^/    /' >&2
+    echo "    numpy 가 없다면 mcp.sif 를 다시 짓는다(./scripts/build.sh mcp), 코드 모듈이 없다면 바인드를 본다." >&2
+  fi
+fi
 
 # --env-file 로 .env 전체를 넘긴다. 키를 하나씩 --env 로 나열하던 방식은
 # 새 자격증명이 생길 때마다 조용히 빠졌다 — YOUTUBE_API_KEY 만 등재돼 있고
