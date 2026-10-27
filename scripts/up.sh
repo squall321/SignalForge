@@ -84,11 +84,16 @@ pg_postmaster_alive() {  # postgres 프로세스가 살아 있나(복구 중이�
 # shared_buffers — .env 의 PG_SHARED_BUFFERS(예: 2GB). 비우면 아무것도 바꾸지 않는다(dev).
 # 꺼져 있던 postgres 를 띄울 때만 쓴다 — 떠 있는 DB 를 이 스크립트가 재기동하지 않는다.
 PG_AUTO_CONF="$DATA_DIR/postgres/pgdata/postgresql.auto.conf"
+# PG_FRESH   — 이번 기동이 pgdata 를 새로 만드는가(PG_VERSION 이 아직 없다 = initdb). seed 가 본다.
+#              예전에는 '인스턴스가 안 떠 있었나' 로 판정해 PG 를 다시 띄울 때마다 seed 가 돌았다(cae00 10-25, SG-14).
+# PG_STARTED — 이 실행이 postgres 를 띄웠는가(떠 있던 DB 는 설정 알림이 다르고, 마이그레이션도 이것을 본다).
 PG_FRESH=0
+PG_STARTED=0
 if instance_running "$INST_POSTGRES"; then
   echo "✓ $INST_POSTGRES 이미 실행 중"
 else
-  PG_FRESH=1
+  PG_STARTED=1
+  [[ -f "$DATA_DIR/postgres/pgdata/PG_VERSION" ]] || PG_FRESH=1
   if pg_write_shared_buffers "$PG_AUTO_CONF" "${PG_SHARED_BUFFERS:-}"; then
     echo "→ shared_buffers = $PG_SHARED_BUFFERS (postgresql.auto.conf, 원본은 .sf-bak)"
   fi
@@ -118,7 +123,7 @@ if [[ -n "${PG_SHARED_BUFFERS:-}" ]]; then
       echo "[NOTE] shared_buffers 는 지금 $((cur_b / 1048576))MB — PG_SHARED_BUFFERS=$PG_SHARED_BUFFERS 는" \
            "postgres 를 다시 띄우면 적용된다(apptainer instance stop $INST_POSTGRES && bash scripts/up.sh)"
     fi
-  elif [[ $PG_FRESH -eq 0 ]]; then
+  elif [[ $PG_STARTED -eq 0 ]]; then
     pg_shared_buffers_bytes "$PG_SHARED_BUFFERS" >/dev/null || true   # 띄울 때 못 본 [WARN] 을 보인다
   fi
 fi
@@ -177,24 +182,25 @@ SESSION_TTL_SECONDS=${SESSION_TTL_SECONDS:-43200}
 PORTAL_SSO_LANDING=${PORTAL_SSO_LANDING:-/signalforge/}
 BENV
 
-# (c) DB 마이그레이션 — PG 신규이거나 배포(SF_MIGRATE=1)일 때 실행. alembic 은 멱등이라 기존 DB 엔
-#     적용 안 된 리비전만 반영된다. 과거엔 PG_FRESH 만 봐서, 기존 cae00 DB 에 신규 마이그레이션이
+# (c) DB 마이그레이션 — 이 실행이 PG 를 띄웠거나 배포(SF_MIGRATE=1)일 때 실행. alembic 은 멱등이라 기존
+#     DB 엔 적용 안 된 리비전만 반영된다. 과거엔 PG 기동 때만 봐서, 기존 cae00 DB 에 신규 마이그레이션이
 #     영영 반영 안 되던 gap 이 있었다(예: voc_active 뷰 누락 → 'relation does not exist').
 #     워치독 반복 호출은 SF_MIGRATE 없이 → skip 되어 매분 exec 부담 없음.
-if [ "$PG_FRESH" -eq 1 ] || [ "${SF_MIGRATE:-0}" = "1" ]; then
+if [ "$PG_STARTED" -eq 1 ] || [ "${SF_MIGRATE:-0}" = "1" ]; then
   echo "→ alembic upgrade head (컨테이너)"
   apptainer exec --bind "$BACKEND_DIR:/app" --env DATABASE_URL="$DB_URL" \
     "$SIF_DIR/backend.sif" sh -c "cd /app && alembic upgrade head" \
     > "$LOG_DIR/alembic.log" 2>&1 || echo "  [WARN] alembic 실패 — $LOG_DIR/alembic.log"
 fi
-# 시드(마스터 데이터)는 신규 DB 만 — 재실행 시 중복/충돌 방지.
-if [ "$PG_FRESH" -eq 1 ]; then
+# 시드(마스터 데이터)는 pgdata 를 새로 만들었을 때와 배포(SF_MIGRATE=1)일 때만. seed 는 code 로 있는지 보고
+# 없는 것만 넣는다(멱등) — 배포 때 돌면 새 카탈로그 행(catalog_products.json)이 기존 DB 에도 들어온다.
+if [ "$PG_FRESH" -eq 1 ] || [ "${SF_MIGRATE:-0}" = "1" ]; then
   echo "→ seed master data (컨테이너)"
   apptainer exec --bind "$BACKEND_DIR:/app" --env DATABASE_URL="$DB_URL" \
     "$SIF_DIR/backend.sif" sh -c "cd /app && python -m app.seeds.seed_master" \
     > "$LOG_DIR/seed.log" 2>&1 || echo "  [WARN] seed 실패(이미 존재 가능)"
 else
-  echo "✓ postgres 기존 유지 — seed skip (alembic 은 배포 시 멱등 실행)"
+  echo "✓ postgres 기존 데이터 — seed skip (새 pgdata · 배포 SF_MIGRATE=1 때만)"
 fi
 
 # 살아 있는 인스턴스 **밑에서** SIF 파일이 교체됐는지 판정한다(교체됐으면 0).

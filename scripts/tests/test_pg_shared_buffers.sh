@@ -12,6 +12,7 @@
 #       운영 DB·인스턴스는 건드리지 않는다.
 #   T9. (SF_PG_IT=1) up.sh 의 postgres 구간을 그대로 임시 인스턴스로 — 새 DB 는 알림, 다시 띄우면
 #       적용·.sf-bak 정리, 바꾼 실행이 끊겨 .sf-bak 만 남은 변경은 다음 실행이 되돌린다.
+#   T10. (SF_PG_IT=1) 같은 구간의 PG_FRESH(새 pgdata — seed) · PG_STARTED(이 실행이 띄웠나) 판정.
 set -uo pipefail
 PASS=0; FAIL=0
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -193,6 +194,26 @@ if [[ "${SF_PG_IT:-0}" == 1 ]]; then
       fail "되돌리지 못했다: $(sb2) / $(tail -3 <<<"$out")"
     fi
     stop2
+
+    echo "[T10] PG_FRESH 는 'pgdata 를 새로 만드는가' — 있는 pgdata 를 다시 띄우면 seed 를 안 돈다(SG-14)"
+    flags() {  # 구간을 돌린 뒤 두 판정을 찍는다 — $1=데이터 디렉터리
+      ( set -euo pipefail
+        DATA_DIR="$1"; LOG_DIR="$TMP"; SIF_DIR="$APPT_DIR/sif"; INST_POSTGRES="$INST2"
+        POSTGRES_PORT="$PORT2"; POSTGRES_USER=t; POSTGRES_PASSWORD=t; POSTGRES_DB=t; PG_SHARED_BUFFERS=""
+        # shellcheck source=/dev/null
+        source "$SECTION" >/dev/null; echo "FLAGS fresh=$PG_FRESH started=$PG_STARTED" ) 2>&1 | grep '^FLAGS'
+    }
+    f1=$(flags "$D2")                 # 있는 pgdata · 꺼진 인스턴스 — 띄우지만 새로 만들지 않는다
+    f2=$(flags "$D2")                 # 떠 있다 — 아무것도 안 한다
+    stop2
+    D3="$TMP/pg3"; mkdir -p "$D3/postgres" "$D3/postgres-run"
+    f3=$(flags "$D3")                 # 빈 디렉터리 — initdb
+    stop2
+    if [[ "$f1|$f2|$f3" == "FLAGS fresh=0 started=1|FLAGS fresh=0 started=0|FLAGS fresh=1 started=1" ]]; then
+      pass "있는 pgdata 재기동 fresh=0 · 떠 있음 started=0 · 빈 디렉터리 fresh=1"
+    else
+      fail "판정: $f1 / $f2 / $f3"
+    fi
   fi
 else
   echo "[T8·T9] 건너뜀 — 임시 postgres 로 실제 기동까지 보려면 SF_PG_IT=1"
