@@ -19,7 +19,10 @@ fail() { echo "  [FAIL] $*" >&2; FAIL=$((FAIL+1)); }
 # shellcheck source=../drive-sync/_drive_common.sh
 source "$SCRIPTS_DIR/drive-sync/_drive_common.sh"
 INST="$PROJ_PG_INSTANCE"
-if ! apptainer instance list 2>/dev/null | awk '{print $1}' | grep -qx "$INST"; then
+# 출력을 먼저 받고 파이프 없이 판정한다 — `instance list | … | grep -q` 는 pipefail 아래서 grep 이 일찍 끝나면 앞 단계가 SIGPIPE 로 죽어
+# 떠 있는 인스턴스를 '없다' 로 읽는다(HWAXPortal backend/tests/test_shell_pipe_guard.py 가 리포를 가로질러 막는 꼴).
+_il="$(apptainer instance list 2>/dev/null)" || _il=""
+if ! awk -v n="$INST" '$1 == n {f = 1} END {exit !f}' <<<"$_il"; then
   echo "· $INST 인스턴스가 없어 건너뛴다(통합 시험)"; exit 0
 fi
 PIN() { local db="$1"; shift; PGPASSWORD="$POSTGRES_PASSWORD" apptainer exec "instance://$INST" \
