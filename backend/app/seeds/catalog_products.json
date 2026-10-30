@@ -535,6 +535,7 @@
 {"code": "GZF6", "series_code": "GZ", "name_en": "Galaxy Z Fold6", "name_ko": "갤럭시 Z 폴드6", "released_at": "2024-07-24", "is_active": true, "predecessor_code": "GZF5", "brand": "samsung", "category": "phone"},
 {"code": "GZF7", "series_code": "GZ", "name_en": "Galaxy Z Fold7", "name_ko": "갤럭시 Z 폴드7", "released_at": "2025-07-25", "is_active": true, "predecessor_code": "GZF6", "brand": "samsung", "category": "phone"},
 {"code": "GZF8", "series_code": "GZ", "name_en": "Galaxy Z Fold8", "name_ko": "갤럭시 Z 폴드8", "released_at": "2026-07-25", "is_active": true, "predecessor_code": "GZF7", "brand": "samsung", "category": "phone"},
+{"code": "GZF8U", "series_code": "GZ", "name_en": "Galaxy Z Fold8 Ultra", "name_ko": "갤럭시 Z 폴드8 울트라", "released_at": "2026-07-25", "is_active": true, "predecessor_code": "GZF7", "brand": "samsung", "category": "phone"},
 {"code": "GZFL1", "series_code": "GZFL", "name_en": "Galaxy Z Flip", "name_ko": "갤럭시 Z 플립", "released_at": "2020-02-14", "is_active": false, "predecessor_code": null, "brand": "samsung", "category": "phone"},
 {"code": "GZFL1_5G", "series_code": "GZ", "name_en": "Galaxy Z Flip 5G", "name_ko": "갤럭시 Z 플립 5G", "released_at": "2020-08-06", "is_active": false, "predecessor_code": null, "brand": "samsung", "category": "phone"},
 {"code": "GZFL3", "series_code": "GZFL", "name_en": "Galaxy Z Flip3", "name_ko": "갤럭시 Z 플립3", "released_at": "2021-08-27", "is_active": false, "predecessor_code": null, "brand": "samsung", "category": "phone"},

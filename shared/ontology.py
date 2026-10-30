@@ -246,7 +246,7 @@ FAMILY_MARKER = re.compile(
 SERIES: Dict[str, Dict] = {
     "zfold": {"label": ("갤럭시 Z 폴드 전 세대", "Galaxy Z Fold (all)"),
               "src": r"(?<![0-9a-z])z\s?fold(?!\s?\d)|갤럭시\s*z?\s*폴드(?!\s*\d)|(?<![가-힣])폴드(?!\s*\d)",
-              "code_regex": r"^GZF\d+$"},
+              "code_regex": r"^GZF\d+U?$"},
     "zflip": {"label": ("갤럭시 Z 플립 전 세대", "Galaxy Z Flip (all)"),
               "src": r"(?<![0-9a-z])z\s?flip(?!\s?\d)|갤럭시\s*z?\s*플립(?!\s*\d)|(?<![가-힣])플립(?!\s*\d)",
               "code_regex": r"^GZFL\d+$"},
@@ -471,7 +471,7 @@ def component_terms(component: str) -> List[str]:
 _FAMILY_RULES = [
     (re.compile(r"^GS(\d+)(?:U|P|E)?$"), "GS{}"),
     (re.compile(r"^GFE(\d+)$"), "GS{}"),             # FE 는 같은 번호의 S 세대에 속한다
-    (re.compile(r"^GZF(\d+)$"), "GZF{}"),
+    (re.compile(r"^GZF(\d+)U?$"), "GZF{}"),             # Fold8 Ultra 는 8세대 폴드 세대에 속한다
     (re.compile(r"^GZFL(\d+)$"), "GZFL{}"),
     (re.compile(r"^GW(\d+)(?:C|P)?$"), "GW{}"),
     (re.compile(r"^GTABS(\d+)(?:U|P|F)?$"), "GTABS{}"),

@@ -87,10 +87,18 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"s25\s*일반", r"s25\s*노멀", r"s25\s*노말",
                r"s25\s*기본", r"s25\s*시리즈", r"s25시리즈"]),
 
-    # ── Galaxy Z 8세대 (루머/2026 출시 예정) ──
-    ("GZF8",  [r"\bz\s*fold\s*8" + _E, r"\bfold\s*8" + _E, r"\bzfold8" + _E,
-               r"z\s*폴드\s*8", r"폴드8", r"폴드\s*8" + _E, r"\b폴8" + _E,
-               r"갤럭시\s*z\s*폴드\s*8", r"폴드\s*와이드", r"폴드와이드",
+    # ── Galaxy Z 8세대 (2026-07 출시) ──
+    # 8세대 폴드는 둘이다 — Fold8 Ultra(Fold7 의 직접 후속)와 넓은 폼팩터의 Fold8(GZF8, '폴드 와이드').
+    # 'Ultra' 가 붙은 표기만 GZF8U 로 가고, GZF8 패턴은 뒤에 ultra/울트라가 오면 비켜 간다 — 비교글
+    # 'Fold8 Ultra vs Fold8' 에서 GZF8 의 첫 매칭이 Ultra 안에 걸려 둘 중 하나가 사라지지 않게(2026-10-31).
+    ("GZF8U", [r"\bz\s*fold\s*8\s*ultra" + _E, r"\bfold\s*8\s*ultra" + _E,
+               r"z\s*폴드\s*8\s*울트라", r"폴드\s*8\s*울트라", r"\b폴8\s*울트라",
+               r"갤럭시\s*z\s*폴드\s*8\s*울트라"]),
+    ("GZF8",  [r"\bz\s*fold\s*8(?!\s*ultra)" + _E, r"\bfold\s*8(?!\s*ultra)" + _E,
+               r"\bzfold8(?!\s*ultra)" + _E,
+               r"z\s*폴드\s*8(?!\s*울트라)", r"폴드8(?!\s*울트라)", r"폴드\s*8(?!\s*울트라)" + _E,
+               r"\b폴8(?!\s*울트라)" + _E,
+               r"갤럭시\s*z\s*폴드\s*8(?!\s*울트라)", r"폴드\s*와이드", r"폴드와이드",
                r"와이드\s*폴드", r"와이드폴드"]),
     ("GZFL8", [r"\bz\s*flip\s*8" + _E, r"\bflip\s*8" + _E, r"\bzflip8" + _E,
                r"z\s*플립\s*8", r"플립8", r"플립\s*8" + _E, r"\b플8" + _E]),
