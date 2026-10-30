@@ -2,15 +2,16 @@
 """
 제품 나누기 다시 태깅.
 
-카탈로그가 한 제품으로 세던 것을 둘로 나눌 때(SG-04 안 A — PLM 프로젝트가 다른 두 기기가 한 코드로 합쳐져 있었다)
-매처에 새 코드를 넣은 뒤 지난 글을 갈라 준다. 전 코퍼스 재추론은 하지 않는다(backfill_rival_retag 의 교훈 —
+카탈로그가 한 제품으로 세던 것을 둘로 나눌 때(다른 두 기기가 한 코드로 합쳐져 있었다) 매처에 새 코드를 넣은 뒤
+지난 글을 갈라 준다. 전 코퍼스 재추론은 하지 않는다(backfill_rival_retag 의 교훈 —
 크롤러 명시 매핑이 조용히 덮인다). **원래 코드에 붙어 있고, 본문이 새 코드를 실제로 짚는 글만** 고친다.
 
   - 후보: 원래 코드(--from)가 대표(product_id)이거나 링크(역할 무관)로 붙은 활성 글
-  - 고침: 현행 매처(레거시 폴백 없이)가 새 코드(--to)를 찾은 글만
-      · 대표가 원래 코드(또는 없음)면 — 대표 ← 매처의 대표, 링크 ← 매처 결과 전체
-      · 대표가 다른 제품이면 — 대표는 두고 링크만: 본문이 원래 코드를 더는 짚지 않으면 떼고, 새 코드를 잇는다
-        (대표 역할은 대표 제품 몫이라 새 코드는 'mentioned'/'compared')
+  - 고침: 현행 매처(레거시 폴백 없이)가 새 코드(--to)를 찾은 글만, 원래 코드와 새 코드 둘만
+      · 대표가 원래 코드(또는 없음)면 — 본문이 원래 코드를 더는 안 짚거나 매처가 새 코드를 대표로 보면 새 코드로
+      · 대표가 다른 제품이면 — 대표는 그대로
+      · 링크 — 본문이 안 짚는 원래 코드는 떼고, 새 코드를 잇는다(대표가 아니면 'mentioned'/'compared').
+        다른 제품의 링크는 손대지 않는다
   - 되돌리기 — 고친 행마다 (voc_id, 옛 대표, 옛 링크, 새 대표, 새 링크) 를 CSV 로 남긴다
 
 실행: DATABASE_URL=... python3 -m scripts.retag_split --from GZF8 --to GZF8U [--apply] [--log 경로]
@@ -51,19 +52,34 @@ CANDIDATES_SQL = text("""
 """)
 
 
+def _non_primary(role: str) -> str:
+    return "mentioned" if role == "primary" else role
+
+
 def plan(primary_code, links, out, src, dst):
-    """한 글의 새 (대표, 링크[(code, role)]) — 바꿀 것이 없으면 None."""
-    codes = [c for c, _ in out]
+    """한 글의 새 (대표, 링크[(code, role)]) — 바꿀 것이 없으면 None.
+
+    나누기만 한다 — 대표는 원래 코드와 새 코드 사이에서만 옮기고, 링크도 그 둘만 고친다. 매처의 대표가 다른 제품을
+    가리켜도(제목 관련성 재선정 등 그 뒤 바뀐 매처 판단) 여기서는 따르지 않는다 — 첫 시운전에서 GZF8→GS24 처럼
+    나누기와 무관한 대표 이동이 섞였다."""
+    codes = dict(out)
     if dst not in codes:
         return None                                       # 본문이 새 제품을 짚지 않는다 — 손대지 않음
-    if primary_code in (None, src):
-        return out[0][0], list(out)
-    # 대표가 다른 제품 — 대표는 두고 링크만 고친다
     old = dict(x.split(":", 1) for x in links.split(";") if x)
-    new = {c: r for c, r in old.items() if not (c == src and src not in codes)}
-    role = dict(out)[dst]
-    new[dst] = "mentioned" if role == "primary" else role
-    return primary_code, sorted(new.items())
+    src_ok = src in codes
+    if primary_code in (None, src):
+        new_primary = dst if (not src_ok or out[0][0] == dst) else (src if src_ok else dst)
+    else:
+        new_primary = primary_code                        # 다른 제품이 대표 — 대표 자리는 그대로
+    new = {c: r for c, r in old.items() if c != src or src_ok}
+    if src in new and new_primary != src:
+        new[src] = _non_primary(codes.get(src, new[src]))
+    new[dst] = "primary" if new_primary == dst else _non_primary(codes[dst])
+    if new_primary == src:
+        new[src] = "primary"
+    if new_primary == primary_code and new == old:
+        return None
+    return new_primary, sorted(new.items())
 
 
 async def main(args) -> dict:
