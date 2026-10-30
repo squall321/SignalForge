@@ -38,3 +38,32 @@
 - [x] cae00 문서 — docs/DEPLOY_CAE00_2026-10-23.md
 - [x] 테스트 — 새 시험 plm_mirror 9 · model_codes 23 · ontology 56(+8) · legacy_fallback 50(+1). crawler 회귀는 DB·망·백엔드를 쓰는 24파일을 빼고 돌렸다(기존 실패 셋만 — gsmarena·reddit_rss·topic_classifier). MCP 의 DB 시험 묶음은 메모리 부족(cpptools 45GB)으로 earlyoom 이 pytest 를 두 번 끊어 못 끝냈다 — 컨테이너 안 통합 점검('SM-S938B 발열' = 'S25 울트라 발열' 229건 같은 순위 · S27 묶음 · get_ontology)으로 대신했다
 - [x] 재기동·커밋·push·메모리
+
+## SP 키트 2026-10-21 맞추기 (2026-10-31)
+
+### 계획
+
+사용자 지시(포털 세션을 거쳐, 10-31) — SP 키트를 쓰는 플랫폼은 SP 최신판을 받고 맞출 것을 맞춘다. 지금 최신판은
+SP main `778db2f`(0.4.67) · `KIT_VERSION = "2026-10-21"`(받는 쪽 규칙 16 · 시험장 8단계). SignalForge 의 거울 수신
+(`crawler/base/plm_mirror.py`)은 10-14 판(`sp_core_pull.py@f7485c0`, 규칙 열하나)을 보고 만든 **전체 스냅샷 + 원자 교체**다 —
+선(관계)을 안 받고, 공개 거둔 타입 하나가 전체를 멈추고, 합쳐진 과제의 `merged_into` 를 잃고, 잠금이 없다. 시험장
+1단계(선)부터 못 넘는다.
+
+- 층 1(받기) = 키트의 `sp_core_pull.py` **그대로**(키트 README — 이 스크립트는 고치지 말고 사본을 읽는 코드를 따로
+  둔다, 파이썬 플랫폼은 받기 층으로 써도 된다). 키트 폴더를 고치지 않고 `crawler/sp_core_kit/` 에 둔다.
+- 감싸는 쪽(`plm_mirror.sync`) — 잠금(규칙 14) · 실행 기록(정상 · 확인 필요 · 실패와 사유) · 주 1회 처음부터 받기 ·
+  토큰은 자식 프로세스 환경으로만 · 수신 이력 CSV 는 남기지 않는다.
+- 층 2(반영) = `PlmIndex` 가 사본(`crawler/data/plm/sp-core/sp_core.sqlite`)의 활성 행을 읽는다. 바깥 모양(by_code ·
+  by_name · by_model · project_of …)은 그대로.
+- 시험장 8단계를 crawler 시험으로 넣는다(가짜 SP 를 띄우고 단계마다 받기 → 사본 내보내기 → 채점기).
+
+### 체크리스트
+
+- [x] 키트 넣기 — `crawler/sp_core_kit/`(SP `778db2f`, 고치지 않음 — diff 없음 · 내부 주소 · 토큰 없음)
+- [x] `plm_mirror.sync` — 키트 받기를 감싼다(잠금 · 주 1회 처음부터 · 결과 · 토큰 · CSV)
+- [x] `PlmIndex` — 사본 읽기(활성 행 · 옛 key 표 · 합쳐진 것) · 시험용 `from_rows`
+- [x] `scripts/plm-sync.sh`(`--full` · `--allow-shrink`, `--allow-drop` 은 `--full --allow-shrink`) · `tasks.run_plm_sync` · get_ontology 의 plm(마지막 결과 · 확인 필요 사유) — 가짜 SP 로 스크립트 끝까지 돌림(1단계 exit 0 · 7단계 exit 2)
+- [x] 시험 — 시험장 8단계 모두 통과 · 감싸는 쪽 5 · 색인 4(키트 save_rows 로 쓴 사본) · plm_caution · ontology 는 from_rows
+- [x] 전체 시험(crawler · MCP)
+- [x] cae00 문서 — `docs/DEPLOY_CAE00_2026-10-31-plm-kit.md`(처음 받기가 연결 점검 · 건수 대조 · sf-mcp 재기동은 10-31 문서 4절과 한 번에 · 옛 거울 파일)
+- [x] 커밋 · push · 포털에 보고(규칙 대조표 · 시험장 결과 · CLAUDE.md 규칙은 사용자 확인) — 92e2f7e · e5001e4
