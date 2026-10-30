@@ -522,6 +522,7 @@ def _interpretation_view(it: "O.Interpretation", sc: Dict, days: Optional[int]) 
         "expansion": {f"symptom:{s}": O.symptom_terms(s) for s in it.symptoms}
                      | {f"component:{c}": O.component_terms(c) for c in it.components},
         "notes": it.notes + sc["notes"],
+        **({"plm_caution": it.plm_caution} if it.plm_caution else {}),
     }
 
 

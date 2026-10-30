@@ -534,6 +534,8 @@ class Interpretation:
     year: Optional[int] = None
     residual: List[str] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)
+    plm_tasks: List[str] = field(default_factory=list)        # 질의가 과제·개발모델로 짚은 PLM 과제 key
+    plm_caution: Optional[dict] = None                        # 해석한 제품이 PLM 프로젝트 여럿에 걸리면(SG-04)
 
     @property
     def has_concepts(self) -> bool:
@@ -641,13 +643,91 @@ _PLM_TOKEN = re.compile(r"[0-9a-z가-힣][0-9a-z가-힣_\-.]*")
 _HANGUL_END = re.compile(r"[가-힣]$")
 
 
+def _model_base(m: dict) -> Optional[str]:
+    """개발모델의 기본 모델코드 — 코어(rootdesign)는 model_code, SP 기본 정의는 base_code·mass_model_code(SG-09)."""
+    return next((b for b in (_mc.base_of(str(x)) for x in (m.get("model_code"), m.get("base_code"),
+                                                          m.get("mass_model_code"), m.get("key")) if x) if b), None)
+
+
+def _plm_product_projects(plm) -> Tuple[Dict[str, Dict[str, str]], Dict[str, Dict[str, str]]]:
+    """제품 코드 → {PLM 프로젝트 key: 이름} 두 벌 — (EXACT 모델코드로만, EXACT + 출시 전 세대 묶음). 거울 객체에 붙여
+    한 번만 짓는다(거울이 바뀌면 mirror() 가 새 객체를 준다).
+
+    '여러 프로젝트에 걸린다' 는 EXACT 로만 센다 — 세대 묶음은 세대 전 모델에 걸려 프로젝트가 늘 여럿으로 보인다.
+    '질의가 다른 프로젝트를 짚었다' 는 묶음까지 본다 — 출시 전 프로젝트가 자기 세대 제품을 짚은 것은 남이 아니다."""
+    got = getattr(plm, "_sf_product_projects", None)
+    if got is not None:
+        return got
+    exact: Dict[str, Dict[str, str]] = {}
+    broad: Dict[str, Dict[str, str]] = {}
+    for m in plm.models.values():
+        base = _model_base(m)
+        pk = plm.project_of(m.get("task")) if base else None
+        if not pk:
+            continue
+        label = plm.projects.get(pk, pk)
+        prod = _mc.product_of(base)
+        if prod:
+            exact.setdefault(prod, {})[pk] = label
+        for c in _mc.family_of(base):
+            broad.setdefault(c, {})[pk] = label
+    plm._sf_product_projects = (exact, broad)
+    return exact, broad
+
+
+def _plm_named_projects(plm, norm: str, task_keys) -> Dict[str, str]:
+    """질의가 짚은 PLM 프로젝트 — 프로젝트 이름·마케팅명 별칭이 질의에 있거나, 질의의 과제·개발모델이 그 프로젝트 것."""
+    rx = getattr(plm, "_sf_project_rx", False)
+    if rx is False:
+        names = sorted(getattr(plm, "project_names", {}), key=len, reverse=True)
+        rx = (re.compile(r"(?<![0-9a-z가-힣])(" + "|".join(map(re.escape, names)) + r")(?![0-9a-z가-힣])")
+              if names else None)
+        plm._sf_project_rx = rx
+    found: Dict[str, str] = {}
+    for m in (rx.finditer(norm) if rx else ()):
+        for pk in plm.project_names.get(m.group(1), []):
+            found.setdefault(pk, plm.projects.get(pk, pk))
+    for t in task_keys or ():
+        pk = plm.project_of(t)
+        if pk:
+            found.setdefault(pk, plm.projects.get(pk, pk))
+    return found
+
+
+def plm_caution(plm, codes, norm: str, task_keys=()) -> Optional[dict]:
+    """해석한 제품 코드가 PLM 프로젝트 여럿에 걸리거나, 질의가 짚은 프로젝트가 그 제품의 프로젝트가 아니면 주의.
+
+    SignalForge 제품은 프로젝트를 모른다 — 프로젝트 A 의 마케팅명·모델이 프로젝트 B 의 제품 코드로 풀리면 B 의 VOC 가
+    주의 없이 실린다(포털 10-29 EX-03 · 10-30 DW-21 · OT-15). 제품 행을 프로젝트별로 나눌지는 데이터 결정(SG-04)이라
+    그 전까지는 풀이를 바꾸지 않고 이 주의를 싣는다. 거울이 없으면 None."""
+    codes = [c for c in dict.fromkeys(codes or ()) if c]
+    if not plm or not codes:
+        return None
+    exact, broad = _plm_product_projects(plm)
+    linked = {c: dict(exact.get(c, {})) for c in codes}
+    multi = {c: ps for c, ps in linked.items() if len(ps) >= 2}
+    named = _plm_named_projects(plm, norm, task_keys)
+    reach = {pk for c in codes for pk in broad.get(c, {})}
+    foreign = {pk: lab for pk, lab in named.items() if pk not in reach}
+    if not multi and not foreign:
+        return None
+    parts = [f"{c} 는 PLM 프로젝트 {len(ps)}개({', '.join(sorted(ps.values()))})의 개발모델에 걸린다 — 이 제품 코드의 VOC 는 "
+             f"그 프로젝트들을 가르지 않고 함께 센다" for c, ps in multi.items()]
+    if foreign:
+        own = sorted({lab for c in codes for lab in broad.get(c, {}).values()})
+        parts.append(f"질의의 이름·모델은 PLM 프로젝트 {', '.join(sorted(foreign.values()))} 인데 해석한 제품"
+                     f"({', '.join(codes)})의 개발모델은 " + (f"프로젝트 {', '.join(own)} 것이다" if own else "PLM 에 없다")
+                     + " — 다른 제품의 VOC 일 수 있다")
+    return {"products": {c: sorted(ps.values()) for c, ps in linked.items() if ps},
+            "named_projects": sorted(named.values()), "foreign_projects": sorted(foreign.values()),
+            "note": " · ".join(parts) + " (제품 행을 프로젝트별로 나눌지는 데이터 결정 대기 — SG-04)"}
+
+
 def _plm_products(models: List[dict]) -> Tuple[List[str], List[str]]:
     """개발모델들 → (제품 코드, 사전에 없는 기본 코드). 모델코드 사전이 다리다(개발모델은 SignalForge 제품을 모른다)."""
     prods, missing = [], []
     for m in models:
-        # 코어(rootdesign)는 model_code, SP 기본 정의는 base_code·mass_model_code 를 쓴다 — model_code 를 먼저(SG-09)
-        base = next((b for b in (_mc.base_of(str(x)) for x in (m.get("model_code"), m.get("base_code"),
-                                                              m.get("mass_model_code"), m.get("key")) if x) if b), None)
+        base = _model_base(m)
         got = _mc.family_of(base) if base else ()
         if got:
             prods.extend(got)
@@ -687,6 +767,7 @@ def _detect_plm(it: Interpretation, spans: _Spans, plm):
     for s, e, kind, models, tasks, raw in sorted(hits, key=lambda h: (h[0], -(h[1] - h[0]))):
         if not spans.free(s, e):
             continue
+        it.plm_tasks.extend(t for t in tasks if t not in it.plm_tasks)
         tlabel = ", ".join(plm.tasks[t].get("display") or t for t in dict.fromkeys(tasks) if t in plm.tasks) or "-"
         prods, missing = _plm_products(models)
         if not prods:
@@ -951,6 +1032,9 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
         if t not in rest:
             rest.append(t)
     it.residual = rest[:3]
+    it.plm_caution = plm_caution(plm, it.products + [c for _, cs in it.product_sets for c in cs], norm, it.plm_tasks)
+    if it.plm_caution:
+        it.notes.append("주의 — " + it.plm_caution["note"])
     return it
 
 

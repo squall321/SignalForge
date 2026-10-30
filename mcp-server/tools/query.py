@@ -310,6 +310,22 @@ def _matcher_codes(keyword: str) -> List[str]:
     return [c for c, _role in _pm.infer_all_product_codes(keyword)]
 
 
+def _plm_caution_for(keyword: str, codes: List[str]) -> Optional[dict]:
+    """resolve 결과의 제품이 PLM 프로젝트 여럿에 걸리거나 질의가 다른 프로젝트를 짚었는가(SG-04) — 거울이 없으면 None."""
+    if not codes:
+        return None
+    try:
+        import ontology as _O                     # ontology 가 /crawler 경로를 잡는다
+        from base import plm_mirror as _P
+    except Exception:  # noqa: BLE001
+        return None
+    plm = _P.mirror()
+    if not plm:
+        return None
+    it = _O.interpret(keyword, plm=plm)            # 질의가 과제·개발모델로 짚은 것까지
+    return _O.plm_caution(plm, codes, it.norm, it.plm_tasks)
+
+
 _BY_CODES_SQL = text("""
     SELECT p.code, p.name_en, p.name_ko, p.brand, p.category,
            count(v.id)::int AS tagged_count, false AS exact
@@ -384,6 +400,9 @@ async def resolve_product_keyword_tool(keyword: str) -> dict:
         "tagged_count": best["tagged_count"] if best else None,
         "status": "resolved" if best else "no_catalog_match",
     }
+    caution = _plm_caution_for(keyword, [best["code"]]) if best else None
+    if caution:
+        out["plm_caution"] = caution
     if best and best["tagged_count"] == 0 and (kw_count or 0) > 0:
         out["status"] = "no_tagged_records"
         out["note"] = no_tagged_note(best["code"], kw_count, keyword, used_match)
@@ -401,6 +420,8 @@ async def resolve_product_keyword_tool(keyword: str) -> dict:
             f"'{keyword}' 와 일치하는 카탈로그 제품이 없다(이름·별칭 사전 모두). 일반 키워드로 보면 "
             f"{used_match} 경로로 {hits_txt}이다."
         )
+    if caution:
+        out["note"] += " 주의 — " + caution["note"]
     return out
 
 

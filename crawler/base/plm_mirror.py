@@ -333,12 +333,16 @@ class PlmIndex:
         self.tasks: Dict[str, dict] = {}
         self.models: Dict[str, dict] = {}
         self.projects: Dict[str, str] = {}
+        self.project_info: Dict[str, dict] = {}
         for typ, key, label, props, prev, aliases in rows:
             p = json.loads(props or "{}")
+            # 별칭은 코어가 properties.aliases 에 둔다(StepForge sp_core ALIAS_FIELD 와 같다). 행 봉투의 aliases 도 함께
+            # 받는다 — 10-27 판은 봉투만 읽어 코어의 과제 별칭·프로젝트 마케팅명을 놓쳤다(SG-04 · 10-30).
+            names = list(dict.fromkeys(_strings(json.loads(aliases or "[]")) + _strings(p.get("aliases"))))
             if typ == "plm_task":
                 self.tasks[key] = {"key": key, "label": label or "", "project": p.get("project"),
                                    "status": p.get("task_status"), "task_code": _strings(p.get("task_code")),
-                                   "previous_keys": json.loads(prev or "[]"), "aliases": json.loads(aliases or "[]"),
+                                   "previous_keys": json.loads(prev or "[]"), "aliases": names,
                                    "models": []}
             elif typ == "plm_model":
                 self.models[key] = {"key": key, "label": label or key, "task": p.get("task"),
@@ -347,6 +351,20 @@ class PlmIndex:
                                     "model_kind": p.get("model_kind"), "product_text": p.get("product_text")}
             elif typ == "plm_project":
                 self.projects[key] = label or key
+                self.project_info[key] = {"key": key, "label": label or key, "aliases": names,
+                                          "previous_keys": json.loads(prev or "[]")}
+        # 과제가 가리키는 프로젝트 key 가 옛 key 일 수 있다(프로젝트 개명)
+        self._project_by_old: Dict[str, str] = {}
+        for pk, pi in self.project_info.items():
+            for old in pi["previous_keys"]:
+                self._project_by_old.setdefault(str(old), pk)
+        # 프로젝트 이름·별칭(마케팅명) → 프로젝트 key — 질의가 어느 프로젝트를 짚었는지 본다(SG-04). 세 글자 미만은 뺀다
+        self.project_names: Dict[str, List[str]] = {}
+        for pk, pi in self.project_info.items():
+            for n in [pi["label"]] + pi["aliases"]:
+                f = _fold(str(n))
+                if len(f) >= 3 and pk not in self.project_names.setdefault(f, []):
+                    self.project_names[f].append(pk)
         for m in self.models.values():
             if m["task"] in self.tasks:
                 self.tasks[m["task"]]["models"].append(m["key"])
@@ -383,6 +401,14 @@ class PlmIndex:
 
     def __len__(self) -> int:
         return len(self.tasks)
+
+    def project_of(self, task_key: Optional[str]) -> Optional[str]:
+        """과제의 프로젝트 key(지금 key 로). 거울에 없는 프로젝트 key 도 그대로 돌려준다 — 다른 프로젝트임은 안다."""
+        t = self.tasks.get(task_key) if task_key else None
+        ref = t.get("project") if t else None
+        if not isinstance(ref, str) or not ref:
+            return None
+        return ref if ref in self.project_info else self._project_by_old.get(ref, ref)
 
     def task_models(self, task_key: str) -> List[dict]:
         t = self.tasks.get(task_key)
