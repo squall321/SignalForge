@@ -15,7 +15,7 @@ import ontology as O  # noqa: E402
 from base import plm_mirror as P  # noqa: E402
 
 
-def _mirror(tmp_path, a_model_code="SM-F976U"):
+def _mirror(a_model_code="SM-F976U"):
     """지어낸 두 프로젝트 — 알파(마케팅명 'Galaxy Z Fold8 Edition Alpha')와 베타('Galaxy Z Fold8'). 코어 꼴 — 별칭은 properties.aliases,
     과제 key 는 과제명, 과제코드는 task_code, 과제→프로젝트는 properties.project, 개발모델 코드는 model_code."""
     data = {
@@ -31,21 +31,19 @@ def _mirror(tmp_path, a_model_code="SM-F976U"):
             {"key": f"{a_model_code}_A", "properties": {"task": "과제A", "model_code": a_model_code}},
             {"key": "SM-F976B_B", "properties": {"task": "과제B", "model_code": "SM-F976B"}}],
     }
-    root = tmp_path / "plm"
-    P.write_snapshot(root, {}, data)
-    return P.PlmIndex(root / P.MIRROR)
+    return P.PlmIndex.from_rows(data)
 
 
-def test_index_reads_core_aliases_projects_and_old_project_keys(tmp_path):
-    idx = _mirror(tmp_path)
+def test_index_reads_core_aliases_projects_and_old_project_keys():
+    idx = _mirror()
     assert idx.by_code["tka-alias"] == "과제A", "코어는 별칭을 properties.aliases 에 둔다"
     assert idx.project_names["galaxy z fold8 edition alpha"] == ["PRJ-A"] and idx.project_names["galaxy z fold8"] == ["PRJ-B"]
     assert idx.project_of("과제A") == "PRJ-A" and idx.project_of("과제B") == "PRJ-B", "옛 프로젝트 key 도 지금 key 로"
 
 
-def test_product_shared_by_two_projects_is_flagged(tmp_path):
+def test_product_shared_by_two_projects_is_flagged():
     """두 프로젝트의 개발모델이 같은 기본 코드(F976 → GZF8) — GZF8 의 VOC 는 두 프로젝트를 가르지 않고 센다."""
-    idx = _mirror(tmp_path)
+    idx = _mirror()
     it = O.interpret("Galaxy Z Fold8 Edition Alpha 힌지 불만", plm=idx)
     assert "GZF8" in it.products
     c = it.plm_caution
@@ -55,9 +53,9 @@ def test_product_shared_by_two_projects_is_flagged(tmp_path):
     assert it2.plm_caution and it2.plm_caution["products"]["GZF8"] == ["베타", "알파"]
 
 
-def test_name_of_another_project_is_flagged_and_own_name_is_not(tmp_path):
+def test_name_of_another_project_is_flagged_and_own_name_is_not():
     """알파의 모델이 사전에 없는 코드라 GZF8 은 베타 것뿐 — 알파의 마케팅명을 물으면 '다른 프로젝트' 주의, 베타의 것을 물으면 조용."""
-    idx = _mirror(tmp_path, a_model_code="SM-F999U")
+    idx = _mirror(a_model_code="SM-F999U")
     it = O.interpret("Galaxy Z Fold8 Edition Alpha 힌지", plm=idx)
     assert "GZF8" in it.products
     c = it.plm_caution
@@ -66,9 +64,9 @@ def test_name_of_another_project_is_flagged_and_own_name_is_not(tmp_path):
     assert O.interpret("Galaxy Z Fold8 Edition Alpha 힌지", plm=None).plm_caution is None, "거울이 없으면 주의도 없다"
 
 
-def test_resolve_carries_the_caution(tmp_path, monkeypatch):
+def test_resolve_carries_the_caution(monkeypatch):
     from tools import query as Q
-    idx = _mirror(tmp_path, a_model_code="SM-F999U")
+    idx = _mirror(a_model_code="SM-F999U")
     monkeypatch.setattr(P, "mirror", lambda *a, **k: idx)
     c = Q._plm_caution_for("Galaxy Z Fold8 Edition Alpha", ["GZF8"])
     assert c and c["foreign_projects"] == ["알파"]

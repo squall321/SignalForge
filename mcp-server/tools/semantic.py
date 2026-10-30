@@ -669,14 +669,18 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
 
 
 def _plm_status() -> Dict:
-    """PLM 거울(SP 허브의 과제·개발모델) 상태 — 과제코드·과제명 검색이 켜져 있나."""
+    """PLM 거울(SP 허브의 과제·개발모델) 상태 — 과제코드·과제명 검색이 켜져 있나, 마지막 받기의 결과와 확인 필요 사유."""
     idx = P.mirror()
+    last = P.last_status()
+    run = {"last_result": last.get("status"), "problems": last.get("problems") or [],
+           **({"error": last["error"]} if last.get("error") else {})} if last else {}
     if idx is None:
         s = P.settings()
-        return {"active": False, "why": "PLM 거울이 없다 — " + ("; ".join(s["problems"]) if s["problems"]
+        return {"active": False, **run, "why": "PLM 거울이 없다 — " + ("; ".join(s["problems"]) if s["problems"]
                                                               else "아직 한 번도 받지 않았다(beat plm-sync-6h)")}
     return {"active": True, "tasks": len(idx.tasks), "models": len(idx.models), "projects": len(idx.projects),
-            "pulled_at": idx.meta.get("pulled_at"), "host": idx.meta.get("host")}
+            "pulled_at": last.get("pulled_at"), "host": last.get("host"), "kit": last.get("kit"),
+            "revision": idx.meta.get("revision"), **run}
 
 
 async def get_ontology_tool(concept: Optional[str] = None) -> Dict:

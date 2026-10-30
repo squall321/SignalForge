@@ -258,7 +258,8 @@ async def get_ontology(concept: Optional[str] = None) -> dict:
     concept 를 주면 그 개념 하나 — 'overheat' · 'symptom:burn_in' · 'hinge' · 'battery'(주제) ·
     'GS25U'(제품: 세대·같은 세대 모델·링크된 VOC 수). 키가 아니면 질의로 해석해 보여줍니다.
     전체 구조에는 model_codes(모델코드 사전 크기)와 plm(PLM 과제 거울 — 켜졌나 · 과제·개발모델 수 ·
-    마지막으로 받은 시각)이 함께 나옵니다. plm.active 가 false 면 과제코드·과제명 검색이 꺼져 있습니다.
+    마지막으로 받은 시각 · 마지막 받기 결과 last_result ok/check/error 와 확인 필요 사유 problems)이 함께 나옵니다.
+    plm.active 가 false 면 과제코드·과제명 검색이 꺼져 있습니다.
 
     Args:
         concept: 개념 키 또는 자연어 — 선택

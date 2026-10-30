@@ -208,7 +208,7 @@ from base import plm_mirror as _plm  # noqa: E402
 
 
 @pytest.fixture
-def plm(tmp_path):
+def plm():
     data = {
         "plm_project": [{"key": "P-1", "label": "프로젝트"}],
         "plm_task": [
@@ -224,8 +224,7 @@ def plm(tmp_path):
             {"key": "SM-F976B_NA", "properties": {"task": "TK-003", "base_code": "SM-F976B"}},
             {"key": "SM-X100A_KOR_SKT", "properties": {"task": "TK-004", "base_code": "SM-X100A"}}],
     }
-    _plm.write_snapshot(tmp_path, {"system": "t"}, data)
-    return _plm.PlmIndex(tmp_path / _plm.MIRROR)
+    return _plm.PlmIndex.from_rows(data)
 
 
 def test_model_code_query_equals_name_query():
@@ -275,12 +274,11 @@ def test_no_plm_means_names_are_plain_words():
     assert not it.products and it.residual == ["알파"]
 
 
-def test_rootdesign_task_code_and_model_code_resolve(tmp_path):
+def test_rootdesign_task_code_and_model_code_resolve():
     """rootdesign 꼴 — key=과제명, 과제코드는 task_code, 개발모델은 model_code(SG-03·09)."""
     data = {"plm_project": [], "plm_model": [{"key": "M-1", "properties": {"task": "감마_C2", "model_code": "SM-S938N"}}],
             "plm_task": [{"key": "감마_C2", "label": "감마_C2", "properties": {"task_code": "TK-77"}}]}
-    _plm.write_snapshot(tmp_path, {}, data)
-    idx = _plm.PlmIndex(tmp_path / _plm.MIRROR)
+    idx = _plm.PlmIndex.from_rows(data)
     for q in ("TK-77 발열", "감마 발열", "감마_C2 발열"):
         it = O.interpret(q, plm=idx)
         assert it.products == ["GS25U"] and it.residual == [], (q, it.products, it.residual, it.notes)

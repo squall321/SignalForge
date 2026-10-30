@@ -360,10 +360,10 @@ def run_health_check():
 
 @app.task(name="tasks.run_plm_sync", max_retries=0)
 def run_plm_sync() -> dict:
-    """SP 허브의 과제·개발모델·프로젝트를 통째로 받아 PLM 거울(crawler/data/plm, VOC DB 밖)을 바꾼다 — 6h 주기.
+    """SP 허브의 과제·개발모델·프로젝트를 SP 키트 받기로 PLM 거울 사본(crawler/data/plm, VOC DB 밖)에 맞춘다 — 6h 주기.
 
     주소(.env SF_SP_CORE_URL)나 토큰 파일이 없으면 not_configured 로 바로 끝난다(오류가 아니다 — 허브를 볼 수
-    있는 서버에서만 켠다). 끝까지 받았을 때만 바꾸고, 한 타입이 절반 넘게 줄면 바꾸지 않는다(held).
+    있는 서버에서만 켠다). 증분으로 받고 주 1회 처음부터 받는다. 결과는 ok · check(확인 필요) · error · busy.
     """
     from base import plm_mirror as _plm
     res = _plm.sync()
