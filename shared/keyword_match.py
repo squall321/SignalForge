@@ -46,6 +46,10 @@ _SUBSTR_CLAUSE = (
     "(v.content_original ILIKE :kw_like ESCAPE '\\' "
     " OR v.content_translated ILIKE :kw_like ESCAPE '\\')"
 )
+# 한글이 든 키워드는 원문만 본다. 번역문은 영어라 한글 키워드가 번역문에만 있는 글이 0건이었다('폴드8' ·
+# '갤럭시 Z 폴드8' · '힌지' · '아이폰 17 프로' · '배터리', dev 2026-10-30). 번역문까지 보면 행마다 번역문 TOAST 를
+# 풀어야 해 차가운 캐시에서 31초가 걸렸다(원문만이면 1.4초, SG-19).
+_SUBSTR_ORIG_CLAUSE = "(v.content_original ILIKE :kw_like ESCAPE '\\')"
 _FTS_CLAUSE = (
     "to_tsvector('english', COALESCE(v.content_translated, '')) "
     "@@ plainto_tsquery('english', :keyword)"
@@ -87,7 +91,8 @@ def keyword_clause(keyword: str, match: str = "auto"):
     """
     mode = resolve_mode(keyword, match)
     if mode == "substring":
-        return _SUBSTR_CLAUSE, {"kw_like": _like_pattern(keyword)}, "substring"
+        clause = _SUBSTR_ORIG_CLAUSE if _HANGUL_RE.search(keyword or "") else _SUBSTR_CLAUSE
+        return clause, {"kw_like": _like_pattern(keyword)}, "substring"
     if mode == "phrase":
         return _PHRASE_CLAUSE, {"keyword": keyword}, "phrase"
     return _FTS_CLAUSE, {"keyword": keyword}, "fts"
@@ -196,6 +201,18 @@ def like_any_clause(terms, name: str):
             {name: pats})
 
 
+def hangul_like_patterns(terms):
+    """한글이 든 말 → ILIKE 패턴(중복 없이). 시맨틱 검색의 한국어 본문 경로를 한 번에 훑을 때 쓴다."""
+    out = []
+    for term in terms or ():
+        t = " ".join((term or "").split())
+        if t and _HANGUL_RE.search(t):
+            pat = _like_pattern(t)
+            if pat not in out:
+                out.append(pat)
+    return out
+
+
 def all_tokens_clause(tokens, prefix: str = "a"):
     """낱말이 **모두** 나오는 글 — 개념을 못 찾은 질의의 어휘 후보 경로. 없으면 None.
 
@@ -225,6 +242,9 @@ def all_tokens_clause(tokens, prefix: str = "a"):
 
 
 def token_like_clause(token: str, name: str):
-    """한 낱말이 원문·번역문 어디든 있는가 — 순위 가산용(필터가 아니다)."""
+    """한 낱말이 원문·번역문 어디든 있는가 — 순위 가산용(필터가 아니다). 한글 낱말은 원문만(번역문은 영어라
+    늘 거짓이고 후보마다 번역문을 풀기만 한다, SG-19)."""
+    if _HANGUL_RE.search(token or ""):
+        return f"(v.content_original ILIKE :{name})", {name: _like_pattern(token)}
     return (f"(v.content_original ILIKE :{name} OR v.content_translated ILIKE :{name})",
             {name: _like_pattern(token)})

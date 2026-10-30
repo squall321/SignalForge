@@ -94,8 +94,11 @@ def test_ascii_multi_token_uses_phrase_not_loose_and():
 
 
 def test_substring_searches_both_columns():
-    """번역본만 보면 한국어 원문을 놓친다 — 원문도 봐야 한다."""
+    """번역본만 보면 한국어 원문을 놓친다 — 원문도 봐야 한다. 한글 키워드는 원문만(번역문은 영어라 0건이었고
+    번역문 TOAST 를 풀어 느렸다, SG-19), 한글이 아닌 비ASCII 는 둘 다."""
     clause, _, _ = _q()._keyword_clause("발열")
+    assert "content_original" in clause and "content_translated" not in clause
+    clause, _, _ = _q()._keyword_clause("écran")
     assert "content_original" in clause and "content_translated" in clause
 
 

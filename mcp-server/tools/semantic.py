@@ -14,10 +14,12 @@
 한국어 동의어 원문 부분일치 0.4초. 제품 범위가 있으면 그 안에서만 돈다.
 """
 import asyncio
+import os
 import re
 import time
+from collections import OrderedDict
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
@@ -31,7 +33,8 @@ for _p in ("/shared", str(_pathlib.Path(__file__).resolve().parents[2] / "shared
         _sys.path.insert(0, _p)
 import ontology as O  # noqa: E402
 from keyword_match import (  # noqa: E402
-    all_tokens_clause, expansion_clauses, fts_groups_clause, like_any_clause, token_like_clause,
+    all_tokens_clause, expansion_clauses, fts_groups_clause, hangul_like_patterns, like_any_clause,
+    token_like_clause,
 )
 from tools import vector as V  # noqa: E402
 from base import plm_mirror as P  # noqa: E402 — ontology 가 /crawler 경로를 잡은 뒤
@@ -41,7 +44,16 @@ from tools.llm_concepts import infer_symptoms  # noqa: E402
 _CATALOG_TTL = 600
 _BROAD_LINKS = 60000      # 이보다 크면 범위를 후보 필터로 (CTE 로 만들면 8초)
 _DRIVE_LINKS = 15000      # 이하면 범위가 후보 경로를 몬다 (행마다 FTS 를 돌려도 0.5초대)
-_TIMEOUT_S = 15           # 넘으면 주석만으로 재시도
+_TIMEOUT_S = 15           # 넘으면 주석만으로 재시도. 한국어 원문 훑기를 따로 떼어 본 SQL 은 대개 1~3초지만,
+                          # 10초로 줄이면 부하 때 주석 재시도까지 넘겨 빈 결과가 났다(dev 2026-10-30) — 그대로 둔다
+# 한국어 원문 동의어 경로의 시간 상한 — 한국어 글은 활성의 14%(본문 30MB)뿐인데 색인이 없어 늘 voc_records 전체
+# (947MB + TOAST)를 읽는다. 따뜻하면 1.5~2초, 차가우면 15~30초(dev 2026-10-30). 넘기면 그 경로 없이 찾는다(SG-19).
+_KO_BUDGET_S = float(os.getenv("SEMANTIC_KO_BUDGET_S", "6"))
+# 같은 동의어 묶음의 훑기 결과는 잠시 둔다 — '발열'·'과열'·'overheating' 은 같은 증상이라 같은 묶음을 훑는다. 다시 훑지
+# 않으니 빠르고, 표기만 다른 질의가 같은 결과를 낸다(부하로 한쪽만 상한을 넘겨 334 · 311 로 갈렸다, dev 2026-10-30)
+_KO_CACHE_TTL_S = 600
+_KO_CACHE_MAX = 128
+_ko_cache: "OrderedDict[tuple, tuple]" = OrderedDict()
 _VEC_K = 300              # 벡터 후보 수 (범위 안에서, 또는 전역)
 _VEC_W = 2.0              # 벡터 유사도 가중 — 결함 주석(3)보다 낮게: 은유·짧은 글에서 벡터가 틀렸다
 _VEC_MIN_CHARS = 20       # 벡터로만 걸린 글은 이보다 길어야 — 짧은 댓글이 유사도를 독식했다
@@ -145,7 +157,7 @@ _ROLE_RANK = "CASE l.role WHEN 'primary' THEN 2 WHEN 'compared' THEN 1 ELSE 0.5 
 
 def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[int], order: str,
                fast: bool = False, vec: Optional[tuple] = None,
-               kw_tokens: Optional[List[str]] = None):
+               kw_tokens: Optional[List[str]] = None, ko_ids: Optional[Dict[str, List[int]]] = None):
     """해석·범위 → (SQL, params).
 
     범위는 세 방식으로 건다.
@@ -156,6 +168,8 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
     제품 역할 가중 — 대표(primary) 2 · 비교(compared) 1 · 언급 0.5 · 태그 없이 브랜드 이름만 0.25.
     대표가 아닌 언급글이 결함 주석 덕에 위로 올라오던 것('폴드7' 검색에 폴드8 분해 기사)을 막는다.
     fast=True 는 시간 초과 뒤의 재시도용 — 본문 동의어·잔여어를 빼고 주석만으로 찾는다.
+    ko_ids 는 한국어 원문 경로를 미리 훑은 행(_korean_prescan) — 주면 그 경로를 행 id 로 건다(빈 dict 면 그 경로를
+    뺀다). None 이면 예전처럼 경로마다 본문을 훑는다.
     """
     params: Dict = {"limit": limit}
     ctes, hits = [], []
@@ -193,6 +207,19 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
                            or not sc["pids"])
     js = lambda col: f" JOIN scope s ON s.id = {col}" if drive else ""  # noqa: E731
 
+    def text_paths(src: str, ex: Dict) -> None:
+        """동의어 경로 — 영어 번역문 FTS 는 색인으로, 한국어 원문은 미리 훑은 행(ko_ids)으로 건다."""
+        if ex["fts"]:
+            hits.append(f"SELECT v.id, '{src}' AS src FROM voc_active v{js('v.id')} WHERE {ex['fts'][0]}")
+            params.update(ex["fts"][1])
+        if ko_ids is not None:
+            if ko_ids.get(src):
+                params[f"ko_{src}"] = ko_ids[src]
+                hits.append(f"SELECT unnest(CAST(:ko_{src} AS bigint[])) AS id, '{src}' AS src")
+        elif ex["ko"]:
+            hits.append(f"SELECT v.id, '{src}' AS src FROM voc_active v{js('v.id')} WHERE {ex['ko'][0]}")
+            params.update(ex["ko"][1])
+
     # ── 후보 경로 ──
     # LLM 이 추론한 증상(role=inferred)은 따로 걸어 사전 증상의 절반으로 친다(SI·TSI). 같은 무게면
     # '삼성페이 결제가 자꾸 실패해요' 가 '작동 안 함' 글 1.9만 건 아무거나를 위로 올리고, 질의의
@@ -206,19 +233,13 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
         hits.append(f"SELECT d.voc_id AS id, '{tag}' AS src FROM voc_defects d{js('d.voc_id')} "
                     f"WHERE d.symptom = ANY(CAST(:syms_{tag} AS varchar[]))")
         terms = [] if fast else [t for x in syms for t in O.symptom_terms(x)]
-        for clause in expansion_clauses(terms, prefix=f"x{tag.lower()}").values():
-            if clause:
-                hits.append(f"SELECT v.id, 'T{tag}' AS src FROM voc_active v{js('v.id')} WHERE {clause[0]}")
-                params.update(clause[1])
+        text_paths(f"T{tag}", expansion_clauses(terms, prefix=f"x{tag.lower()}"))
     if it.components:
         params["comps"] = it.components
         hits.append(f"SELECT d.voc_id AS id, 'C' AS src FROM voc_defects d{js('d.voc_id')} "
                     "WHERE d.component = ANY(CAST(:comps AS varchar[]))")
         terms = [] if fast else [t for c in it.components for t in O.component_terms(c)]
-        for clause in expansion_clauses(terms, prefix="xc").values():
-            if clause:
-                hits.append(f"SELECT v.id, 'TC' AS src FROM voc_active v{js('v.id')} WHERE {clause[0]}")
-                params.update(clause[1])
+        text_paths("TC", expansion_clauses(terms, prefix="xc"))
     if it.topics:
         params["topics"] = it.topics
         hits.append(f"SELECT v.id, 'T' AS src FROM voc_active v{js('v.id')} "
@@ -232,10 +253,20 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
                     "CAST(:vrel AS float8[])) AS t(id, rel))")
         hits.append("SELECT id, 'V' AS src FROM vec")   # 첫 가지가 열 이름을 정한다 — 전부 AS src
     if kw_tokens and not fast:
-        cl = all_tokens_clause(kw_tokens, prefix="kw")
-        if cl:
-            hits.append(f"SELECT v.id, 'K' AS src FROM voc_active v{js('v.id')} WHERE {cl[0]}")
-            params.update(cl[1])
+        if ko_ids is not None and hangul_like_patterns(kw_tokens):
+            # 한국어 낱말은 미리 훑은 행으로, 영어 낱말은 번역문 FTS 로 — 둘 다 맞아야 한다(AND)
+            if ko_ids.get("K"):
+                params["ko_K"] = ko_ids["K"]
+                cl = all_tokens_clause([t for t in kw_tokens if not hangul_like_patterns([t])], prefix="kw")
+                hits.append("SELECT v.id, 'K' AS src FROM voc_active v WHERE v.id = ANY(CAST(:ko_K AS bigint[]))"
+                            + (f" AND {cl[0]}" if cl else ""))
+                if cl:
+                    params.update(cl[1])
+        else:
+            cl = all_tokens_clause(kw_tokens, prefix="kw")
+            if cl:
+                hits.append(f"SELECT v.id, 'K' AS src FROM voc_active v{js('v.id')} WHERE {cl[0]}")
+                params.update(cl[1])
 
     # ── 필터 ── (후보를 다 모은 뒤 v 에 건다. 필터만 있는 질의는 후보 단계에서 건다)
     where = ["(v.published_at IS NULL OR v.published_at <= now())"]
@@ -350,6 +381,81 @@ LEFT JOIN products p ON p.id = v.product_id
 LEFT JOIN platforms pl ON pl.id = v.platform_id
 ORDER BY {order_by.format(t='r')}"""
     return sql, params
+
+
+def _ko_groups(it: "O.Interpretation", kw_tokens: Optional[List[str]]) -> Dict[str, tuple]:
+    """한국어 원문 경로 — 꼬리표 → ('any'|'all', ILIKE 패턴). _build_sql 의 동의어 'ko' · 낱말 경로와 같은 말이다."""
+    inferred = {c.key for c in it.concepts if c.type == "symptom" and c.role == "inferred"}
+    groups: Dict[str, tuple] = {}
+    for tag, syms in (("TS", [x for x in it.symptoms if x not in inferred]),
+                      ("TSI", [x for x in it.symptoms if x in inferred])):
+        pats = hangul_like_patterns([t for x in syms for t in O.symptom_terms(x)])
+        if pats:
+            groups[tag] = ("any", pats)
+    pats = hangul_like_patterns([t for c in it.components for t in O.component_terms(c)])
+    if pats:
+        groups["TC"] = ("any", pats)
+    pats = hangul_like_patterns(kw_tokens or [])
+    if pats:
+        groups["K"] = ("all", pats)
+    return groups
+
+
+async def _korean_prescan(db, groups: Dict[str, tuple], budget_s: float) -> Tuple[Dict[str, List[int]], List[str]]:
+    """한국어 원문 경로들을 **한 번에** 훑는다 — 경로(증상·부품·낱말)마다 voc_records 전체를 따로 훑던 것을 하나로,
+    시간 상한(budget_s) 안에서만. (꼬리표 → 행 id, 상한을 넘겨 못 훑은 꼬리표) — 못 훑은 경로는 호출부가 빼고 찾는다
+    (SG-19). 같은 묶음은 잠시 캐시에서 준다."""
+    if not groups:
+        return {}, []
+    now = time.monotonic()
+    out: Dict[str, List[int]] = {}
+    todo: Dict[str, tuple] = {}
+    for tag, (kind, pats) in groups.items():
+        hit = _ko_cache.get((kind, tuple(pats)))
+        if hit and now - hit[0] < _KO_CACHE_TTL_S:
+            _ko_cache.move_to_end((kind, tuple(pats)))
+            out[tag] = list(hit[1])
+        else:
+            todo[tag] = (kind, pats)
+    if not todo:
+        return out, []
+    cols, conds, params = [], [], {}
+    for tag, (kind, pats) in todo.items():
+        if kind == "any":
+            params[f"ko_{tag}"] = pats
+            cond = f"v.content_original ILIKE ANY(CAST(:ko_{tag} AS text[]))"
+        else:
+            parts = []
+            for i, pat in enumerate(pats):
+                params[f"ko_{tag}_{i}"] = pat
+                parts.append(f"v.content_original ILIKE :ko_{tag}_{i}")
+            cond = "(" + " AND ".join(parts) + ")"
+        cols.append(f"({cond}) AS m_{tag.lower()}")
+        conds.append(cond)
+    sql = (f"SELECT v.id, {', '.join(cols)} FROM voc_active v "
+           f"WHERE v.language_detected = 'ko' AND ({' OR '.join(conds)})")
+    await db.execute(text(f"SET LOCAL statement_timeout = '{int(budget_s * 1000)}ms'"))
+    try:
+        rows = (await db.execute(text(sql), params)).all()
+    except DBAPIError as e:
+        if "statement timeout" not in str(e):
+            raise
+        await db.rollback()
+        return out, list(todo)
+    tags = list(todo)
+    for t in tags:
+        out[t] = []
+    for r in rows:
+        for i, tag in enumerate(tags):
+            if r[i + 1]:
+                out[tag].append(int(r[0]))
+    for tag in tags:
+        kind, pats = todo[tag]
+        _ko_cache[(kind, tuple(pats))] = (now, tuple(out[tag]))
+        _ko_cache.move_to_end((kind, tuple(pats)))
+    while len(_ko_cache) > _KO_CACHE_MAX:
+        _ko_cache.popitem(last=False)
+    return out, []
 
 
 async def _scope_ids(db, sc: Dict):
@@ -503,9 +609,15 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
                 vec_info = {"used": True, "candidates": int(len(ids)), "in_scope": allowed is not None,
                             "top_sim": round(top, 3), "floor_sim": round(floor, 3)}
         eff_days = days or it.days
+        busy = False
         kw = it.residual if not it.has_concepts else None
         fetch = min(limit * 2, 200)          # 중복 본문을 접고도 limit 를 채우려고 넉넉히
-        sql, params = _build_sql(it, sc, limit=fetch, days=eff_days, order=order, vec=vec, kw_tokens=kw)
+        ko_ids, ko_skipped = await _korean_prescan(db, _ko_groups(it, kw), _KO_BUDGET_S)
+        if ko_skipped:
+            sc["notes"].append(f"한국어 원문 동의어 경로는 {_KO_BUDGET_S:g}초 안에 다 훑지 못해 뺐다 — 결함·주제 주석과 "
+                               "영어 번역문으로 찾았다(같은 질의를 다시 하면 캐시가 데워져 들어올 수 있다)")
+        sql, params = _build_sql(it, sc, limit=fetch, days=eff_days, order=order, vec=vec, kw_tokens=kw,
+                                 ko_ids=ko_ids)
         await db.execute(text(f"SET LOCAL statement_timeout = '{_TIMEOUT_S}s'"))
         try:
             rows = [dict(r) for r in (await db.execute(text(sql), params)).mappings().all()]
@@ -517,7 +629,17 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
             sc["notes"].append(f"{_TIMEOUT_S}초 안에 끝나지 않아 본문 동의어 없이 주석만으로 찾았다")
             sql, params = _build_sql(it, sc, limit=fetch, days=eff_days, order=order, fast=True)
             await db.execute(text(f"SET LOCAL statement_timeout = '{_TIMEOUT_S}s'"))
-            rows = [dict(r) for r in (await db.execute(text(sql), params)).mappings().all()]
+            try:
+                rows = [dict(r) for r in (await db.execute(text(sql), params)).mappings().all()]
+            except DBAPIError as e2:
+                if "statement timeout" not in str(e2):
+                    raise
+                # 주석만으로도 못 끝내면 DB 가 바쁜 것이다 — SQL 원문 오류 대신 '못 찾았다' 를 말한다
+                await db.rollback()
+                busy = True
+                sc["notes"].append(f"DB 가 바빠 주석만으로도 {_TIMEOUT_S}초 안에 끝나지 않았다 — 결과 없이 돌려준다. "
+                                   "VOC 가 없다는 뜻이 아니다(잠시 뒤 다시 물어 보라)")
+                rows = []
     total = int(rows[0]["total"]) if rows else 0
     results = []
     for r in _dedup(rows, limit):
@@ -530,7 +652,7 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
     view = _interpretation_view(it, sc, eff_days)
     view["vector"] = vec_info
     view["llm_symptoms"] = llm
-    if not total:
+    if not total and not busy:
         # 빈 결과가 '없음' 인지 '범위가 비어 못 찾음' 인지 가른다(SG-07) — 제품으로 좁혔는데 그 제품에
         # 붙은 글이 0이면 태깅이 비었거나 카탈로그가 어긋난 서버다(cae00 2026-10-27, SG-02)
         if sc["pids"] and not sc["scope_n"]:

@@ -59,7 +59,10 @@ def test_like_wildcards_escaped():
 
 
 def test_substring_searches_both_columns():
+    """원문은 늘 본다. 한글 키워드는 원문만 — 번역문은 영어라 한글이 번역문에만 있는 글이 0건이었다(SG-19)."""
     clause, _, _ = _s()._keyword_cond("발열")
+    assert "content_original" in clause and "content_translated" not in clause
+    clause, _, _ = _s()._keyword_cond("écran")
     assert "content_original" in clause and "content_translated" in clause
 
 

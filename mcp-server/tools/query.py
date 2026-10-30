@@ -3,8 +3,10 @@ import re
 
 from typing import Optional, List
 from datetime import datetime
+import os
 from db import get_db_session
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 
 # 키워드 매칭 판단은 shared/keyword_match.py 가 **정본**이다 — 예전엔 이 파일과
 # shared/stats_sql.py 에 복제돼 있어 REST·MCP 가 갈라질 수 있었다.
@@ -325,6 +327,29 @@ def no_tagged_note(code: str, keyword_hits: int, keyword: str, match_mode: str) 
             f"어긋난 서버다 — 제품 축 통계 대신 search_voc(keyword='{keyword}', semantic=False) 로 본문을 보라")
 
 
+# 키워드 건수의 시간 상한 — 한글 부분일치는 색인이 없어 voc_records 전체를 읽는다(따뜻하면 1.5~2초, 차가우면
+# 10초 넘게 — 게이트웨이 감사 cae00 중앙값 4.2초 · 최대 14.2초, SG-19). 넘기면 5% 페이지 표본으로 어림한다.
+_COUNT_BUDGET_S = float(os.getenv("RESOLVE_COUNT_BUDGET_S", "2.5"))
+_SAMPLE_PCT = 5
+
+
+async def _keyword_hits(db, kw_clause: str, kw_params: dict):
+    """(건수, 정확한가) — 시간 상한 안에 세면 정확, 아니면 표본 어림(×100/표본%), 그것도 넘기면 (None, False)."""
+    base = f"FROM voc_records v{{sample}} WHERE v.archived_at IS NULL AND {kw_clause}"
+    for sample, budget in (("", _COUNT_BUDGET_S), (f" TABLESAMPLE SYSTEM ({_SAMPLE_PCT})", 1.5)):
+        await db.execute(text(f"SET LOCAL statement_timeout = '{int(budget * 1000)}ms'"))
+        try:
+            n = (await db.execute(text("SELECT count(*)::int " + base.format(sample=sample)), kw_params)).scalar_one()
+        except DBAPIError as e:
+            if "statement timeout" not in str(e):
+                raise
+            await db.rollback()
+            continue
+        await db.execute(text("SET LOCAL statement_timeout = 0"))
+        return (n, True) if not sample else (n * 100 // _SAMPLE_PCT, False)
+    return None, False
+
+
 async def resolve_product_keyword_tool(keyword: str) -> dict:
     """키워드가 가리키는 제품을 카탈로그로 확정하고, 키워드 검색과의 차이를 보여준다."""
     kw_clause, kw_params, used_match = _keyword_clause(keyword)
@@ -343,39 +368,38 @@ async def resolve_product_keyword_tool(keyword: str) -> dict:
                 if alias:
                     matches = alias + [m for m in matches if m["code"] not in found]
                     via = "alias"
-        kw_count = (await db.execute(text(f"""
-            SELECT count(*)::int FROM voc_records v
-            WHERE v.archived_at IS NULL AND {kw_clause}
-        """), kw_params)).scalar_one()
+        kw_count, kw_exact = await _keyword_hits(db, kw_clause, kw_params)
 
     best = matches[0] if matches else None
+    hits_txt = (f"{kw_count:,}건" if kw_exact else f"약 {kw_count:,}건(시간 상한을 넘겨 {_SAMPLE_PCT}% 표본으로 어림)"
+                if kw_count is not None else "건수 미상(시간 상한 안에 세지 못함)")
     out = {
         "keyword": keyword,
         "match_mode": used_match,
         "keyword_hits": kw_count,
+        "keyword_hits_exact": kw_exact,
         "candidates": matches[:5],
         "resolved_code": best["code"] if best else None,
         "resolved_via": via if best else None,
         "tagged_count": best["tagged_count"] if best else None,
         "status": "resolved" if best else "no_catalog_match",
     }
-    if best and best["tagged_count"] == 0 and kw_count > 0:
+    if best and best["tagged_count"] == 0 and (kw_count or 0) > 0:
         out["status"] = "no_tagged_records"
         out["note"] = no_tagged_note(best["code"], kw_count, keyword, used_match)
     elif best:
-        gap = best["tagged_count"] - kw_count
+        gap = f"(차이 {best['tagged_count'] - kw_count:+d})" if kw_exact else ""
         out["note"] = (
             f"키워드 '{keyword}' 는 제품 {best['code']}({best['name_en']}) 로 해석된다"
             + (" (별칭 사전)" if via == "alias" else "") + ". "
-            f"키워드 검색 {kw_count}건 vs 제품 태깅 {best['tagged_count']}건"
-            f"(차이 {gap:+d}). 제품 단위 질문이면 "
+            f"키워드 검색 {hits_txt} vs 제품 태깅 {best['tagged_count']:,}건{gap}. 제품 단위 질문이면 "
             f"search_voc(product_code='{best['code']}') 또는 제품 축 통계를 쓰는 것이 "
             f"표기에 흔들리지 않는다."
         )
     else:
         out["note"] = (
-            f"'{keyword}' 와 일치하는 카탈로그 제품이 없다(이름·별칭 사전 모두). 일반 키워드로 보고 "
-            f"{used_match} 경로로 {kw_count}건을 찾았다."
+            f"'{keyword}' 와 일치하는 카탈로그 제품이 없다(이름·별칭 사전 모두). 일반 키워드로 보면 "
+            f"{used_match} 경로로 {hits_txt}이다."
         )
     return out
 

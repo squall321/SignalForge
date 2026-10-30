@@ -112,7 +112,8 @@ def test_resolve_uses_the_tagging_alias_dictionary_and_flags_untagged(monkeypatc
     if not Q._matcher_codes("폴드8"):
         import pytest
         pytest.skip("제품 매처(/crawler)가 없는 환경")
-    db = FakeDB([("false AS exact", _Res(rows=[{"code": "GZF8", "name_en": "Galaxy Z Fold8", "name_ko": "갤럭시 Z 폴드8",
+    db = FakeDB([("SET LOCAL", _Res()),                      # 키워드 건수의 시간 상한(SG-19)
+                 ("false AS exact", _Res(rows=[{"code": "GZF8", "name_en": "Galaxy Z Fold8", "name_ko": "갤럭시 Z 폴드8",
                                                  "brand": "samsung", "category": "phone", "tagged_count": 0,
                                                  "exact": False}])),
                  ("AS exact", _Res(rows=[])),

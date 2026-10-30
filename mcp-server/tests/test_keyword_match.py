@@ -70,11 +70,15 @@ def test_single_token_keeps_plainto():
 
 
 def test_non_ascii_uses_both_columns():
-    """한국어는 content_original 을 봐야 한다 — 96%가 영어로 번역돼 있다."""
+    """한국어는 content_original 을 봐야 한다 — 96%가 영어로 번역돼 있다. 번역문은 영어라 한글 키워드가 번역문에만
+    있는 글은 0건이었다(dev 2026-10-30) — 한글은 원문만 읽고(번역문 TOAST 를 안 푼다, SG-19), 한글이 아닌 비ASCII 는
+    예전대로 둘 다 본다."""
     clause, params, mode = keyword_clause("발열")
     assert mode == "substring"
-    assert "content_original" in clause and "content_translated" in clause
+    assert "content_original" in clause and "content_translated" not in clause
     assert params["kw_like"] == "%발열%"
+    clause, _, mode = keyword_clause("écran")
+    assert mode == "substring" and "content_original" in clause and "content_translated" in clause
 
 
 @pytest.mark.parametrize("raw,esc", [
@@ -172,7 +176,7 @@ def test_phrase_beats_plainto_on_real_corpus():
 
 # ── 제품명 해석 (표기 흔들림 방어) ───────────────────────────────────────
 @pytest.mark.skipif(not _DB, reason="DATABASE_URL 없음")
-def test_spelling_variants_converge_to_one_product():
+def test_spelling_variants_converge_to_one_product(monkeypatch):
     """표기가 달라도 같은 제품 코드로 수렴해야 한다.
 
     구절 검색으로 정밀도는 99%대가 됐지만 **재현율의 표기 의존**은 남는다.
@@ -184,7 +188,10 @@ def test_spelling_variants_converge_to_one_product():
     import asyncio
     import sys as _s
     _s.path.insert(0, str(ROOT))
+    from tools import query as _q
     from tools.query import resolve_product_keyword_tool
+    # 이 시험은 표기 흔들림을 본다 — 건수의 시간 상한(SG-19)에 걸려 어림·미상이 되면 안 되니 상한을 푼다
+    monkeypatch.setattr(_q, "_COUNT_BUDGET_S", 600.0)
 
     variants = ["S25 Ultra", "Galaxy S25 Ultra", "갤럭시 S25 울트라", "S25Ultra", "GS25U"]
 
