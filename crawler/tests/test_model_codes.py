@@ -35,7 +35,7 @@ def test_ultra_codes_follow_the_numbering():
         ["GS22U", "GS23U", "GS24U", "GS25U", "GS26U"]
 
 
-@pytest.mark.parametrize("code", ["S906", "S937", "S741", "L715", "F761", "F971"])
+@pytest.mark.parametrize("code", ["S906", "S937", "S741", "L715", "F761"])
 def test_catalog_gaps_are_not_mapped(code):
     """카탈로그에 없는 모델(S22+ · S25 Edge · S26 FE · Watch Ultra 2 · Flip7 FE …)을 가까운 제품에 붙이면 오귀속이다."""
     assert M.product_of(code) is None and M.family_of(code) == ()

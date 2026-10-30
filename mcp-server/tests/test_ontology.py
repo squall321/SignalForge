@@ -260,7 +260,7 @@ def test_task_with_several_products_is_one_group_and_names_drop_revision_suffix(
 
 def test_spaced_task_name(plm):
     it = O.interpret("감마 프로 힌지", plm=plm)
-    assert it.products == ["GZF8"] and it.residual == [], (it.products, it.residual)
+    assert it.products == ["GZF8U"] and it.residual == [], (it.products, it.residual)
 
 
 def test_task_without_known_model_code_falls_back_to_words(plm):

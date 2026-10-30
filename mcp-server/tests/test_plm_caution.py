@@ -15,7 +15,7 @@ import ontology as O  # noqa: E402
 from base import plm_mirror as P  # noqa: E402
 
 
-def _mirror(a_model_code="SM-F976U"):
+def _mirror(a_model_code="SM-F971U"):
     """지어낸 두 프로젝트 — 알파(마케팅명 'Galaxy Z Fold8 Edition Alpha')와 베타('Galaxy Z Fold8'). 코어 꼴 — 별칭은 properties.aliases,
     과제 key 는 과제명, 과제코드는 task_code, 과제→프로젝트는 properties.project, 개발모델 코드는 model_code."""
     data = {
@@ -29,7 +29,7 @@ def _mirror(a_model_code="SM-F976U"):
             {"key": "과제B", "label": "과제B", "properties": {"task_code": "TK-B", "project": "PRJ-B-OLD"}}],
         "plm_model": [
             {"key": f"{a_model_code}_A", "properties": {"task": "과제A", "model_code": a_model_code}},
-            {"key": "SM-F976B_B", "properties": {"task": "과제B", "model_code": "SM-F976B"}}],
+            {"key": "SM-F971B_B", "properties": {"task": "과제B", "model_code": "SM-F971B"}}],
     }
     return P.PlmIndex.from_rows(data)
 
@@ -42,14 +42,14 @@ def test_index_reads_core_aliases_projects_and_old_project_keys():
 
 
 def test_product_shared_by_two_projects_is_flagged():
-    """두 프로젝트의 개발모델이 같은 기본 코드(F976 → GZF8) — GZF8 의 VOC 는 두 프로젝트를 가르지 않고 센다."""
+    """두 프로젝트의 개발모델이 같은 기본 코드(F971 → GZF8) — GZF8 의 VOC 는 두 프로젝트를 가르지 않고 센다."""
     idx = _mirror()
     it = O.interpret("Galaxy Z Fold8 Edition Alpha 힌지 불만", plm=idx)
     assert "GZF8" in it.products
     c = it.plm_caution
     assert c and c["products"]["GZF8"] == ["베타", "알파"] and "알파" in c["named_projects"] and not c["foreign_projects"]
     assert any(n.startswith("주의 — ") and "2개" in n for n in it.notes), it.notes
-    it2 = O.interpret("SM-F976U 발열", plm=idx)                     # 모델코드로 짚어도 같다
+    it2 = O.interpret("SM-F971U 발열", plm=idx)                     # 모델코드로 짚어도 같다
     assert it2.plm_caution and it2.plm_caution["products"]["GZF8"] == ["베타", "알파"]
 
 

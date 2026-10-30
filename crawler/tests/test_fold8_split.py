@@ -58,3 +58,11 @@ def test_generation_and_series_include_the_ultra():
     import ontology as O
     assert O.family_key("GZF8U") == "GZF8" == O.family_key("GZF8")
     assert re.match(O.SERIES["zfold"]["code_regex"], "GZF8U") and not re.match(O.SERIES["zfold"]["code_regex"], "GZFL8")
+
+
+def test_model_codes_split_the_two_fold8s():
+    """F976 계열은 Fold8 Ultra, F971 계열은 넓은 폼팩터 Fold8(2026-10-31 확정 — 그 전에는 F976 이 GZF8, F971 은 공백)."""
+    assert _codes("SM-F976U teardown") == ["GZF8U"] and _codes("SM-F9760 hinge") == ["GZF8U"]
+    assert _codes("SM-F971B screen protector") == ["GZF8"]
+    got = _codes("Galaxy Z Fold8 review — I tested the SM-F976B too")
+    assert got[0] == "GZF8" and "GZF8U" in got, "이름이 대표, 모델코드로만 나온 제품은 함께 언급"
