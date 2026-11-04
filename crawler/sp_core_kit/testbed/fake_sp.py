@@ -362,6 +362,10 @@ class World:
             "dst_type": dst["type"],
             "evidence_note": "",
             "properties": {} if deleted else dict(one["props"]),
+            # 유효 기간(2026-10-30) — 시험장의 선은 늘 유효하다. SP 는 오늘 유효한 선만 보내고,
+            # 기간이 끝나는 날 그 선을 deleted 로 알린다 — 받는 쪽이 따로 할 일은 없다.
+            "valid_from": None,
+            "valid_to": None,
             "updated_at": stamp(one["at"]),
             "deleted": deleted,
         }
@@ -418,6 +422,9 @@ class World:
             "label": spec["label"],
             "src": [{"slug": spec["src"], "interface": False, "types": [spec["src"]]}],
             "dst": [end],
+            "effectivity": False,
+            "quantity_key": "",
+            "lineage_source": "",
         }
 
     def expected(self) -> dict[str, Any]:

@@ -4,12 +4,14 @@
 
 작업을 시작할 때 SP main HEAD 와 키트 판(`KIT_VERSION`) · `CHANGES.md` 를 확인하고, 바뀌었으면 맞춘다(사용자 지시 2026-10-31).
 
-- **지금 판** — `crawler/sp_core_kit/` = SP `778db2f`(0.4.67)의 `backend/app/modules/coreapi/kit` · `KIT_VERSION = "2026-10-21"`.
+- **지금 판** — `crawler/sp_core_kit/` = SP `ab41cff`(0.4.72)의 `backend/app/modules/coreapi/kit` · `KIT_VERSION = "2026-11-03"`.
   키트 폴더는 고치지 않는다(그 판과 diff 가 없어야 한다).
+- **선(관계)** — 키트가 사본에 받아 두지만 SignalForge 색인은 쓰지 않는다(사용자 결정 2026-11-04). 쓰게 되면 키트 §2 물음부터
+  묻고 §6.2 · §9 대로 짓는다.
 - **확인** — 복제 없이 된다.
 
   ```bash
-  git ls-remote https://github.com/4leaf321-nox321/StandardPlatform.git refs/heads/main       # 778db2f… 면 그대로
+  git ls-remote https://github.com/4leaf321-nox321/StandardPlatform.git refs/heads/main       # ab41cff… 면 그대로
   curl -s https://raw.githubusercontent.com/4leaf321-nox321/StandardPlatform/main/backend/app/modules/coreapi/kit/sp_core_pull.py \
     | grep -m1 '^KIT_VERSION'
   grep -m1 '^KIT_VERSION' crawler/sp_core_kit/sp_core_pull.py                                   # 둘이 같아야 한다
@@ -25,5 +27,5 @@
 - 같은 SP 키트를 받는 다른 플랫폼과 **같은 판**에 둔다 — 올리면 포털(HWAX) 세션에 커밋을 알린다.
 - **cae00** — 받는 쪽이 바뀌면 날짜별 적용 문서(`docs/DEPLOY_CAE00_<날짜>.md`)에 처음 받기(`bash scripts/plm-sync.sh --full`)와
   확인을 적는다. 공개 리포라 허브 주소 · 토큰 · 가린 이름표 · 과제코드는 적지 않는다.
-- 기록 — 2026-10-31 키트 2026-10-21 판으로 바꾼 것은 `docs/plm-ontology/checklist.md` · `context-notes.md` 의 'SP 키트 2026-10-21
-  맞추기' 절.
+- 기록 — `docs/plm-ontology/checklist.md` · `context-notes.md` 의 'SP 키트 2026-10-21 맞추기'(2026-10-31) · 'SP 키트 2026-11-03
+  맞추기'(2026-11-04) 절.
