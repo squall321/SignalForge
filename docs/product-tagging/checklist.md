@@ -58,8 +58,9 @@
 - [x] 홀드아웃 표본 정밀도(새로 붙는 것 · 떼는 것) — dry-run 판마다 종류별 표본, 최종 135건 틀림 2(고침)
 - [x] 카탈로그 빈칸(필요하면 alembic · 시드) — 25종, alembic 0047 · 시드 923행(90e450b)
 - [x] 지난 글 — dry-run(9판, 최종 후보 89,167 · 고침 24,564) → 표본 — retag_delta(f44cf73)
-- [ ] 지난 글 — 적용(되돌리기 CSV) — 사용자의 '적용' 뒤 dev 에서(worker 재기동 → --apply → sf-mcp 재기동)
+- [x] 지난 글 — 적용(되돌리기 CSV) — 2026-11-07 21:54~22:24 UTC 사용자 '적용' 뒤 dev. 고침 24,579, 다시 돌린 dry-run 0,
+  crawler/logs/retag-delta-2026-11-07-apply.csv
 - [x] 품질 보고서 MV 신선도를 실제 갱신 기록에서(1efb305) — worker 재기동 뒤부터 기록이 쌓인다
 - [x] 전체 시험 — crawler 2,002 passed(실패 4 기존) · mcp 189 · backend 시드 3
 - [x] cae00 문서 — docs/DEPLOY_CAE00_2026-11-07.md
-- [ ] 커밋 · push · 포털 알림 · 메모리
+- [x] 커밋 · push · 포털 알림 · 메모리 — 90e450b · 1efb305 · b2cc9e0 · f44cf73 · 191ea0f, 적용 기록은 다음 커밋
