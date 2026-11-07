@@ -814,8 +814,10 @@ def _refresh_mv(view: str, timeout: int = 300) -> dict:
     """
     import asyncio as _aio
     import time
+    from datetime import datetime, timezone
     from sqlalchemy import text as _sqltext
     from sqlalchemy.ext.asyncio import create_async_engine
+    from base import mv_refresh_log
 
     if not _MV_NAME_RE.match(view):          # 식별자 보호(호출부는 리터럴이지만 방어)
         return {"status": "error", "error": f"invalid view name: {view}"}
@@ -861,6 +863,7 @@ def _refresh_mv(view: str, timeout: int = 300) -> dict:
             return "blocking"
 
     t0 = time.time()
+    started = datetime.now(timezone.utc)
     try:
         mode = _aio.run(_run())
     except _aio.TimeoutError:
@@ -874,6 +877,11 @@ def _refresh_mv(view: str, timeout: int = 300) -> dict:
 
     elapsed_ms = int((time.time() - t0) * 1000)
     logger.info("[refresh_mv] %s 완료 %sms (%s)", view, elapsed_ms, mode)
+    # 품질 보고서의 신선도 근거 — PG 는 MV 갱신 시각을 남기지 않는다. 기록 실패가 갱신 결과를 바꾸지는 않는다.
+    try:
+        mv_refresh_log.record(view, started, mode, elapsed_ms)
+    except Exception as exc:
+        logger.warning("[refresh_mv] %s 갱신 기록 실패: %s", view, exc)
     return {"status": "ok", "elapsed_ms": elapsed_ms, "mode": mode}
 
 

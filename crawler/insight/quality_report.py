@@ -45,6 +45,7 @@ REPO_ROOT = _CRAWLER_DIR.parent
 DEFAULT_REPORT_DIR = REPO_ROOT / "reports"
 
 from base.backend_url import auth_headers, backend_base  # noqa: E402
+from base import mv_refresh_log  # noqa: E402
 DEFAULT_BASE = backend_base()
 
 # 모니터링할 MV — 신선도(분 단위 지연) 체크 대상
@@ -132,6 +133,7 @@ class MVStats:
     last_refresh: Optional[datetime] = None
     age_minutes: Optional[float] = None
     error: Optional[str] = None
+    basis: Optional[str] = None          # "refresh_log"(실제 갱신 기록) | "pg_stat"(analyze 시각 근사)
 
 
 @dataclass
@@ -294,11 +296,31 @@ def collect_alert_monitor(
     )
 
 
-def collect_mv_stats(mvs: Tuple[str, ...] = WATCHED_MVS) -> List[MVStats]:
-    """MV 신선도(마지막 refresh 근사 시각·경과 분)를 조회한다.
+def _mv_stat(name: str, approx: datetime, recorded: Optional[datetime], now: datetime) -> MVStats:
+    """한 MV 의 신선도 — _refresh_mv 가 남긴 실제 갱신 기록이 있으면 그것, 없을 때만 pg_stat 근사.
 
-    MV refresh 시각은 표준 카탈로그에 직접 노출되지 않으므로
-    pg_stat_user_tables 의 last_analyze/last_autoanalyze/last_vacuum 최댓값으로 근사한다.
+    근사를 기록과 섞지(최댓값) 않는다. 손으로 돌린 ANALYZE · VACUUM 도 근사 시각을 당겨 놓아,
+    갱신이 멈춘 MV 를 신선하게 보이게 할 수 있다 — 이 보고서가 잡아야 할 바로 그 고장이다.
+    """
+    if recorded is not None:
+        return MVStats(name=name, last_refresh=recorded,
+                       age_minutes=(now - recorded).total_seconds() / 60.0, basis="refresh_log")
+    if approx.tzinfo is None:
+        approx = approx.replace(tzinfo=timezone.utc)
+    if approx.year <= 1970:                      # epoch = 통계 없음
+        return MVStats(name=name, error="no stats")
+    return MVStats(name=name, last_refresh=approx,
+                   age_minutes=(now - approx).total_seconds() / 60.0, basis="pg_stat")
+
+
+def collect_mv_stats(mvs: Tuple[str, ...] = WATCHED_MVS) -> List[MVStats]:
+    """MV 신선도(마지막 refresh 시각·경과 분)를 조회한다.
+
+    MV refresh 시각은 표준 카탈로그에 직접 노출되지 않는다. 그래서 _refresh_mv 가 성공할 때마다
+    남기는 기록(base.mv_refresh_log)을 먼저 보고, 기록이 없을 때만 pg_stat_user_tables 의
+    last_analyze/last_autoanalyze/last_vacuum 최댓값으로 근사한다. 근사만 쓰던 때는 바뀐 행이 적은
+    CONCURRENTLY 갱신 뒤 autoanalyze 가 돌지 않아, 30분마다 갱신되는 MV 가 며칠 묵은 것으로 보였다
+    (2026-11-07 — kg_edges_daily 3,440분 · country_daily 2,481분).
 
     **psql 외부 호출을 쓰지 않는다.** 컨테이너화(2026-07-07) 이후 sif 에 psql 이 없어
     이 함수가 FileNotFoundError 로 즉사했고, 그 결과 MV 7종이 2026-07-06 에 동결된 것을
@@ -342,16 +364,10 @@ def collect_mv_stats(mvs: Tuple[str, ...] = WATCHED_MVS) -> List[MVStats]:
     out: List[MVStats] = []
     for mv in mvs:
         ts = found.get(mv)
-        if ts is None:
+        if ts is None:                           # MV 자체가 없다 — 갱신 기록이 남아 있어도 지난 기록이다
             out.append(MVStats(name=mv, error="not found"))
             continue
-        if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
-        if ts.year <= 1970:                      # epoch = 통계 없음
-            out.append(MVStats(name=mv, error="no stats"))
-            continue
-        out.append(MVStats(name=mv, last_refresh=ts,
-                           age_minutes=(now - ts).total_seconds() / 60.0))
+        out.append(_mv_stat(mv, ts, mv_refresh_log.last_refreshed(mv), now))
     return out
 
 
@@ -519,6 +535,8 @@ def render_markdown(r: QualityReport) -> str:
         flag = ""
         if mv.age_minutes is not None and mv.age_minutes > 60:
             flag = "⚠ 1시간 초과"
+        if mv.basis == "pg_stat":                # 갱신 기록이 없어 analyze 시각으로 짐작했다
+            flag = f"{flag} (pg_stat 근사)".strip()
         L.append(f"| `{mv.name}` | {ts_str} | {age_str} | {flag} |")
     L.append("")
 
@@ -668,6 +686,7 @@ def maybe_llm_summary(r: QualityReport) -> Optional[str]:
         "mv": [
             {"name": m.name,
              "age_minutes": m.age_minutes,
+             "basis": m.basis,
              "error": m.error}
             for m in r.mvs
         ],

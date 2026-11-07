@@ -31,3 +31,20 @@ def test_refresh_mv_voc_daily_beat_registered():
     assert "refresh-mv-voc-daily-30m" in app.conf.beat_schedule
     entry = app.conf.beat_schedule["refresh-mv-voc-daily-30m"]
     assert entry["task"] == "tasks.refresh_mv_voc_daily"
+
+
+def test_refresh_mv_records_only_successful_refreshes(tmp_path, monkeypatch):
+    """성공한 갱신만 기록한다 — 품질 보고서가 이 기록으로 신선도를 본다(pg_stat 근사는 CONCURRENTLY 뒤 낡는다)."""
+    from datetime import datetime, timezone
+
+    from base import mv_refresh_log
+    from tasks import _refresh_mv
+
+    monkeypatch.setattr(mv_refresh_log, "_dir", lambda: tmp_path)
+    before = datetime.now(timezone.utc)
+    assert _refresh_mv("mv_voc_daily", timeout=120)["status"] == "ok"
+    got = mv_refresh_log.last_refreshed("mv_voc_daily")
+    assert got is not None and before <= got <= datetime.now(timezone.utc)
+
+    assert _refresh_mv("mv_does_not_exist", timeout=30)["status"] == "error"
+    assert mv_refresh_log.last_refreshed("mv_does_not_exist") is None
