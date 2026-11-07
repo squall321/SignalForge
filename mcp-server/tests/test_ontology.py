@@ -242,8 +242,10 @@ def test_unreleased_model_code_scopes_the_generation_as_one_group():
 
 
 def test_unknown_model_code_stays_as_a_word():
-    it = O.interpret("SM-S937B 화면")
-    assert not it.products and it.residual == ["sm-s937b"] and any("사전에 없어" in n for n in it.notes)
+    it = O.interpret("SM-S906B 화면")             # S22+ — 카탈로그 공백이라 사전에 없다
+    assert not it.products and it.residual == ["sm-s906b"] and any("사전에 없어" in n for n in it.notes)
+    # S25 Edge(S937)는 예전 이 시험의 예였는데 카탈로그 0047 로 들어와 이제 그 기기로 풀린다(2026-11-07)
+    assert O.interpret("SM-S937B 화면").products == ["GS25E"]
 
 
 def test_task_code_and_name_resolve_to_its_product(plm):

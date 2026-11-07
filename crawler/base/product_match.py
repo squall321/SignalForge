@@ -25,6 +25,33 @@ from base import model_codes as _mc
 # 한글 friendly 경계: 다음 글자가 숫자/영문이 아닐 때만 매칭 (한글·공백·구두점 OK)
 _E = r"(?![0-9a-zA-Z])"
 
+
+def _not_variant(pats: List[str], suffix: str) -> List[str]:
+    """기본형 패턴이 변형 표기('S26 FE' · 'Watch 8 Classic')의 앞부분을 잡지 않게 뒤를 막는다.
+
+    코드마다 첫 매칭 하나만 보고 그것이 더 구체적인 코드와 겹치면 코드를 통째로 버린다. 그래서 기본형의 첫 매칭이
+    변형 안에 떨어지면 따로 쓴 기본형까지 사라졌다 — 'Fold 7 и Flip 7 … Galaxy Z Flip 7 FE' 에서 GZFL7 이 빠졌다
+    (2026-11-07 변형을 나눈 뒤 dry-run 896행 — GS26 424 · GS25 152 · GW8 120 · GW6 68 · GZFL7 55 · GB3 38 · GTABA11 25).
+    """
+    # 사이는 공백만이 아니다 — 주소 꼴('galaxy-s26-ultra-camera' · 'galaxy-s25-fe-256gb')에서 기본형이 끼어들었다(표본 25건 중 2)
+    return [p + r"(?![\s\-_]*(?:" + suffix + r"))" for p in pats]
+
+
+# 막는 꼴은 변형 패턴이 받는 꼴과 같아야 한다 — 낱말 끝을 보지 않으면 'S25 ultrasonic'(S25 의 초음파 지문 센서)이나
+# 'S25 edges' 처럼 변형이 받지 않는 글에서 기본형까지 막혀 아무것도 남지 않는다
+_FE = r"fe(?![0-9a-z])"
+# 맨 'c' 는 막지 않는다 — 변형이 그 꼴을 받는 것은 줄임말('gw8 c')뿐이라, 막으면 'watch 8 c…' 에서 기본형만 사라진다.
+# 'gw8 c' 는 막지 않아도 겹침 억제로 GW8C 가 가져간다(변형이 앞 순서)
+_CLASSIC = r"classics?(?![0-9a-z])|클래식"
+_PLUS = r"\+|plus(?![0-9a-z])|플러스"
+_ULTRA = r"ultras?(?![0-9a-z])|울트라"
+_PRO = r"pro(?![0-9a-z])|프로"
+# 기본형의 변형을 **모두** 막는다 — FE 만 막으면 첫 매칭이 다음 변형('Galaxy S26 Ultra' · 'Buds 3 Pro' · 'Tab S10 Ultra')
+# 안으로 옮겨 가 같은 일이 났다(위 896행 중 58행이 남았다)
+# S 시리즈는 줄임말도 변형이 받는다 — 's26울'·'s26 ul'(Ultra) · 's26플'(Plus) · 'Fan Edition'(FE). 막지 않으면 'S26울 512' 에서
+# 기본형이 끼어들었다(최종 표본 135건 중 2건이 이 둘)
+_S_FAMILY = _FE + r"|fan\s*edition|ul(?![0-9a-z])|울|플|" + _ULTRA + "|" + _PLUS
+
 PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
     # ═══════════ Galaxy 2026 라인업 (루머/얼리 액세스) ═══════════
     # ── Galaxy S26 (Ultra → Plus → 기본 순서) ──
@@ -37,7 +64,7 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
     ("GS27",  [r"galaxy\s*s27" + _E, r"\bs27" + _E, r"갤럭시\s*s27" + _E,
                r"갤s27" + _E, r"갤럭시\s*S27"]),
 
-    ("GS26U", [r"\bs26\s*ultra" + _E, r"galaxy\s*s26\s*ultra", r"\bs26u" + _E,
+    ("GS26U", [r"s26울(?=\d)", r"\bs26\s*ultra" + _E, r"\bs26\s*ultras" + _E, r"galaxy\s*s26\s*ultra", r"\bs26u" + _E,
                r"s26\s*울트라", r"s26울트라", r"갤럭시\s*s26\s*울트라",
                r"\bs26\s*울" + _E, r"s26울" + _E, r"26\s*울트라", r"26울트라",
                r"\b26울" + _E, r"26울라리", r"s26\s*울라", r"s26울라",
@@ -45,13 +72,16 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                # 한국어 변형 보강: 26울모/26울x (붙임 직후 한글), 26울라(리)
                r"26울라" + _E, r"갤26울", r"\b26울모" + _E,
                r"\b26\s*울라리", r"\b26\s*울라" + _E]),
-    ("GS26P", [r"\bs26\s*\+", r"\bs26\s*plus" + _E, r"galaxy\s*s26\s*\+",
+    ("GS26P", [r"s26플(?=\d)", r"\bs26\s*\+", r"갤럭시\s*s26\s*\+", r"\bs26\s*plus" + _E, r"galaxy\s*s26\s*\+",
                r"s26\s*플러스", r"s26플러스", r"\bs26\s*플" + _E, r"s26플" + _E,
                r"갤s26\s*\+", r"갤s26\s*플",
                # 보강: 26 플(러스), 26플, 26+, s26플러스, s26 플
                r"\b26\s*플러스" + _E, r"\b26플러스" + _E, r"\b26\s*플" + _E,
                r"\b26플" + _E, r"\b26\s*\+"]),
-    ("GS26",  [r"galaxy\s*s26" + _E, r"\bs26" + _E, r"갤럭시\s*s26" + _E,
+    # Galaxy S26 FE(2026-09-04) — S25 묶음처럼 Ultra → Plus → FE → 기본형 차례. 제목 없는 글의 대표는 이 차례로 정해지므로
+    # 맨 앞에 두면 'S26 Ultra … S26 FE' 글의 대표가 FE 로 간다. 기본형이 FE 를 막으니(_not_variant) 기본형 앞이면 된다
+    ("GFE26", [r"\bs26\s*fan\s*edition" + _E, r"galaxy\s*s26\s*fan\s*edition" + _E, r"\bs26\s*fe" + _E, r"\bs26fe" + _E, r"galaxy\s*s26\s*fe" + _E, r"갤럭시\s*s26\s*fe" + _E]),
+    ("GS26",  _not_variant([r"galaxy\s*s26" + _E, r"\bs26" + _E, r"갤럭시\s*s26" + _E,
                r"갤s26" + _E,
                r"s26\s*일반", r"s26\s*노말", r"s26\s*노멀",
                r"s26\s*시리즈", r"s26시리즈",
@@ -60,72 +90,89 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"\b26\s*시리즈" + _E, r"\b26시리즈" + _E,
                r"\b26\s*노멀" + _E, r"\b26노멀" + _E,
                r"\b26\s*기본" + _E, r"\b26기본" + _E,
-               r"\b26\s*일반" + _E]),
+               r"\b26\s*일반" + _E], _S_FAMILY)),
 
     # ═══════════ Galaxy 2025 라인업 ═══════════
     # ── Galaxy S25 (Ultra → Plus → FE → 기본 순서) ──
-    ("GS25U", [r"\bs25\s*ultra" + _E, r"galaxy\s*s25\s*ultra", r"\bs25u" + _E,
+    ("GS25U", [r"s25울(?=\d)", r"\bs25\s*ultra" + _E, r"\bs25\s*ultras" + _E, r"galaxy\s*s25\s*ultra", r"\bs25u" + _E,
                r"s25\s*울트라", r"s25울트라", r"갤럭시\s*s25\s*울트라",
                r"\bs25\s*울" + _E, r"s25울" + _E, r"25\s*울트라", r"25울트라",
                r"\b25울" + _E, r"갤s25\s*울", r"s25\s*ul" + _E,
                # 보강: 25울모/25울려/갤25울
                r"갤25울", r"\b25울모" + _E]),
-    ("GS25P", [r"\bs25\s*\+", r"\bs25\s*plus" + _E, r"galaxy\s*s25\s*\+",
+    ("GS25P", [r"s25플(?=\d)", r"\bs25\s*\+", r"갤럭시\s*s25\s*\+", r"\bs25\s*plus" + _E, r"galaxy\s*s25\s*\+",
                r"s25\s*플러스", r"s25플러스", r"\bs25\s*플" + _E, r"s25플" + _E,
                r"갤s25\s*\+", r"갤s25\s*플", r"25\s*플러스", r"갤25\s*\+",
                # 보강: 25플(러스) 단독 숫자형
                r"\b25\s*플러스" + _E, r"\b25플러스" + _E, r"\b25\s*플" + _E,
                r"\b25플" + _E, r"\b25\s*\+"]),
-    ("GFE25", [r"\bfe\s*25" + _E, r"\bfe25" + _E, r"s25\s*fe" + _E,
+    ("GFE25", [r"\bs25\s*fan\s*edition" + _E, r"galaxy\s*s25\s*fan\s*edition" + _E, r"\bfe\s*25" + _E, r"\bfe25" + _E, r"s25\s*fe" + _E,
                r"galaxy\s*fe\s*25", r"갤럭시\s*fe\s*25", r"s25fe" + _E,
                # 보강: 25fe, 갤럭시 fe 25
                r"\b25\s*fe" + _E, r"\b25fe" + _E]),
-    ("GS25",  [r"galaxy\s*s25" + _E, r"\bs25" + _E, r"갤럭시\s*s25" + _E,
+    # S25 Edge(2025-05-30)는 따로 된 제품이다 — 카탈로그에 없던 때는 GS25 로 흡수했다(2026-11-07 GS25E 신설)
+    # 앞은 \b 가 아니라 영숫자만 막는다 — 옛 GS25 의 edge 꼴처럼 'Fold 7やS25 Edge'(일본어 붙여 씀)도 잡고 'gs25' 는 막는다
+    ("GS25E", [r"s25\s*엣지" + _E, r"s25엣지" + _E, r"(?<![0-9a-z])s25\s*edge" + _E, r"(?<![0-9a-z])s25edge" + _E,
+               r"galaxy\s*s25\s*edge" + _E, r"갤럭시\s*s25\s*엣지" + _E]),
+    ("GS25",  _not_variant([r"galaxy\s*s25" + _E, r"\bs25" + _E, r"갤럭시\s*s25" + _E,
                r"갤s25" + _E, r"갤25" + _E,
-               # 보강: s25엣지(Edge 별도 SKU 없으므로 GS25로 흡수), s25 일반/노멀/기본
-               r"s25엣지" + _E, r"s25\s*엣지" + _E, r"s25edge" + _E, r"s25\s*edge" + _E,
+               # 보강: s25 일반/노멀/기본
                r"s25\s*일반", r"s25\s*노멀", r"s25\s*노말",
-               r"s25\s*기본", r"s25\s*시리즈", r"s25시리즈"]),
+               r"s25\s*기본", r"s25\s*시리즈", r"s25시리즈"], _S_FAMILY + r"|edge(?![0-9a-z])|엣지")),
 
     # ── Galaxy Z 8세대 (2026-07 출시) ──
     # 8세대 폴드는 둘이다 — Fold8 Ultra(Fold7 의 직접 후속)와 넓은 폼팩터의 Fold8(GZF8, '폴드 와이드').
     # 'Ultra' 가 붙은 표기만 GZF8U 로 가고, GZF8 패턴은 뒤에 ultra/울트라가 오면 비켜 간다 — 비교글
     # 'Fold8 Ultra vs Fold8' 에서 GZF8 의 첫 매칭이 Ultra 안에 걸려 둘 중 하나가 사라지지 않게(2026-10-31).
-    ("GZF8U", [r"\bz\s*fold\s*8\s*ultra" + _E, r"\bfold\s*8\s*ultra" + _E,
+    # 'galaxy\s*z\s*…' 꼴은 해시태그 '#GalaxyZFold8' 처럼 붙여 쓴 것을 잡는다 — '\bz' 는 'galaxyz' 사이에서 안 걸린다(2026-11-07)
+    ("GZF8U", [r"\bz\s*fold\s*8\s*ultra" + _E, r"\bfold\s*8\s*ultra" + _E, r"galaxy\s*z\s*fold\s*8\s*ultra" + _E,
                r"z\s*폴드\s*8\s*울트라", r"폴드\s*8\s*울트라", r"\b폴8\s*울트라",
                r"갤럭시\s*z\s*폴드\s*8\s*울트라"]),
     ("GZF8",  [r"\bz\s*fold\s*8(?!\s*ultra)" + _E, r"\bfold\s*8(?!\s*ultra)" + _E,
-               r"\bzfold8(?!\s*ultra)" + _E,
+               r"\bzfold8(?!\s*ultra)" + _E, r"galaxy\s*z\s*fold\s*8(?!\s*ultra)" + _E,
                r"z\s*폴드\s*8(?!\s*울트라)", r"폴드8(?!\s*울트라)", r"폴드\s*8(?!\s*울트라)" + _E,
                r"\b폴8(?!\s*울트라)" + _E,
                r"갤럭시\s*z\s*폴드\s*8(?!\s*울트라)", r"폴드\s*와이드", r"폴드와이드",
                r"와이드\s*폴드", r"와이드폴드"]),
-    ("GZFL8", [r"\bz\s*flip\s*8" + _E, r"\bflip\s*8" + _E, r"\bzflip8" + _E,
+    ("GZFL8", [r"\bz\s*flip\s*8" + _E, r"\bflip\s*8" + _E, r"\bzflip8" + _E, r"galaxy\s*z\s*flip\s*8" + _E,
                r"z\s*플립\s*8", r"플립8", r"플립\s*8" + _E, r"\b플8" + _E]),
 
     # ── Galaxy Z 7세대 ──
-    ("GZF7",  [r"\bz\s*fold\s*7" + _E, r"\bfold\s*7" + _E, r"\bzfold7" + _E,
+    ("GZF7",  [r"\bz\s*fold\s*7" + _E, r"\bfold\s*7" + _E, r"\bzfold7" + _E, r"galaxy\s*z\s*fold\s*7" + _E,
                r"z\s*폴드\s*7", r"폴드7", r"폴드\s*7" + _E, r"\b폴7" + _E,
                r"갤럭시\s*z\s*폴드\s*7"]),
-    ("GZFL7", [r"\bz\s*flip\s*7" + _E, r"\bflip\s*7" + _E, r"\bzflip7" + _E,
+    # Z Flip7 FE(2025-07-25) — 카탈로그에 없던 때는 'flip 7' 이 앞부분을 잡아 GZFL7 로 갔다(2026-11-07 신설)
+    ("GZFL7FE", [r"\bz\s*flip\s*7\s*fe" + _E, r"\bflip\s*7\s*fe" + _E, r"\bzflip7\s*fe" + _E,
+                 r"galaxy\s*z\s*flip\s*7\s*fe" + _E, r"플립\s*7\s*fe" + _E]),
+    ("GZFL7", _not_variant([r"\bz\s*flip\s*7" + _E, r"\bflip\s*7" + _E, r"\bzflip7" + _E, r"galaxy\s*z\s*flip\s*7" + _E,
                r"z\s*플립\s*7", r"플립7", r"플립\s*7" + _E, r"\b플7" + _E,
-               r"갤럭시\s*z\s*플립\s*7"]),
+               r"갤럭시\s*z\s*플립\s*7"], _FE)),
 
     # ── Galaxy Tab ── (2026-09-16 실측: 카탈로그엔 있는데 패턴이 통째로 없어
     # Tab 라인 전체가 미태깅이었다. **구체적인 것을 먼저** 둬야 구간 선점이
     # 올바르다 — 'Tab S11 Ultra' 가 'Tab S11' 보다 앞서야 한다.)
+    # Tab S12(2026-10-07)는 Ultra · + 만 나왔다(기본형 없음) — 맨 'tab s12' 는 어느 기기인지 몰라 잇지 않는다
+    ("GTABS12U", [r"tab\s*s12\s*ultra" + _E, r"탭\s*s12\s*울트라", r"갤럭시\s*탭\s*s12\s*울트라"]),
+    ("GTS12P",   [r"tab\s*s12\s*\+", r"tab\s*s12\s*plus" + _E, r"탭\s*s12\s*(?:\+|플러스)"]),
     ("GTABS11U", [r"tab\s*s11\s*ultra" + _E, r"탭\s*s11\s*울트라",
                   r"갤럭시\s*탭\s*s11\s*울트라"]),
     ("GTS11P",   [r"tab\s*s11\s*\+", r"tab\s*s11\s*plus" + _E, r"탭\s*s11\s*플러스"]),
     ("GTABS11",  [r"tab\s*s11" + _E, r"탭\s*s11" + _E, r"갤럭시\s*탭\s*s11" + _E]),
-    ("GTABS10U", [r"tab\s*s10\s*ultra" + _E, r"탭\s*s10\s*울트라"]),
+    ("GTABS10U", [r"tab\s*s10\s*ultras?" + _E, r"탭\s*s10\s*울트라"]),
+    # 'tab' 을 뺀 's10 fe' · 's10fe+' — 폰 S10 에 FE 는 없다(미태깅 's10 fe' 765 · 's10fe' 268, 표본 18/18 탭)
     ("GTS10FP",  [r"tab\s*s10\s*fe\s*\+", r"tab\s*s10\s*fe\s*plus" + _E,
-                  r"탭\s*s10\s*fe\s*플러스"]),
-    ("GTABS10F", [r"tab\s*s10\s*fe" + _E, r"탭\s*s10\s*fe" + _E]),
-    ("GTABS10P", [r"tab\s*s10\s*\+", r"tab\s*s10\s*plus" + _E, r"탭\s*s10\s*플러스"]),
-    ("GTABS10",  [r"tab\s*s10" + _E, r"탭\s*s10" + _E, r"갤럭시\s*탭\s*s10" + _E]),
+                  r"탭\s*s10\s*fe\s*플러스", r"탭\s*s10\s*fe\s*\+", r"\bs10\s*fe\s*(?:\+|plus" + _E + r")", r"\bs10fe\s*(?:\+|plus" + _E + r")"]),
+    ("GTABS10F", _not_variant([r"tab\s*s10\s*fe" + _E, r"탭\s*s10\s*fe" + _E, r"\bs10\s*fe" + _E, r"\bs10fe" + _E], _PLUS)),
+    # Tab S10 Lite(2025-09-04) — 카탈로그에 없던 때는 'tab s10' 이 앞부분을 잡아 GTABS10 으로 갔다(활성 383행).
+    # 맨 's10 lite' 는 2020 폰 S10 Lite(GS10L)와 이름이 같아 탭 문맥이 있을 때만 받는다(_live_span_ok)
+    ("GTS10L",   [r"tab\s*s10\s*(?:lite|라이트)" + _E, r"탭\s*s10\s*(?:lite|라이트)" + _E,
+                  r"\bs10\s*lite" + _E, r"\bs10lite" + _E]),
+    ("GTABS10P", [r"tab\s*s10\s*\+", r"tab\s*s10\s*plus" + _E, r"탭\s*s10\s*플러스", r"탭\s*s10\s*\+", r"탭\s*s10\s*plus" + _E]),
+    ("GTABS10",  _not_variant([r"tab\s*s10(?!\s*(?:lite|라이트))" + _E, r"탭\s*s10(?!\s*(?:lite|라이트))" + _E,
+                  r"갤럭시\s*탭\s*s10(?!\s*(?:lite|라이트))" + _E], _S_FAMILY + r"|lite(?![0-9a-z])|라이트")),
     ("GTABACT5", [r"tab\s*active\s*5" + _E, r"탭\s*액티브\s*5" + _E]),
-    ("GTABA11",  [r"tab\s*a11" + _E, r"탭\s*a11" + _E]),
+    ("GTABA11P", [r"tab\s*a11\s*\+", r"tab\s*a11\s*plus" + _E, r"탭\s*a11\s*(?:\+|플러스)"]),
+    ("GTABA11",  _not_variant([r"tab\s*a11" + _E, r"탭\s*a11" + _E], _PLUS)),
 
     # ── Galaxy A / M / F / XCover / Wide / Jump ── (보급형. 판매량이 가장 큰
     # 라인인데 A16·A17·A36 등이 패턴 없이 비어 있었다.)
@@ -135,14 +182,29 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
     ("GA17",   [r"galaxy\s*a17" + _E, r"\ba17" + _E, r"갤럭시\s*a17"]),
     ("GA16",   [r"galaxy\s*a16" + _E, r"\ba16" + _E, r"갤럭시\s*a16"]),
     ("GA07",   [r"galaxy\s*a07" + _E, r"\ba07" + _E, r"갤럭시\s*a07"]),
+    # 2026-11-07 신설(카탈로그 0047). A18 은 애플 A18 · A18 Pro 칩과 이름이 같아 브랜드가 붙은 꼴만 받는다.
+    # M · F 는 맨 번호가 칩 코어('Cortex-M55')·카메라('F70')와 겹쳐 브랜드나 '5G' 가 붙은 꼴만 받는다
+    ("GA18",   [r"galaxy\s*a18" + _E, r"갤럭시\s*a18" + _E, r"samsung\s*a18" + _E, r"삼성\s*a18" + _E]),
+    ("GA08",   [r"galaxy\s*a08" + _E, r"\ba08" + _E, r"갤럭시\s*a08" + _E]),
+    ("GA06",   [r"galaxy\s*a06" + _E, r"\ba06" + _E, r"갤럭시\s*a06" + _E]),
+    ("GM56",   [r"galaxy\s*m56" + _E, r"갤럭시\s*m56" + _E, r"samsung\s*m56" + _E, r"\bm56\s*5g" + _E]),
+    ("GM47",   [r"galaxy\s*m47" + _E, r"갤럭시\s*m47" + _E, r"samsung\s*m47" + _E, r"\bm47\s*5g" + _E]),
+    ("GM36",   [r"galaxy\s*m36" + _E, r"갤럭시\s*m36" + _E, r"samsung\s*m36" + _E, r"\bm36\s*5g" + _E]),
+    ("GM35",   [r"galaxy\s*m35" + _E, r"갤럭시\s*m35" + _E, r"samsung\s*m35" + _E, r"\bm35\s*5g" + _E]),
     ("GM55",   [r"galaxy\s*m55" + _E, r"\bm55" + _E, r"갤럭시\s*m55"]),
+    ("GF70P",  [r"galaxy\s*f70\s*pro" + _E, r"갤럭시\s*f70\s*프로", r"samsung\s*f70\s*pro" + _E, r"\bf70\s*pro\s*5g" + _E]),
+    ("GF70E",  [r"galaxy\s*f70e" + _E, r"갤럭시\s*f70e" + _E, r"samsung\s*f70e" + _E, r"\bf70e\s*5g" + _E]),
+    ("GF70",   _not_variant([r"galaxy\s*f70" + _E, r"갤럭시\s*f70" + _E, r"samsung\s*f70" + _E, r"\bf70\s*5g" + _E], _PRO)),
     ("GF55",   [r"galaxy\s*f55" + _E, r"갤럭시\s*f55"]),
-    ("GXC7",   [r"xcover\s*7" + _E, r"엑스커버\s*7" + _E]),
+    ("GXC7P",  [r"xcover\s*7\s*pro" + _E, r"엑스커버\s*7\s*프로"]),
+    ("GXC7",   _not_variant([r"xcover\s*7" + _E, r"엑스커버\s*7" + _E], _PRO)),
     ("GWIDE8", [r"galaxy\s*wide\s*8" + _E, r"갤럭시\s*와이드\s*8" + _E]),
     ("GJUMP4", [r"galaxy\s*jump\s*4" + _E, r"갤럭시\s*점프\s*4" + _E]),
 
     # ── Galaxy Watch FE / Fit ──
     ("GWFE",   [r"watch\s*fe" + _E, r"galaxy\s*watch\s*fe" + _E, r"워치\s*fe" + _E]),
+    # Fit4 는 출시 전(2026-10 인증)이라 미리 넣었다(GS27 과 같다). 맨 'fit 4' 는 영어 낱말과 겹쳐 브랜드가 붙은 꼴만
+    ("GFIT4",  [r"galaxy\s*fit\s*4" + _E, r"갤럭시\s*핏\s*4" + _E]),
     ("GFIT3",  [r"galaxy\s*fit\s*3" + _E, r"\bfit\s*3" + _E, r"갤럭시\s*핏\s*3" + _E]),
 
     # ── Galaxy A / F ── (신모델 2026: A57/A37/A27, F25 — 카탈로그엔 있었으나 패턴 누락)
@@ -153,12 +215,18 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
     ("GF25",  [r"galaxy\s*f25" + _E, r"갤럭시\s*f25"]),
 
     # ── Galaxy Watch (Ultra → 9 → 8) ──
+    # 'watch 7 ultra' 는 Watch Ultra 를 Watch7 과 같이 나온 기기로 부른 것이다 — GW7 이 앞부분을 잡지 않게 여기서 받는다
     ("GWU",   [r"watch\s*ultra", r"galaxy\s*watch\s*ultra", r"워치\s*울트라",
-               r"워치울트라", r"\b워치울" + _E]),
+               r"워치울트라", r"\b워치울" + _E, r"\bwatch\s*7\s*ultra", r"워치\s*7\s*울트라"]),
+    # 줄임말 'GW9'·'GW8'·'GW8C' — 미태깅 표본 30건 모두 갤럭시 워치였다(2026-11-07)
     ("GW9",   [r"\bwatch\s*9" + _E, r"\bwatch9" + _E, r"galaxy\s*watch\s*9",
-               r"워치\s*9" + _E, r"워치9", r"갤워치\s*9", r"갤워치9"]),
-    ("GW8",   [r"\bwatch\s*8" + _E, r"\bwatch8" + _E, r"galaxy\s*watch\s*8",
-               r"워치\s*8" + _E, r"워치8", r"갤워치\s*8", r"갤워치8"]),
+               r"워치\s*9" + _E, r"워치9", r"갤워치\s*9", r"갤워치9", r"\bgw\s?9" + _E]),
+    # Watch8 Classic 은 판매 중인데 패턴이 없어 'watch 8' 이 앞부분을 잡아 GW8 로 갔다(GW8 행 4,910 중 1,546 에 classic)
+    ("GW8C",  [r"\bwatch\s*8\s*classics?" + _E, r"\bwatch8\s*classics?" + _E, r"galaxy\s*watch\s*8\s*classics?" + _E,
+               r"워치\s*8\s*클래식", r"워치8\s*클래식", r"갤워치\s*8\s*클래식", r"갤워치8\s*클래식",
+               r"\bgw\s?8\s*c(?:lassic)?" + _E]),
+    ("GW8",   _not_variant([r"\bwatch\s*8" + _E, r"\bwatch8" + _E, r"galaxy\s*watch\s*8",
+               r"워치\s*8" + _E, r"워치8", r"갤워치\s*8", r"갤워치8", r"\bgw\s?8" + _E], _CLASSIC)),
 
     # ── Galaxy Buds 4 (루머/얼리) ──
     # 'buds pro 4' 어순 역전형 — 한글엔 있었으나 영문에 없어 GB4P 가 저평가됐다
@@ -174,9 +242,12 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
     # ── Galaxy Buds 3 ──
     ("GB3P",  [r"buds\s*3\s*pro", r"buds3\s*pro", r"buds\s*pro\s*3", r"버즈\s*3\s*프로",
                r"버즈3\s*프로", r"버즈3프로", r"버즈프로\s*3", r"버즈프로3",
-               r"\b버3프" + _E, r"\bb3p" + _E]),
-    ("GB3",   [r"\bbuds\s*3" + _E, r"\bbuds3" + _E, r"galaxy\s*buds\s*3",
-               r"버즈\s*3" + _E, r"버즈3", r"갤버즈3", r"\b버3" + _E]),
+               r"\b버3프" + _E, r"\bb3p" + _E, r"버즈\s*3\s*pro"]),
+    # Buds3 FE(2025-09-05) — 카탈로그에 없던 때는 'buds 3' 이 앞부분을 잡아 GB3 로 갔다(2026-11-07 신설)
+    ("GB3FE", [r"\bbuds\s*3\s*fe" + _E, r"\bbuds3\s*fe" + _E, r"galaxy\s*buds\s*3\s*fe" + _E,
+               r"버즈\s*3\s*fe" + _E, r"버즈3\s*fe" + _E]),
+    ("GB3",   _not_variant([r"\bbuds\s*3" + _E, r"\bbuds3" + _E, r"galaxy\s*buds\s*3",
+               r"버즈\s*3" + _E, r"버즈3", r"갤버즈3", r"\b버3" + _E], _FE + "|" + _PRO)),
 
     # ── Galaxy Ring ──
     # 무경계 `\bring\s*2`·`\bring2`·`링2` 는 타사 스마트링을 흡수했다. 실측 —
@@ -230,9 +301,9 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"갤s22" + _E, r"갤22" + _E]),
 
     # ── Z 6세대 / 5세대 ──
-    ("GZF6",  [r"\bz\s*fold\s*6" + _E, r"\bfold\s*6" + _E, r"폴드\s*6" + _E,
+    ("GZF6",  [r"\bz\s*fold\s*6" + _E, r"\bfold\s*6" + _E, r"폴드\s*6" + _E, r"galaxy\s*z\s*fold\s*6" + _E,
                r"폴드6", r"\b폴6" + _E]),
-    ("GZFL6", [r"\bz\s*flip\s*6" + _E, r"\bflip\s*6" + _E, r"플립\s*6" + _E,
+    ("GZFL6", [r"\bz\s*flip\s*6" + _E, r"\bflip\s*6" + _E, r"플립\s*6" + _E, r"galaxy\s*z\s*flip\s*6" + _E,
                r"플립6", r"\b플6" + _E]),
     ("GZF5",  [r"\bz\s*fold\s*5" + _E, r"\bfold\s*5" + _E, r"폴드\s*5" + _E,
                r"폴드5", r"\b폴5" + _E]),
@@ -240,10 +311,15 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
                r"플립5", r"\b플5" + _E]),
 
     # ── Watch 7 / 6 ──
-    ("GW7",   [r"\bwatch\s*7" + _E, r"galaxy\s*watch\s*7", r"워치\s*7" + _E,
-               r"워치7", r"갤워치\s*7", r"갤워치7"]),
-    ("GW6",   [r"\bwatch\s*6" + _E, r"galaxy\s*watch\s*6", r"워치\s*6" + _E,
-               r"워치6", r"갤워치\s*6", r"갤워치6"]),
+    ("GW7",   _not_variant([r"\bwatch\s*7" + _E, r"galaxy\s*watch\s*7", r"워치\s*7" + _E,
+               r"워치7", r"갤워치\s*7", r"갤워치7", r"\bgw\s?7" + _E], _ULTRA)),
+    # Watch6 Classic(비활성)은 라이브에 둔다 — 'watch 6' 이 라이브라 뒤(레거시)에 두면 앞부분을 먼저 잡혀 GW6 으로 간다
+    # (GW6 행 3,003 중 1,367 에 classic). 라이브에 두면 레거시가 풀네임을 더 내지 않으므로 꼴을 여기에 다 둔다
+    ("GW6C",  [r"\bwatch\s*6\s*classics?" + _E, r"\bwatch6\s*classics?" + _E, r"galaxy\s*watch\s*6\s*classics?" + _E,
+               r"워치\s*6\s*클래식", r"워치6\s*클래식", r"갤워치\s*6\s*클래식", r"갤워치6\s*클래식",
+               r"\bgw\s?6\s*c(?:lassic)?" + _E]),
+    ("GW6",   _not_variant([r"\bwatch\s*6" + _E, r"galaxy\s*watch\s*6", r"워치\s*6" + _E,
+               r"워치6", r"갤워치\s*6", r"갤워치6", r"\bgw\s?6" + _E], _CLASSIC)),
 
     # ── Buds 2 Pro ──
     ("GB2P",  [r"buds\s*2\s*pro", r"buds2\s*pro", r"buds\s*pro\s*2", r"버즈\s*2\s*프로",
@@ -1274,10 +1350,39 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
     ("SHAQ", ['\\baquos(?![0-9a-zA-Z])', '아쿠오스', '아쿠아스']),
 ]
 
-# 사전 컴파일
+# ═════════ 구형(비활성) 코드의 짧은 표기 ═══════════════════════════════════
+#
+# 비활성 코드는 레거시 사전(scripts/relink_products)이 풀네임('galaxy watch 4 classic')을 잡는다. 다만 그 폴백은
+# 라이브가 빈손일 때만 돌아 비교글에서 빠지고, 줄임말('GW4C')·'tab' 을 뺀 탭('S9 FE')·붙여 쓴 FE('S20FE')는 사전에
+# 없다. 실측(2026-11-07 미태깅) — GW3~GW5 줄임말 포함 GW 줄임말 2,375 · 's9 fe'·'s10 fe'·'s6 lite'·'s7 fe' 2,500 ·
+# 's20fe'·'s21fe' 412, 표본은 모두 맞았다.
+# 이 목록은 라이브와 같이 매칭하되 _LIVE_CODES 에는 넣지 않는다 — 넣으면 '라이브 권위' 때문에 레거시가 그 코드의
+# 풀네임을 더는 내지 않아 오히려 빠진다. 라이브 코드와 앞부분이 겹치는 것(GW6C)은 이 목록이 아니라 라이브에 둔다.
+OLDER_PATTERNS: List[Tuple[str, List[str]]] = [
+    ("GW5P",    [r"\bgw\s?5\s*p(?:ro)?" + _E]),
+    ("GW5",     _not_variant([r"\bgw\s?5" + _E], r"p(?:ro)?(?![0-9a-z])")),
+    ("GW4C",    [r"\bgw\s?4\s*c(?:lassic)?" + _E]),
+    ("GW4",     _not_variant([r"\bgw\s?4" + _E], r"c(?:lassic)?(?![0-9a-z])")),
+    ("GW3",     [r"\bgw\s?3" + _E]),
+    ("GTS9FP",  [r"tab\s*s9\s*fe\s*(?:\+|plus" + _E + r")", r"\bs9\s*fe\s*(?:\+|plus" + _E + r")",
+                 r"\bs9fe\s*(?:\+|plus" + _E + r")", r"탭\s*s9\s*fe\s*(?:\+|플러스)"]),
+    ("GTABS9F", _not_variant([r"tab\s*s9\s*fe" + _E, r"\bs9\s*fe" + _E, r"\bs9fe" + _E, r"탭\s*s9\s*fe" + _E], _PLUS)),
+    ("GTS7F",   [r"tab\s*s7\s*fe" + _E, r"\bs7\s*fe" + _E, r"\bs7fe" + _E, r"탭\s*s7\s*fe" + _E]),
+    ("GTS6L",   [r"tab\s*s6\s*lite" + _E, r"\bs6\s*lite" + _E, r"\bs6lite" + _E, r"탭\s*s6\s*(?:lite|라이트)" + _E]),
+    ("GFE21",   [r"\bs21\s*fe" + _E, r"\bs21fe" + _E, r"galaxy\s*s21\s*fe" + _E, r"갤럭시\s*s21\s*fe" + _E]),
+    ("GFE20",   [r"\bs20\s*fe" + _E, r"\bs20fe" + _E, r"galaxy\s*s20\s*fe" + _E, r"갤럭시\s*s20\s*fe" + _E]),
+    # Galaxy A04 · A05 계열(2022~23) — 카탈로그에 없던 기기(0047). 맨 'a05' 는 아래 맨 번호 가드를 지난다
+    ("GA05S",   [r"galaxy\s*a05s" + _E, r"\ba05s" + _E, r"갤럭시\s*a05s" + _E]),
+    ("GA05",    [r"galaxy\s*a05" + _E, r"\ba05" + _E, r"갤럭시\s*a05" + _E]),
+    ("GA04S",   [r"galaxy\s*a04s" + _E, r"\ba04s" + _E, r"갤럭시\s*a04s" + _E]),
+    ("GA04E",   [r"galaxy\s*a04e" + _E, r"\ba04e" + _E, r"갤럭시\s*a04e" + _E]),
+    ("GA04",    [r"galaxy\s*a04" + _E, r"\ba04" + _E, r"갤럭시\s*a04" + _E]),
+]
+
+# 사전 컴파일 — 라이브 다음에 구형 표기(우선순위가 라이브 뒤다. 겹치는 코드가 없게 골랐다)
 _COMPILED: List[Tuple[str, List[re.Pattern]]] = [
     (code, [re.compile(p, re.IGNORECASE) for p in pats])
-    for code, pats in PRODUCT_PATTERNS
+    for code, pats in PRODUCT_PATTERNS + OLDER_PATTERNS
 ]
 
 
@@ -1382,6 +1487,57 @@ def _rival_adjacent(text: str, code: str, start: int) -> bool:
     return brand != _brand_of(code)
 
 
+# ═════════ 맨 번호 A·M 가드 · 'S10 Lite' 탭 문맥 (2026-11-07) ═════════════════════
+#
+# 라이브의 맨 번호 패턴('a16'·'a17'·'a57'·'m55')에는 레거시에 있던 칩·노트북·코어 게이트가 없었다. 실측(활성 링크) —
+#   GA16 2,716 중 'iPad (A16)' 46 · 'A16 Bionic/chip' 54 · 'A16 beta/QPR1'(Android 16) 36 · 'Zenbook · TUF Gaming A16' 14
+#   GA17 1,963 중 'A17 Pro'(애플 칩) 113 · 'iPad mini A17 Pro' 19 · 'A17 beta' 11
+#   GA57 'Cortex-A57' 8 · GA35 'Cortex A35' 1 · GM55 'Cortex-M55' 12
+# 'running/on A16' 이나 '삼성' 말이 없는 글은 표본에서 거의 다 맞는 글이었다 — 생김새가 분명한 것만 막는다.
+_AM_CODE = re.compile(r"G[AM]\d{2}[SE]?$")
+_AM_BARE = re.compile(r"[am]\d{2}[se]?", re.IGNORECASE)
+_AM_BEFORE = re.compile(
+    r"(?:ipad(?:\s*mini)?|cortex|zenbook|vivobook|expertbook|tuf(?:\s*gaming)?|rog(?:\s*flow)?|aspire(?:\s*\d+)?|"
+    r"alienware|predator|nitro|legion|ideapad|thinkpad|gigabyte(?:\s*gaming)?)[\s\-]*\(?\s*$", re.IGNORECASE)
+_AM_AFTER_CHIP = re.compile(r"\s*(?:bionic|chip|soc|fusion)\b", re.IGNORECASE)
+_AM_AFTER_PRO = re.compile(r"\s*pro\b", re.IGNORECASE)          # A17 Pro · A18 Pro · A19 Pro 는 애플 칩(갤럭시 A1x Pro 는 없다)
+_AM_AFTER_BETA = re.compile(r"\s*(?:qpr\s*\d|beta\b|dp\s*\d|developer\s+preview)", re.IGNORECASE)   # Android 14~17
+# 버전 꼬리가 붙은 A14~A17('A16 QPR1' · 'A17 beta')이 글 어디에든 있으면 그 글의 맨 A14~A17 은 모두 안드로이드 버전이다 —
+# 'updated to A16 beta 4 from A15' 의 A15, 'A16 beta … A16 is buggy' 의 둘째 A16. 첫 판은 꼬리 붙은 그 번호만 막아,
+# 다음 맨 번호가 같은 오탐을 다시 냈고(GA16) 라이브가 비면 레거시가 A15 를 Galaxy A15 로 집었다(dry-run 3행).
+# 'Galaxy A15' 처럼 브랜드가 붙은 것은 이 검사 전에 통과한다.
+_ANDROID_VER_DOC = re.compile(r"(?<![0-9a-z])a1[4-7]\s*(?:qpr\s*\d|beta\b|dp\s*\d|developer\s+preview)", re.IGNORECASE)
+_AM_BRAND_BEFORE = re.compile(r"(?:galaxy|samsung|갤럭시|삼성|갤)\s*$", re.IGNORECASE)
+# 'S10 Lite' 는 2020 폰(GS10L, 레거시)과 2025 탭(GTS10L)의 이름이 같다. 'tab' 없이 쓴 꼴은 탭 문맥이 있을 때만 탭으로
+# 본다 — 2025~26 글 표본 30건 중 29건이 탭('S9 FE Plus vs S10 Lite' · 키보드 케이스 · S Pen)
+_S10_LITE_BARE = re.compile(r"s10\s*lite", re.IGNORECASE)
+_TAB_CONTEXT = re.compile(r"tablet|태블릿|갤탭|\btab\b|탭|\bs-?\s?pens?\b|stylus|keyboard|키보드|ipad|아이패드|\bpad\b|"
+                          r"a9\s*\+|a11\s*\+|s9\s*fe|s10\s*fe", re.IGNORECASE)
+
+
+def _live_span_ok(text: str, code: str, s: int, e: int) -> bool:
+    """라이브 · 구형 표기 매칭 한 건을 받아들일지 — 타사 인접, 맨 번호 A·M 가드, 맨 'S10 Lite' 의 탭 문맥."""
+    if _rival_adjacent(text, code, s):
+        return False
+    hit = text[s:e]
+    if code == "GTS10L" and _S10_LITE_BARE.fullmatch(hit):
+        return bool(_TAB_CONTEXT.search(text[max(0, s - 300):e + 300]))
+    if not (_AM_CODE.match(code) and _AM_BARE.fullmatch(hit)):
+        return True
+    if _AM_BRAND_BEFORE.search(text[max(0, s - 12):s]):
+        return True                                   # 'Samsung A16'
+    if _AM_BEFORE.search(text[max(0, s - 30):s]):
+        return False                                  # 'iPad (A16)' · 'Cortex-A57' · 'Zenbook A16'
+    if _AM_AFTER_CHIP.match(text, e):
+        return False                                  # 'A16 Bionic' · 'A17 chip'
+    num = int(code[2:4])
+    if 17 <= num <= 19 and _AM_AFTER_PRO.match(text, e):
+        return False                                  # 'A17 Pro'
+    if 14 <= num <= 17 and (_AM_AFTER_BETA.match(text, e) or _ANDROID_VER_DOC.search(text)):
+        return False                                  # 'A16 beta' · 'A16 QPR1' · 그런 글의 다른 맨 A16
+    return True
+
+
 def _first_clean_span(text: str, code: str,
                       patterns: List[re.Pattern]) -> Optional[Tuple[int, int]]:
     """코드의 패턴들을 순서대로 훑어 타 브랜드에 붙지 않은 첫 매칭 구간을 준다.
@@ -1391,7 +1547,7 @@ def _first_clean_span(text: str, code: str,
     """
     for pat in patterns:
         for m in pat.finditer(text):
-            if not _rival_adjacent(text, code, m.start()):
+            if _live_span_ok(text, code, m.start(), m.end()):
                 return m.span()
     return None
 
@@ -1483,6 +1639,7 @@ _QTY_AFTER = re.compile(r"[,.]\d")
 _VARIANT_AFTER = re.compile(
     r"\s*(?:\+|(?:plus|ultra|pro|max|fe|lite|core|mini|neo|prime|edge|active|tab|tablet)\b)")
 _BARE_A = re.compile(r"a\s*\d{1,3}")
+_BARE_A14_17 = re.compile(r"a1[4-7]")              # 안드로이드 14~17 과 번호가 같은 갤럭시 A — _ANDROID_VER_DOC 참조
 _SPACED_A = re.compile(r"a\s+\d")
 _BRAND_TAIL = re.compile(r"(?:galaxy|samsung|갤럭시|삼성|갤)\s*$")
 _CHIP_AFTER = re.compile(r"\s*(?:bionic|chip|fusion|processor|soc)\b")
@@ -1538,6 +1695,8 @@ def _legacy_span_ok(norm: str, s: int, e: int, code: str) -> bool:
         if _LAPTOP_NEAR.search(norm[max(0, s - 40):e + 40]):     # 'asus tuf a15'
             return False
         if _CORE_NEAR.search(norm[max(0, s - 40):e + 40]):       # 'cortex a15'
+            return False
+        if _BARE_A14_17.fullmatch(hit) and _ANDROID_VER_DOC.search(norm):   # 'A16 beta 4 from A15'
             return False
     # 타사 브랜드가 바로 앞 — 'oppo a15'(오포 A15). 계열어 게이트(accept_legacy_code)는
     # note·watch·fold 등만 보므로 A 시리즈 같은 맨 번호는 여기서 막는다.
@@ -1622,7 +1781,7 @@ _TITLE_MAX = 300   # 첫 줄이 이보다 길면 제목이 아니라 본문 첫 
 # 두 홀드아웃 모두에서 성능을 **떨어뜨려** 제거했다(88.4 vs 91.3 / 90.6 vs 92.0).
 _W_TITLE, _W_COUNT = 3.0, 1.0
 
-_PRIORITY: Dict[str, int] = {code: i for i, (code, _) in enumerate(PRODUCT_PATTERNS)}
+_PRIORITY: Dict[str, int] = {code: i for i, (code, _) in enumerate(PRODUCT_PATTERNS + OLDER_PATTERNS)}
 
 
 def _spans_by_code(text: str, codes: List[str]) -> Dict[str, List[Tuple[int, int]]]:
@@ -1640,8 +1799,8 @@ def _spans_by_code(text: str, codes: List[str]) -> Dict[str, List[Tuple[int, int
         for pat in patterns:
             for m in pat.finditer(text):
                 s, e = m.span()
-                if _rival_adjacent(text, code, s):
-                    continue          # 타사 기기 언급은 등장 횟수에서도 뺀다
+                if not _live_span_ok(text, code, s, e):
+                    continue          # 타사 기기 · 맨 번호 오탐은 등장 횟수에서도 뺀다
                 cands.append(((pri, s - e, s), code, s, e))   # 우선순위 → 긴 매칭 → 앞
     cands.sort(key=lambda t: t[0])
 

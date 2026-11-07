@@ -96,7 +96,6 @@ REJECTED = [
     # 번호 붙은 후속·변형 접미
     "looking for a galaxy watch active 2 refurbished",
     "are galaxy buds fe 3 worth it?",
-    "usb controlled by connected device on samsung galaxy s9 fe+",
     "keyboard case for the s10 plus tablet",
     "samsung galaxy a7 tab lite oem unlock",      # 모델코드가 있으면 아래 시험처럼 그 제품으로 간다
     # 맨 'a NN'
@@ -117,6 +116,11 @@ REJECTED = [
 @pytest.mark.parametrize("text", REJECTED)
 def test_known_mismatch_types_are_rejected(text):
     assert _top(text) is None, f"{text!r} → {_top(text)} (기대 None)"
+
+
+def test_tab_fe_plus_goes_to_the_tab_not_the_phone():
+    """'galaxy s9 fe+' 는 폰 S9 가 아니다(레거시 게이트가 막는다). 구형 표기 목록(2026-11-07)이 탭 S9 FE+ 로 바로 잇는다."""
+    assert _top("usb controlled by connected device on samsung galaxy s9 fe+") == "GTS9FP"
 
 
 def test_model_code_resolves_what_the_gate_rejects():
