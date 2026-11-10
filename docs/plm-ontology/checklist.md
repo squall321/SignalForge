@@ -79,3 +79,36 @@ SP main `ab41cff`(0.4.72) · `KIT_VERSION = "2026-11-03"`. 받기(층 1, `sp_cor
 - [x] 시험장 8단계(새 fake_sp — 선에 유효 기간 · 수량 · 계보 칸) · PLM 시험 · 전체 시험
 - [x] cae00 — 받기 코드가 그대로라 사람 몫 없음(다음 plm-sync 가 새 키트 파일로 돈다). PLM 키트 문서의 '절반 넘게 안 옴'
   까닭 문구를 새 판에 맞춤
+
+## 코어와 잇기 — Q-2 다시 엶 (2026-11-10)
+
+### 계획
+
+포털(hwaxportal-a5)이 cae00 운영의 11-09 제안서(포털 `docs/core-link/request.md` 1-1 · Q-2, 계약 `design.md` §9)를 넘겼다.
+11-04 결정('코어와 잇지 않는다')을 사용자가 11-09 포털에서 뒤집었고, 11-10 이 세션에서 직접 다시 확인했다(키트 §2 물음과
+함께). 할 일은 대응표 둘이다 — VOC 부품 16 → 코어 `part` key, 증상 32 → 코어 `failure_mode` key.
+
+- 뼈대 — 정확 일치(키 · 이름 · 별칭이 코어 객체 하나로 정해지는 것)만 `rule` 선. 짐작은 후보로만. 다시 지을 때 `rule` 선만
+  지우고 사람 선은 둔다(키트 01-AI-GUIDE §6.2 의 '표시가 있는 연결만 끊는다' 와 같은 꼴).
+- 대응표 위치 — **공개 리포 밖**(사용자 11-10). 코어 key 는 허브 데이터라 `crawler/data/plm/core-link/`(PLM 거울 옆 — VOC DB
+  밖이라 Drive 백업 · cae00 덤프에 안 실린다)에 둔다. 리포에는 읽는 코드와 규칙만. 초안 · 확인은 포털 받은 편지함으로 오간다.
+- 바뀔 때 — **기본 제안대로**(사용자 11-10). 사라진 key 의 선은 '사용 안 함', 합쳐지면 `rule` 선만 이긴 쪽으로, 사람 선은
+  '확인 필요' 로 남겨 알린다.
+- 막힌 것 — 코어 `part` · `failure_mode` 의 key · 이름 · 별칭은 허브에만 있다(dev 에 토큰 없음). cae00 받은 편지함 Q6 으로
+  청했고 사용자를 거쳐 온다. 그 전에는 받는 틀과 짓는 틀만 시험으로 만든다.
+- 보류 — 가지 `core-link-q2`(worktree `SignalForge-corelink`)에서만 짓는다. 포털이 cae00 11-08 · 11-09 update-all 끝을 알리기
+  전에는 main 에 올리지 않는다.
+
+### 체크리스트
+
+- [x] 키트 판 확인 — SP main `dbed567`(0.4.77), KIT_VERSION 그대로 2026-11-03. coreapi 변경은 '떼어 둔 종류 칸을 안 내보냄'
+  하나라 받는 쪽 그대로
+- [x] 사용자에게 직접 확인 — 다시 잇는다 · 대응표는 공개 리포 밖 · 바뀔 때 기본 제안대로
+- [x] 층 1 — 받을 타입 기본값에 `part` · `failure_mode`(RECEIVE_TYPES), `_read_replica(path, types)` + 시험
+- [x] 층 2 — `crawler/base/core_link.py`(rule · 후보 · 사람 선 지키기 · 바뀐 key 따라가기 · 사용 안 함 · 확인 필요) + 시험 8
+- [x] 받기 뒤 저절로 다시 짓기(`after_sync` — beat run_plm_sync · scripts/plm-sync.sh), 결과 JSON 에 core_link 수
+- [x] worker · plm-sync.sh 에 /shared 바인드(SignalForge 어휘는 shared/ontology 가 정본) · 운영 CLI `scripts/core_link.py`
+- [x] CLAUDE.md '선(관계)' 옆에 '코어와 잇기' 줄(11-10 결정)
+- [ ] 시험장 8단계 · PLM 시험 · 전체 시험
+- [ ] 코어 어휘(Q6)가 오면 초안 — 리포에 싣지 않고 받은 편지함으로
+- [ ] 포털 알림 뒤 main 에 병합 · cae00 문서

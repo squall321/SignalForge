@@ -136,3 +136,40 @@
   — 객체 먼저 · 도착은 `dst_type` 의 표에서 · SP 에서 온 연결만 끊기 · 수량 칸 이름은 카탈로그에서 읽기.
 - 「처음부터 받았는데 절반 넘게 안 옴」 의 까닭에서 '공개 범위' 가 빠졌다 — 남은 까닭은 공개 측의 대량 삭제 · 토큰으로 볼
   수 있는 범위가 줄어듦. 운영 문서(PLM 키트 cae00 문서 4절)를 고쳤다. 옛 기록(10-23)은 그대로 둔다.
+
+## 코어와 잇기 — Q-2 다시 엶 (2026-11-10)
+
+### 확인한 것
+- **거울이 코어 타입을 거른다** — 받을 타입 기본값이 `plm_project` · `plm_task` · `plm_model` 셋뿐이다(DynaForge BOX-01 과 같은 꼴).
+  `SF_SP_CORE_TYPES` 로 넓혀도 층 2 리더 `_read_replica` 가 그 셋의 표만 읽어서, 설정만으로는 안 되고 코드도 고쳐야 했다.
+- **코어 어휘는 허브에만 있다** — SP 리포의 `pipeline/core` 는 plm-core(4 타입) · work-core(8 타입)뿐이고 `part` · `failure_mode`
+  정의가 없다. dev 에는 토큰 · 사본이 없다. 시험장(fake_sp)의 `part` 는 '볼트 · 너트' 같은 시험용 개체라 대응 뜻을 재는 데는
+  못 쓴다.
+- **SP main 이 올라갔다(`dbed567`, 0.4.77)** — 키트 폴더는 그대로라 '지금 판'은 `ab41cff` 키트와 같다. coreapi 변경은 내보내는 칸에서
+  떼어 둔 종류(`DETACHED_KINDS`)를 빼는 것 하나라 받는 쪽 규칙은 그대로다.
+
+### 결정
+- **11-04 결정을 뒤집는다** — 사용자가 11-09 포털에서 '다시 연다' 를 골랐고(포털 context-notes CK-2), 11-10 이 세션에서 직접 다시
+  확인했다. 세션 사이 메시지는 승인으로 치지 않는다 — CLAUDE.md 의 '쓰게 되면 키트 §2 물음부터' 대로 물었다.
+- **대응표는 공개 리포 밖** — 코어 key · 이름은 허브 데이터다. 리포는 공개라 표는 `crawler/data/plm/core-link/` 에 둔다(VOC DB 밖 —
+  Drive 백업 · cae00 덤프에 안 실린다, PLM 거울과 같은 자리 · 같은 까닭).
+- **바뀔 때는 키트 기본 제안** — `rule` 선은 받을 때마다 통째로 다시 짓는다. 사람 선은 지우지 않는다. 사라진 key 에 걸린 사람 선은
+  '사용 안 함', 합쳐진 key 에 걸린 사람 선은 '확인 필요'(이긴 쪽 key 를 함께 보인다). 확인 필요는 포털 받은 편지함으로 알린다.
+- **worktree 에서 짓는다** — dev 서비스가 main 작업 트리를 바인드해 돈다. 같은 트리를 쓰는 signalforge-7f 도 있어, 가지를 바꾸면
+  둘 다 덜 된 코드를 본다. 그래서 `git worktree add ../SignalForge-corelink -b core-link-q2`.
+
+### 짓기 (2026-11-10)
+- **SignalForge 어휘는 shared/ontology 에서** — 부품 · 증상 key 의 정본은 crawler 의 결함 렉시콘이지만 한국어 · 영어 이름은
+  shared/ontology(COMPONENT_LABELS · SYMPTOM_LABELS)에만 있다. crawler worker · plm-sync.sh 는 /shared 를 바인드하지 않았다.
+  이름을 crawler 쪽에 베끼면 둘이 갈라지므로 worker(up.sh) · plm-sync.sh 에 /shared 바인드를 더했다(backend · mcp 는 이미 바인드).
+  못 읽으면 `after_sync` 가 status=error 와 까닭을 싣는다 — key 만으로 조용히 이으면 이름이 빠진 채 정상처럼 보인다.
+- **이름 맞추기** — 대소문자 · 띄어쓰기 · 밑줄 · 하이픈 · 가운뎃점을 맞춘 같음만 본다. 가운뎃점으로 묶은 한국어 이름('발화·폭발')은
+  낱말로도 넣는다(그 낱말이 그 개념의 이름이라고 우리가 이미 적은 것이다). 영어 이름이 key 와 같으면 한 번만.
+- **rule 선은 코어 객체 하나로 정해질 때만** — 한 개념의 이름들이 코어 객체 둘 이상에 걸리면 후보(ambiguous), 없으면 difflib 로
+  가까운 이름(0.6 이상, 셋까지)을 후보로만. 여러 개념이 같은 코어 key 에 걸리는 것(다대일)은 막지 않는다(StepForge SRC-02 와 같다).
+- **사람 선의 바뀐 key** — 코어의 옛 key(previous_keys)면 새 key 로 따라간다(키트 §6.2 '연결은 레코드를 가리킨다' — 우리 표는 key
+  를 적으니 따라가 맞춘다). SignalForge 에서 사라진 개념의 사람 선도 지우지 않고 '사용 안 함'.
+- **코어 별칭 칸 이름은 짐작이다** — ALIAS_FIELDS(aliases · alias · synonyms · name_en · name_ko). 허브 카탈로그(받은 편지함 Q6)가
+  오면 실제 칸으로 맞춘다.
+- **확인 필요 알림** — SignalForge 는 포털 리포에 쓰지 않는다. review.json(후보 · 확인 필요 · 사용 안 함)을 cae00 이 받은 편지함으로
+  옮긴다. plm-sync.sh 의 끝나는 코드는 받기 결과만 따른다(cron 경보 뜻을 바꾸지 않는다).
