@@ -34,13 +34,19 @@ for a in "$@"; do
 done
 
 rc=0
-apptainer exec --bind "$CRAWLER_DIR:/crawler" --env SF_PLM_FULL="$FULL" --env SF_PLM_ALLOW_SHRINK="$ALLOW_SHRINK" \
+# /shared — 받은 뒤 코어와 잇기(core_link)가 SignalForge 부품 · 증상 이름을 shared/ontology 에서 읽는다(2026-11-10)
+apptainer exec --bind "$CRAWLER_DIR:/crawler" --bind "$PROJECT_ROOT/shared:/shared" \
+  --env SF_PLM_FULL="$FULL" --env SF_PLM_ALLOW_SHRINK="$ALLOW_SHRINK" \
   "$SIF" python3 - <<'PY' || rc=$?
 import json, os, sys
 sys.path.insert(0, "/crawler")
+from base import core_link as C
 from base import plm_mirror as P
 
 r = P.sync(full=os.environ.get("SF_PLM_FULL") == "1", allow_shrink=os.environ.get("SF_PLM_ALLOW_SHRINK") == "1")
+link = C.after_sync(r)          # 코어와 잇기 — 대응표 다시 짓기. 끝나는 코드는 받기 결과만 따른다(확인 필요 목록은 review.json)
+if link is not None:
+    r["core_link"] = link
 for line in r.pop("lines", []):
     print(line)
 print(json.dumps(r, ensure_ascii=False, default=str))
