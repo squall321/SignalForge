@@ -365,8 +365,12 @@ def run_plm_sync() -> dict:
     주소(.env SF_SP_CORE_URL)나 토큰 파일이 없으면 not_configured 로 바로 끝난다(오류가 아니다 — 허브를 볼 수
     있는 서버에서만 켠다). 증분으로 받고 주 1회 처음부터 받는다. 결과는 ok · check(확인 필요) · error · busy.
     """
+    from base import core_link as _cl
     from base import plm_mirror as _plm
     res = _plm.sync()
+    link = _cl.after_sync(res)                     # 코어와 잇기 — 받은 코어 어휘로 대응표를 다시 짓는다(2026-11-10)
+    if link is not None:
+        res["core_link"] = link
     logger.info(f"[plm_sync] {res}")
     return res
 

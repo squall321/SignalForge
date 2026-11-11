@@ -320,6 +320,7 @@ fi
 # 아무 신호가 없었다 — 이번 일주일 서비스 다운이 그렇게 지나갔다.
 sf_up sf-crawler-worker "ps -eo args 2>/dev/null | grep -E '[c]elery -A celery_app worker' >/dev/null" \
   --bind "$CRAWLER_DIR:/crawler" --bind "$PROJECT_ROOT/reports:/reports" \
+  --bind "$PROJECT_ROOT/shared:/shared" \
   --env-file "$PROJECT_ROOT/.env" \
   --env DATABASE_URL="$DB_URL" --env REDIS_URL="$REDIS_URL" --env CELERY_CONCURRENCY="${CELERY_CONCURRENCY:-4}" \
   "$SIF_DIR/crawler.sif"

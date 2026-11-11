@@ -132,7 +132,9 @@ def test_token_file_forms(tmp_path):
 
 
 def test_types_setting(tmp_path):
-    assert P.settings({}, tmp_path)["types"] == list(P.TYPES)
+    assert P.settings({}, tmp_path)["types"] == list(P.RECEIVE_TYPES)
+    assert {"part", "failure_mode"} <= set(P.settings({}, tmp_path)["types"]), \
+        "코어 어휘를 기본으로 받는다 — 셋만 받으면 코어와 잇기가 빈다(DynaForge BOX-01 과 같은 꼴, 2026-11-10)"
     assert P.settings({P.ENV_TYPES: "plm_task, plm_model"}, tmp_path)["types"] == ["plm_task", "plm_model"]
     assert P.settings({P.ENV_TYPES: "*"}, tmp_path)["types"] == [], "공개 타입 전부"
 
@@ -158,6 +160,19 @@ def test_index_reads_the_kit_replica(tmp_path, kit):
     assert idx.project_names["galaxy test phone"] == ["P-1"] and idx.project_of("TK-1B") == "P-1"
     assert [m["key"] for m in idx.task_models("TK-1B")] == ["SM-S938B_KOR"]
     assert idx.meta["revision"] == "3-1"
+
+
+def test_core_types_are_read_on_request_and_the_plm_index_ignores_them(tmp_path, kit):
+    """사본에 코어 어휘(part · failure_mode)가 와도 PLM 색인은 PLM 타입만 읽는다. 코어와 잇기는 CORE_TYPES 로 따로 읽는다."""
+    out = tmp_path / "plm" / P.OUT
+    cfg = {"out_dir": out}
+    kit.save_rows(cfg, "plm_task", [{"key": "TK-1", "label": "알파"}])
+    kit.save_rows(cfg, "part", [{"key": "battery", "label": "배터리", "properties": {"aliases": ["Battery"]}}])
+    kit.save_rows(cfg, "failure_mode", [{"key": "swelling", "label": "부풀음"}])
+    rows, _ = P._read_replica(out / "sp_core.sqlite", P.CORE_TYPES)
+    assert set(rows) == {"part", "failure_mode"} and rows["part"][0]["properties"]["aliases"] == ["Battery"]
+    assert set(P._read_replica(out / "sp_core.sqlite")[0]) == {"plm_task"}, "기본은 PLM 타입만"
+    assert set(P.PlmIndex(out / "sp_core.sqlite").tasks) == {"TK-1"}
 
 
 def test_mirror_reopens_when_the_replica_changes_and_retries_after_a_failed_read(tmp_path, kit, monkeypatch):

@@ -10,14 +10,15 @@
   (SP_TOKEN)으로만 · 수신 이력 CSV 는 지운다(현재 상태만 쓴다).
 - 층 2 반영 — PlmIndex 가 사본의 활성 행을 읽어 조회 색인을 만든다. 저장하는 레코드가 없어(질의 해석뿐) 매번 통째로 읽는다.
   선(`<타입>__relations`)은 사본에 받아만 두고 색인에 쓰지 않는다(사용자 결정 2026-11-04 — 키트 2026-11-03 §2 물음). 쓰게
-  되면 키트 §6.2 · §9 대로 짓는다.
+  되면 키트 §6.2 · §9 대로 짓는다. 코어와 잇기(VOC 부품 · 증상 → 코어 part · failure_mode 대응표)는 `core_link` 가 사본의
+  CORE_TYPES 를 읽어 짓는다(사용자 결정 2026-11-10 — 11-04 '코어와 잇지 않는다' 를 뒤집었다).
 
 보관 — `crawler/data/plm/`. VOC DB 밖이라 30분 Drive 백업·cae00 덤프에 실리지 않는다(과제코드·과제명은 사내 정보 —
 사용자 결정 2026-10-23). 허브를 볼 수 있는 서버가 직접 받는다.
 설정 — 주소는 `.env` 의 `SF_SP_CORE_URL`(허브 API 루트, 끝에 /api 까지). 토큰은 **파일로만** — `crawler/data/plm/sp_token`
 (한 줄, 또는 `SF_SP_TOKEN=…` 줄) 또는 `SF_SP_TOKEN_FILE` 이 가리키는 파일. `.env` 에 두지 않는다 — up.sh 가 .env 전부를
 모든 컨테이너 환경으로 내보낸다. 토큰은 로그·상태 파일·예외 문구에 남기지 않는다. 받을 타입은 `SF_SP_CORE_TYPES`
-(쉼표, 기본 plm_project·plm_task·plm_model, `*` 면 공개 타입 전부).
+(쉼표, 기본 plm_project·plm_task·plm_model·part·failure_mode, `*` 면 공개 타입 전부).
 """
 from __future__ import annotations
 
@@ -37,7 +38,9 @@ from urllib.parse import urlsplit
 
 log = logging.getLogger(__name__)
 
-TYPES = ("plm_project", "plm_task", "plm_model")
+TYPES = ("plm_project", "plm_task", "plm_model")      # PLM 색인(PlmIndex)이 읽는 타입
+CORE_TYPES = ("part", "failure_mode")                 # 코어와 잇기(core_link) — VOC 부품 · 증상의 짝(2026-11-10)
+RECEIVE_TYPES = TYPES + CORE_TYPES                    # 받을 타입 기본값 — 셋만 받으면 코어 어휘가 걸러졌다
 ENV_URL = "SF_SP_CORE_URL"
 ENV_TOKEN_FILE = "SF_SP_TOKEN_FILE"
 ENV_TYPES = "SF_SP_CORE_TYPES"
@@ -88,7 +91,7 @@ def settings(env=None, root: Optional[Path] = None) -> dict:
     url = _base_url(env.get(ENV_URL, ""))
     token_file = Path(env.get(ENV_TOKEN_FILE) or root / "sp_token")
     raw_types = (env.get(ENV_TYPES) or "").strip()
-    types = [] if raw_types == "*" else [t.strip() for t in (raw_types or ",".join(TYPES)).split(",") if t.strip()]
+    types = [] if raw_types == "*" else [t.strip() for t in (raw_types or ",".join(RECEIVE_TYPES)).split(",") if t.strip()]
     problems = []
     if not url:
         problems.append(f".env 의 {ENV_URL} 가 비었다(허브 API 루트, 끝에 /api 까지)")
@@ -223,13 +226,15 @@ def _strings(value) -> List[str]:
     return out
 
 
-def _read_replica(path: Path) -> Tuple[Dict[str, List[dict]], dict]:
-    """키트 사본 → 타입별 행(비활성 포함 — deleted 로 가른다)과 meta. 옛 key 는 `<타입>__previous_keys`(옛 → 지금)."""
+def _read_replica(path: Path, types: Tuple[str, ...] = TYPES) -> Tuple[Dict[str, List[dict]], dict]:
+    """키트 사본 → 타입별 행(비활성 포함 — deleted 로 가른다)과 meta. 옛 key 는 `<타입>__previous_keys`(옛 → 지금).
+
+    types — 읽을 타입. PLM 색인은 TYPES, 코어와 잇기는 CORE_TYPES 를 읽는다. 사본에 없는 타입은 조용히 빠진다."""
     con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     try:
         names = {n for (n,) in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         rows: Dict[str, List[dict]] = {}
-        for typ in TYPES:
+        for typ in types:
             if typ not in names:
                 continue
             olds: Dict[str, List[str]] = {}
