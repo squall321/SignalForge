@@ -4,7 +4,7 @@
 
 작업을 시작할 때 SP main HEAD 와 키트 판(`KIT_VERSION`) · `CHANGES.md` 를 확인하고, 바뀌었으면 맞춘다(사용자 지시 2026-10-31).
 
-- **지금 판** — `crawler/sp_core_kit/` = SP `ab41cff`(0.4.72)의 `backend/app/modules/coreapi/kit` · `KIT_VERSION = "2026-11-03"`.
+- **지금 판** — `crawler/sp_core_kit/` = SP `7744159`(0.4.83)의 `backend/app/modules/coreapi/kit` · `KIT_VERSION = "2026-11-06"`.
   키트 폴더는 고치지 않는다(그 판과 diff 가 없어야 한다).
 - **선(관계)** — SP 선(`<타입>__relations`)은 키트가 사본에 받아 두지만 PLM 색인은 쓰지 않는다(사용자 결정 2026-11-04). 쓰게
   되면 키트 §2 물음부터 묻고 §6.2 · §9 대로 짓는다.
@@ -16,7 +16,7 @@
 - **확인** — 복제 없이 된다.
 
   ```bash
-  git ls-remote https://github.com/4leaf321-nox321/StandardPlatform.git refs/heads/main       # ab41cff… 면 그대로
+  git ls-remote https://github.com/4leaf321-nox321/StandardPlatform.git refs/heads/main       # 7744159… 면 그대로
   curl -s https://raw.githubusercontent.com/4leaf321-nox321/StandardPlatform/main/backend/app/modules/coreapi/kit/sp_core_pull.py \
     | grep -m1 '^KIT_VERSION'
   grep -m1 '^KIT_VERSION' crawler/sp_core_kit/sp_core_pull.py                                   # 둘이 같아야 한다

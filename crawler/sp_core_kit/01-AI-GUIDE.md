@@ -145,6 +145,7 @@ SP ──HTTP──▶ [층 1  받기] ──▶ 사본 표 ──▶ [층 2  �
 
 ```json
 { "system": "standardplatform", "revision": "3-0481920033", "as_of": "2026-09-22T02:00:00.000000Z",
+  "shapes": ["core", "sp"],
   "types": [
     { "slug": "part", "label": "부품", "description": "", "count": 1240,
       "updated_at": "2026-09-21T08:11:00.123456Z",
@@ -186,7 +187,7 @@ SP ──HTTP──▶ [층 1  받기] ──▶ 사본 표 ──▶ [층 2  �
     { "key": "V-2b", "label": "한화", "status": "active", "updated_at": "2026-09-22T01:10:00.000000Z",
       "deleted": false, "hidden": false, "merged_into": null,
       "renamed_from": "V-2a", "previous_keys": ["V-2", "V-2a"],
-      "properties": { "country": "KR", "grade": "B" } },
+      "properties": { "country": "KR", "grade": "B" }, "extra": null },
     { "key": "V-3", "label": "ACME Inc.", "status": "active", "updated_at": "…",
       "deleted": true, "hidden": false, "merged_into": "V-1", "renamed_from": null, "previous_keys": [],
       "properties": {} },
@@ -202,7 +203,7 @@ SP ──HTTP──▶ [층 1  받기] ──▶ 사본 표 ──▶ [층 2  �
   "items": [
     { "src": "P-1", "relation": "supplied_by", "dst": "V-1", "dst_type": "vendor",
       "evidence_note": "", "properties": { "n": 3 }, "valid_from": "2026-01-01", "valid_to": "2027-01-01",
-      "updated_at": "…", "deleted": false },
+      "updated_at": "…", "deleted": false, "periods": null },
     { "src": "P-1", "relation": "contains", "dst": "P-7", "dst_type": "part",
       "evidence_note": "", "properties": { "qty": 4 }, "valid_from": null, "valid_to": null,
       "updated_at": "…", "deleted": false },
@@ -214,8 +215,10 @@ SP ──HTTP──▶ [층 1  받기] ──▶ 사본 표 ──▶ [층 2  �
   "reset_reason": "90일보다 오래된 시점부터는 끊긴 선을 알려 줄 수 없습니다 — `since` 를 비우고 처음부터 받으세요." }
 ```
 
-값의 표기: 참조 칸(`object_ref`)은 상대 객체의 `key`, 여러 값은 배열, 날짜 `2026-09-22`,
+값의 표기: 참조 칸(`object_ref`)은 상대 객체의 `key`(선에 붙은 참조 칸도), 여러 값은 배열, 날짜 `2026-09-22`,
 일시 `2026-09-22T01:23:45.000000Z`. **빈 값은 칸이 아예 없다.** 별칭이 있으면 `properties.aliases` 에 배열로 온다.
+`shapes` · `extra` · `periods` 는 SP 끼리 받는 모양(`shape=sp`)의 것이다 — 이 키트는 쓰지 않는다(`extra` ·
+`periods` 는 늘 `null`).
 
 ### 5.3 한 흐름 받기
 
@@ -324,7 +327,7 @@ cursor = 없음 ; seen = {} ; 다시받음 = 거짓 ; reset받음 = 거짓
 
 | 원하는 것 | 이 창구 | 어디서 |
 | --- | --- | --- |
-| 지난 · 앞으로의 기간의 선 | 오늘 유효한 선만 온다 | 공개 측의 관계 내보내기 · 묶음(기간을 가리지 않고 전부 싣는다). 더 넓은 토큰이 든다 |
+| 지난 · 앞으로의 기간의 선 | 오늘 유효한 선만 온다 | 공개 측의 관계 내보내기 · 묶음(기간을 가리지 않고 전부 싣는다 — 더 넓은 토큰이 든다). 공개 측이 0.4.78 이상이면 이 창구의 `shape=sp` 도 있다 — 선이 쌍마다 기간 목록(`periods`)으로 와서 받는 모양이 다르다(형제 SP 가 쓰는 모양, 시험장에는 없다) |
 | 수량을 경로 따라 곱한 전개 표 | 선마다의 수량만 온다 | 층 2 가 계산하거나(§6.2) SP 화면에서 본다 |
 | 계보의 낡음(원천이 바뀌어 파생물이 낡았나) | 안 온다 | SP 안의 판정이다 — SP 화면에서 본다. 이 플랫폼에서 지어 판정하지 않는다 |
 | 제안된 관계(확정 전) | 안 온다 | 사람이 SP 에서 확정하면 그때 보통의 선으로 온다 |

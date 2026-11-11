@@ -51,7 +51,7 @@ from typing import Any, Iterator
 import requests
 
 #: 이 키트의 판 — 바뀐 것은 CHANGES.md 에 같은 이름으로 적는다.
-KIT_VERSION = "2026-11-03"
+KIT_VERSION = "2026-11-06"
 
 ENVELOPE = (
     "key",

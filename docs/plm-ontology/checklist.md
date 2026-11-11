@@ -112,3 +112,15 @@ SP main `ab41cff`(0.4.72) · `KIT_VERSION = "2026-11-03"`. 받기(층 1, `sp_cor
 - [ ] 시험장 8단계 · PLM 시험 · 전체 시험
 - [ ] 코어 어휘(Q6)가 오면 초안 — 리포에 싣지 않고 받은 편지함으로
 - [ ] 포털 알림 뒤 main 에 병합 · cae00 문서
+
+## SP 키트 2026-11-06 맞추기 (2026-11-11)
+
+SP main `7744159`(0.4.83) · `KIT_VERSION = "2026-11-06"`. 받기(`sp_core_pull.py`)는 판 표시만 바뀌었다. 봉투에 칸 셋(카탈로그
+`shapes` · 행 `extra` · 선 `periods`)이 늘었지만 SP 끼리 받는 모양에서만 차고 이 창구에는 늘 null 이다. 선의 참조 칸(`object_ref`)이
+key 로 오게 바뀌었으나 SignalForge 는 선을 쓰지 않는다. 키트 UPGRADE 의 A(참고 구현을 그대로 돌림) — 폴더를 바꾸기만 한다.
+
+- [x] 키트 폴더를 SP `7744159` 판으로 통째로(스크래치 새 복제 → rsync --delete, diff 없음) · 판 표시(CLAUDE.md '지금 판' · 확인 명령
+  · plm_mirror 머리말)
+- [x] §2 물음 — 새로 정할 것 없음(받는 쪽 몫이 없는 판)
+- [x] 시험장 8단계(새 fake_sp) · PLM 거울 · 코어와 잇기 · MCP plm_caution · ontology
+- [x] cae00 — 받기 코드가 그대로라 사람 몫 없음(다음 plm-sync 가 새 키트 파일로 돈다). 적용 문서 없음

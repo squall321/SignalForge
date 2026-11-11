@@ -242,6 +242,8 @@ class World:
             "renamed_from": one["previous_keys"][-1] if one["previous_keys"] else None,
             "previous_keys": list(one["previous_keys"]),
             "properties": {},
+            # SP 끼리 받는 모양(`shape=sp`)에서만 찬다 — 이 창구를 쓰는 바깥 시스템에는 늘 null.
+            "extra": None,
         }
         if one["hidden"] and not one["deleted"]:
             row.update(label=one["key"], deleted=True, hidden=True)
@@ -368,6 +370,8 @@ class World:
             "valid_to": None,
             "updated_at": stamp(one["at"]),
             "deleted": deleted,
+            # SP 끼리 받는 모양(`shape=sp`)에서만 찬다 — 바깥 시스템에는 늘 null.
+            "periods": None,
         }
 
     def require(self, type_slug: str) -> None:
@@ -407,6 +411,7 @@ class World:
             "revision": f"{len(types)}-{int(digest[:8], 16) % 10**10:010d}",
             "as_of": stamp(self.tick),
             "types": types,
+            "shapes": ["core", "sp"],
         }
 
     def kind_entry(self, kind: str) -> dict[str, Any]:

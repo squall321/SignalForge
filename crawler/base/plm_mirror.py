@@ -2,7 +2,7 @@
 """PLM 거울 — StandardPlatform(SP) 허브의 과제(plm_task)·개발모델(plm_model)·프로젝트(plm_project).
 
 두 층(키트 01-AI-GUIDE §3).
-- 층 1 받기 — SP 키트의 참고 구현 `crawler/sp_core_kit/sp_core_pull.py`(SP ab41cff · KIT_VERSION 2026-11-03)를 **고치지
+- 층 1 받기 — SP 키트의 참고 구현 `crawler/sp_core_kit/sp_core_pull.py`(SP 7744159 · KIT_VERSION 2026-11-06)를 **고치지
   않고** 자식 프로세스로 돌린다. 받는 쪽 규칙 열여섯(since·as_of 증분 · 옛 식별자 옮기기 · 지움·합침·안 보임 · 선 끊기 ·
   처음부터 받은 뒤 부재 대조와 절반 안전장치 · reset · 404 둘 · 정의 판)은 키트가 지킨다. 사본은 `sp-core/sp_core.sqlite`
   (타입별 표 · `<타입>__relations` · `<타입>__previous_keys`). 감싸는 쪽(sync)이 더하는 것 — 잠금(규칙 14, 참고 구현에
