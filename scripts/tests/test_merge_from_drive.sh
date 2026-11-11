@@ -8,6 +8,7 @@
 #   T5 dev 의 변경(링크 떼기·본문 갱신)이 따라온다
 #   T6 표본 대조가 어긋나면 통째로 되돌린다(대상에 일부러 product_id 를 지우는 트리거)
 #   T7 다른 병합이 돌고 있으면 건너뛴다
+#   T8 알림 — 고른 규칙(defect_anomaly)만 이름으로 번역해 오고 merged 표지가 붙는다. 운영 알림은 안 온다 · 이 서버의 알림은 그대로 · 멱등
 set -uo pipefail
 PASS=0; FAIL=0
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -45,6 +46,7 @@ for d in "$SRC" "$DST"; do PIN postgres -q -c "CREATE DATABASE \"$d\" OWNER \"$P
 PGPASSWORD="$POSTGRES_PASSWORD" apptainer exec "instance://$INST" pg_dump -h 127.0.0.1 -p "$POSTGRES_PORT" \
   -U "$POSTGRES_USER" -d "$POSTGRES_DB" -s --no-owner --no-privileges \
   -t platforms -t products -t voc_categories -t voc_records -t voc_product_links -t voc_defects \
+  -t alert_rules -t alert_events \
   > "$TMP/schema.sql" 2>/dev/null
 [ -s "$TMP/schema.sql" ] || { fail "운영 스키마를 못 떴다"; exit 1; }
 for d in "$SRC" "$DST"; do
@@ -72,6 +74,14 @@ INSERT INTO voc_records (id, platform_id, external_id, source_url, product_id, c
 INSERT INTO voc_product_links (voc_id, product_id, role) VALUES (11,1,'primary'),(12,2,'primary'),(12,1,'compared'),(13,3,'primary');
 INSERT INTO voc_defects (voc_id, component, symptom, severity) VALUES (12,'hinge','dust_ingress','degraded');
 SELECT setval('platforms_id_seq', 3); SELECT setval('products_id_seq', 3); SELECT setval('voc_records_id_seq', 17);
+-- 알림 — dev 의 규칙 id 는 collection_health 1 · defect_anomaly 2. 결함 급등 둘(하나는 slack:dry, 하나는 덤프 직전이라 표지 없음)과 운영 알림 하나
+INSERT INTO alert_rules (id, name, metric_path, op, threshold, severity, cooldown_sec, is_active) VALUES
+  (1, 'collection_health', 'ops.collection', '>', 0, 'warning', 3600, true),
+  (2, 'defect_anomaly', 'defect.share', '>', 3, 'warning', 21600, true);
+INSERT INTO alert_events (rule_id, fired_at, severity, value, threshold, payload, dispatched_channels) VALUES
+  (2, '2026-11-10 00:20:00+00', 'warning', 3.7, 3, '{"type":"defect_anomaly","product_code":"GZF8"}', ARRAY['slack:dry']::varchar[]),
+  (2, '2026-11-11 06:20:00+00', 'warning', 3.9, 3, '{"type":"defect_anomaly","product_code":"GZF8"}', ARRAY[]::varchar[]),
+  (1, '2026-11-11 07:00:00+00', 'warning', 5, 0, '{"type":"collection_health"}', ARRAY['slack:dry']::varchar[]);
 SQL
 
 # 대상(cae00) — 설치 순서가 달라 naver_cafe 1 · dcinside 2 · wpnews 3 / OLD12 1 · GS25U 2 · GZF7 3,
@@ -90,6 +100,13 @@ INSERT INTO voc_records (platform_id, external_id, source_url, product_id, conte
   (1, 'same1', 'https://gall.dcinside.com/same1', 1, 'dc 의 same1', 'h-sd'),
   (2, 'same1', 'https://cafe.naver.com/same1',    2, '카페의 same1', 'h-sn'),
   (1, 'native1', 'https://cafe.naver.com/native1', 2, '이 서버가 모은 글', 'h-native');
+-- 알림 — 이 서버의 규칙 id 는 거꾸로(defect_anomaly 1 · collection_health 2), 문턱도 예전 값. 이 서버에 남아 있던 옛 운영 알림 하나
+INSERT INTO alert_rules (id, name, metric_path, op, threshold, severity, cooldown_sec, is_active) VALUES
+  (1, 'defect_anomaly', 'defect.share', '>', 2, 'warning', 21600, true),
+  (2, 'collection_health', 'ops.collection', '>', 0, 'warning', 3600, true);
+INSERT INTO alert_events (rule_id, fired_at, severity, value, threshold, payload, dispatched_channels) VALUES
+  (2, '2026-07-01 00:00:00+00', 'warning', 1, 0, '{"type":"collection_health"}', ARRAY[]::varchar[]);
+SELECT setval('alert_rules_id_seq', 2);
 SQL
 
 attribution() {  # external_id|플랫폼 code|제품 code — 대상 DB 를 code 로 읽는다
@@ -163,13 +180,30 @@ else fail "되돌림: $(tail -4 "$TMP/merge.out")"; fi
 PIN "$DST" -q -c "DROP TRIGGER _t_np ON voc_records; DROP FUNCTION _t_null_prod();" >/dev/null
 
 echo "[T7] 다른 병합이 돌고 있으면 건너뛴다(겹치지 않는다)"
-( exec 8>"/tmp/sf-merge-${DST}.lock"; flock -n 8 && sleep 30 ) & HOLD=$!
+# exec sleep — 잠금을 쥔 것이 sleep 자신이어야 kill 이 잠금을 푼다(그냥 sleep 이면 subshell 만 죽고 30초 동안 T8 이 건너뛴다)
+( exec 8>"/tmp/sf-merge-${DST}.lock"; flock -n 8 && exec sleep 30 ) & HOLD=$!
 sleep 1
 if SF_MERGE_DUMP="$TMP/src.sql.gz" SF_MERGE_TARGET="$DST" timeout 20 bash "$MERGE" > "$TMP/merge.out" 2>&1 \
    && grep -q "건너뛴다" "$TMP/merge.out" && ! grep -q "staging" "$TMP/merge.out"; then
   pass "잠금을 못 잡으면 staging 도 안 만들고 0 으로 끝난다"
 else fail "겹침: $(tail -3 "$TMP/merge.out")"; fi
 kill "$HOLD" 2>/dev/null; wait "$HOLD" 2>/dev/null
+
+echo "[T8] 알림 — 고른 규칙만 · 이름으로 번역 · merged 표지 · 멱등"
+alerts() {  # 규칙 이름|fired_at|표지 — 대상 DB 를 규칙 이름으로 읽는다
+  PIN "$DST" -tA -c "SELECT r.name || '|' || to_char(e.fired_at AT TIME ZONE 'UTC', 'MM-DD HH24:MI') || '|' || array_to_string(e.dispatched_channels, ',')
+                     FROM alert_events e JOIN alert_rules r ON r.id = e.rule_id ORDER BY e.fired_at"
+}
+want=$'collection_health|07-01 00:00|\ndefect_anomaly|11-10 00:20|slack:dry,merged\ndefect_anomaly|11-11 06:20|merged'
+got="$(alerts)"
+[ "$got" = "$want" ] && pass "결함 급등 둘이 이 서버의 규칙 id 로 오고 merged 가 붙는다 · dev 운영 알림은 안 온다 · 이 서버의 옛 알림은 그대로" \
+  || fail "알림:"$'\n'"$got"
+[ "$(PIN "$DST" -tA -c "SELECT threshold FROM alert_rules WHERE name = 'defect_anomaly'")" = 3 ] \
+  && pass "규칙 정의는 dev 가 정본 — 이름으로 맞춰 문턱이 바뀐다" || fail "규칙 문턱이 dev 와 다르다"
+run_merge
+if [ "$(alerts)" = "$want" ] && grep -q "alert_events +0 (싣는 규칙: defect_anomaly)" "$TMP/merge.out"; then
+  pass "다시 돌려도 알림이 늘지 않는다"
+else fail "알림 멱등: $(grep -E '알림|✗' "$TMP/merge.out")"; fi
 
 echo "================================================================"
 echo " 결과: PASS=$PASS FAIL=$FAIL"

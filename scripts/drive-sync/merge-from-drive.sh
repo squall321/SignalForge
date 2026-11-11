@@ -14,6 +14,9 @@
 #   · voc_records          : (code 로 번역한 platform_id, external_id) upsert, product_id 도 code 로 번역
 #   · voc_product_links · voc_defects : 글은 자연키로, 제품은 code 로 번역 — dev 가 아는 글의 링크·결함은 dev 와
 #     같게(dev 가 뗀 링크는 뗀다). 예전 병합은 이 둘을 옮기지 않아 cae00 에 0행이었다(SG-05 · SG-17)
+#   · alert_rules · alert_events : dev 가 계산한 알림 가운데 고른 규칙만(SF_MERGE_ALERT_RULES, 기본 defect_anomaly).
+#     규칙은 이름으로 upsert, 알림은 (번역한 rule_id, fired_at)이 없을 때만. dispatched_channels 에 merged 를 붙여 이 서버가
+#     다시 보내지 않는다 — 바깥 알림은 dev 몫이다(사용자 결정 2026-11-11). 운영 알림(수집 상태 · 백업 · 운영 감시)은 싣지 않는다
 #   · 예전 병합이 정수 그대로 넣은 행 — 원천 행과 (원래 id, external_id) 가 같고 source_url 이나 content_hash
 #     까지 같으면 제자리 플랫폼으로 옮긴다. 이미 제자리인 행은 건드리지 않는다(멱등)
 # 병합 뒤 — 미리 계산하는 뷰를 다시 채운다(수집하지 않는 서버는 beat 가 없어 뷰가 비거나 낡는다, SG-06).
@@ -23,6 +26,7 @@
 #   SF_MERGE_DUMP=/path.sql.gz bash ... merge-from-drive.sh  # 로컬 덤프 지정
 #   SF_MERGE_TARGET=<db> ...                                 # 대상 DB 오버라이드(테스트용)
 #   SF_MERGE_SAMPLE=300                                      # 표본 대조 크기
+#   SF_MERGE_ALERT_RULES=defect_anomaly                      # 싣는 알림 규칙(쉼표, 비우면 알림을 싣지 않는다)
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_drive_common.sh"
 
@@ -87,7 +91,7 @@ cols_of() {  # $1=db $2=table → 열 이름(정의 순서), 한 줄에 하나
 }
 declare -A COLS   # 표 → 양쪽에 다 있는 열(대상 순서, 공백 구분)
 TABLES=()
-for t in platforms products voc_categories voc_records voc_product_links voc_defects; do
+for t in platforms products voc_categories voc_records voc_product_links voc_defects alert_rules alert_events; do
   for db in "$TARGET_DB" "$STAGE_DB"; do
     if has_table "$db" "$t"; then :; else
       rc=$?
@@ -110,6 +114,18 @@ for t in platforms products voc_categories voc_records voc_product_links voc_def
 done
 has() { local x; for x in "${TABLES[@]}"; do [ "$x" = "$1" ] && return 0; done; return 1; }
 csv() { local IFS=,; echo "$*"; }
+# 싣는 알림 규칙 — 이름만 받는다(SQL 에 그대로 들어간다)
+ALERT_RULES="${SF_MERGE_ALERT_RULES-defect_anomaly}"
+ALERT_ALLOW="ARRAY[]::varchar[]"
+if [ -n "$ALERT_RULES" ]; then
+  _al=(); IFS=, read -ra _an <<<"$ALERT_RULES"
+  for _n in "${_an[@]}"; do
+    _n="${_n// /}"; [ -n "$_n" ] || continue
+    [[ "$_n" =~ ^[a-z0-9_]+$ ]] || { echo "[ERROR] SF_MERGE_ALERT_RULES 에 쓸 수 없는 이름: $_n" >&2; exit 1; }
+    _al+=("'$_n'")
+  done
+  [ "${#_al[@]}" -gt 0 ] && ALERT_ALLOW="ARRAY[$(csv "${_al[@]}")]::varchar[]"
+fi
 # 열 목록 조립 — $1=표 $2=빼는 열(공백 구분)
 cols_except() { local c out=(); for c in ${COLS[$1]}; do [[ " $2 " == *" $c "* ]] || out+=("$c"); done; csv "${out[@]}"; }
 set_list() {   # $1=표 $2=빼는 열 → "a=EXCLUDED.a, ..."  ·  distinct 비교용 두 줄은 아래
@@ -135,6 +151,19 @@ load_sql() {
     echo "COPY _s_$t ($(csv ${COLS[$t]})) FROM '${CPREFIX}_$t.bin' (FORMAT binary);"
     echo "ANALYZE _s_$t;"
   done
+}
+alert_exprs() {  # alert_events 삽입 열의 값 — rule_id 는 이름으로 번역(_amap), dispatched_channels 에 merged 를 붙인다
+  local c out=(); for c in ${COLS[alert_events]}; do
+    case "$c" in
+      id) ;;
+      rule_id) out+=("am.dst") ;;
+      dispatched_channels)   # 한 원소로 — out+=("a" "b") 는 원소 둘이 되어 csv 가 사이에 쉼표를 넣는다
+        local dc="CASE WHEN 'merged' = ANY(COALESCE(e.dispatched_channels, ARRAY[]::varchar[])) THEN e.dispatched_channels"
+        dc+=" ELSE array_append(COALESCE(e.dispatched_channels, ARRAY[]::varchar[]), 'merged'::varchar) END"
+        out+=("$dc") ;;
+      *) out+=("e.$c") ;;
+    esac
+  done; csv "${out[@]}"
 }
 voc_exprs() {  # voc_records 삽입 열의 값 — 두 id 만 번역
   local c out=(); for c in ${COLS[voc_records]}; do
@@ -293,6 +322,25 @@ CREATE UNIQUE INDEX ON _vmap (src); CREATE UNIQUE INDEX ON _vmap (dst); ANALYZE 
 SQL
   has voc_product_links && child_sql voc_product_links "voc_id product_id"
   has voc_defects && child_sql voc_defects "voc_id component symptom"
+  # 6f 알림 — dev 가 계산한 알림 가운데 고른 규칙만. 규칙 정의는 dev 가 정본이라 이름으로 맞추고, 알림은 (번역한 rule_id,
+  #    fired_at)이 없을 때만 넣는다. 이 서버에만 있는 알림 · 규칙은 건드리지 않는다
+  if has alert_rules && has alert_events; then cat <<SQL
+WITH up AS (INSERT INTO public.alert_rules ($(cols_except alert_rules id))
+            SELECT $(cols_except alert_rules id) FROM _s_alert_rules WHERE name = ANY($ALERT_ALLOW)
+            ON CONFLICT (name) DO UPDATE SET $(set_list alert_rules "id name created_at")
+              WHERE $(distinct_cond alert_rules "id name created_at")
+            RETURNING (xmax = 0) AS ins)
+SELECT 'R|alert_rules|' || count(*) FILTER (WHERE ins) || '|' || count(*) FILTER (WHERE NOT ins) FROM up;
+CREATE TEMP TABLE _amap AS
+  SELECT s.id AS src, t.id AS dst FROM _s_alert_rules s JOIN public.alert_rules t ON t.name = s.name
+  WHERE s.name = ANY($ALERT_ALLOW);
+WITH ins AS (INSERT INTO public.alert_events ($(cols_except alert_events id))
+             SELECT $(alert_exprs) FROM _s_alert_events e JOIN _amap am ON am.src = e.rule_id
+             WHERE NOT EXISTS (SELECT 1 FROM public.alert_events t WHERE t.rule_id = am.dst AND t.fired_at = e.fired_at)
+             RETURNING 1)
+SELECT 'R|alert_events|' || count(*) FROM ins;
+SQL
+  fi
   # 6d 남은 것 세기 — 제자리로 못 옮긴 옛 행 · dev 에 없는 행
   cat <<SQL
 SELECT 'R|raw_left|' || count(*) FROM public.voc_records t
@@ -374,6 +422,7 @@ r="$(rep repaired)"
 echo "    ✓ voc_records $(pair voc_records) · 옛 정수 id 행 제자리로 ${r%%|*}"
 has voc_product_links && echo "    ✓ voc_product_links $(pair voc_product_links) -$(rep voc_product_links_del)"
 has voc_defects && echo "    ✓ voc_defects $(pair voc_defects) -$(rep voc_defects_del)"
+has alert_events && echo "    ✓ 알림 — 규칙 $(pair alert_rules) · alert_events +$(rep alert_events) (싣는 규칙: ${ALERT_RULES:-없음})"
 echo "    ✓ 표본 대조 $(rep guard)건 — 제품·본문·링크·결함 일치"
 [ "${r#*|}" != 0 ] && echo "    ⚠ 옮길 자리에 다른 행이 있어 못 옮긴 옛 행 ${r#*|} (같은 글이 두 벌일 수 있다 — $LOG 와 함께 보라)"
 [ "$(rep raw_left)" != 0 ] && echo "    ⚠ 아직 원래 정수 id 자리에 있는 옛 행 $(rep raw_left)"
