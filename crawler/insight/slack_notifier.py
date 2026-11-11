@@ -14,7 +14,8 @@ R28-harvest 트랙 D
 해결: 이 모듈은 **alert_events 폴링 dispatcher** 다.  5분마다::
 
   1. ``dispatched_channels`` 에 'slack' / 'slack:dry' / 'slack:fail' 어느 라벨도 없는
-     최근 24h alert_events 조회 (rule_name JOIN 포함, 최대 batch 50건).
+     최근 24h alert_events 조회 (rule_name JOIN 포함, 최대 batch 50건). 'merged'(병합으로 들어온 알림)도
+     건너뛴다 — 바깥으로 보내는 것은 원천(dev) 몫이다(사용자 결정 2026-11-11, merge-from-drive.sh).
   2. 각 row → Slack block kit payload 구성 → Incoming Webhook POST.
      - ALERT_WEBHOOK_URL 미설정 → dry-run, label='slack:dry'
      - HTTP 200 OK            → label='slack'
@@ -170,6 +171,7 @@ _FETCH_UNSENT_SQL = """
       AND NOT ('slack'      = ANY(e.dispatched_channels))
       AND NOT ('slack:dry'  = ANY(e.dispatched_channels))
       AND NOT ('slack:fail' = ANY(e.dispatched_channels))
+      AND NOT ('merged'     = ANY(e.dispatched_channels))   -- 병합으로 들어온 알림 — dev 가 보낸다
     ORDER BY e.fired_at ASC
     LIMIT $2
 """
