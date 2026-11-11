@@ -19,7 +19,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.cache import get_cache_stats
 from app.database import get_db
 from app.services import export_service
@@ -854,7 +855,7 @@ _ALERT_MONITOR_RULES_SQL = text(
            max(e.fired_at) AS last_fired_at
     FROM alert_rules r
     LEFT JOIN alert_events e ON e.rule_id = r.id
-    WHERE r.is_active = TRUE
+    WHERE r.is_active = TRUE AND r.name <> ALL(CAST(:hidden AS text[]))   -- ALERT_HIDDEN_RULES
     GROUP BY r.id
     ORDER BY r.id
     """
@@ -870,7 +871,7 @@ _ALERT_MONITOR_VIOL_BY_RULE_SQL = text(
                r.cooldown_sec
         FROM alert_events e
         JOIN alert_rules r ON r.id = e.rule_id
-        WHERE e.fired_at >= now() - interval '24 hours'
+        WHERE e.fired_at >= now() - interval '24 hours' AND r.name <> ALL(CAST(:hidden AS text[]))
     )
     SELECT rule_id, count(*) AS n
     FROM gaps
@@ -892,7 +893,7 @@ _ALERT_MONITOR_METRIC_DIST_SQL = text(
            count(*) AS n
     FROM alert_events e
     JOIN alert_rules r ON r.id = e.rule_id
-    WHERE e.fired_at >= now() - make_interval(days => :days)
+    WHERE e.fired_at >= now() - make_interval(days => :days) AND r.name <> ALL(CAST(:hidden AS text[]))
     GROUP BY r.metric_path
     """
 )
@@ -952,12 +953,17 @@ def _build_recommendations(
 
 
 @redis_cache(ttl_seconds=120, key_prefix="alert_monitor:")
-async def _alert_monitor_payload(db: AsyncSession, days: int) -> Dict[str, Any]:
-    """SQL 실행 + health/recommendations 합성.  _enforce_localhost 는 라우터에서 처리."""
-    rule_rows = (await db.execute(_ALERT_MONITOR_RULES_SQL, {"days": days})).all()
-    viol_rows = (await db.execute(_ALERT_MONITOR_VIOL_BY_RULE_SQL)).all()
+async def _alert_monitor_payload(
+    db: AsyncSession, days: int, hidden: Tuple[str, ...] = (),
+) -> Dict[str, Any]:
+    """SQL 실행 + health/recommendations 합성.  _enforce_localhost 는 라우터에서 처리.
+
+    ``hidden`` 은 ALERT_HIDDEN_RULES — 그 규칙은 목록에도 합계에도 넣지 않는다(캐시 키에 들어간다).
+    """
+    rule_rows = (await db.execute(_ALERT_MONITOR_RULES_SQL, {"days": days, "hidden": list(hidden)})).all()
+    viol_rows = (await db.execute(_ALERT_MONITOR_VIOL_BY_RULE_SQL, {"hidden": list(hidden)})).all()
     viol_by_rule: Dict[int, int] = {int(r.rule_id): int(r.n or 0) for r in viol_rows}
-    dist_rows = (await db.execute(_ALERT_MONITOR_METRIC_DIST_SQL, {"days": days})).all()
+    dist_rows = (await db.execute(_ALERT_MONITOR_METRIC_DIST_SQL, {"days": days, "hidden": list(hidden)})).all()
 
     # 현재 metric 값 (best-effort — 실패해도 distribution 만 반환)
     current_by_metric: Dict[str, Optional[float]] = {}
@@ -1071,7 +1077,7 @@ async def alert_monitor(
     localhost only. ``@redis_cache(ttl=120, key_prefix='alert_monitor:')``.
     """
     _enforce_localhost(request)
-    return await _alert_monitor_payload(db, int(days))
+    return await _alert_monitor_payload(db, int(days), tuple(settings.alert_hidden_rules_list))
 
 
 # ── Drive 백업 검증 상태 (Track E — backup verification) ──────────────────

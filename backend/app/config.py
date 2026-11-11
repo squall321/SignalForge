@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     SLACK_CHANNEL: str = ""                  # 선택. Slack incoming webhook 의 채널 override
     WS_PING_INTERVAL_SEC: int = 30           # alerts WebSocket ping 주기
     ALERT_COOLDOWN_DEFAULT_SEC: int = 900    # rule.cooldown_sec 의 기본값 (DB seed 와 일치)
+    ALERT_HIDDEN_RULES: str = ""             # 화면에서 가릴 알림 규칙 이름(쉼표). 비면 다 보인다 — cae00 은 운영 알림 넷
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -76,6 +77,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+
+    @property
+    def alert_hidden_rules_list(self) -> List[str]:
+        return [name.strip() for name in self.ALERT_HIDDEN_RULES.split(",") if name.strip()]
 
     class Config:
         env_file = ".env"

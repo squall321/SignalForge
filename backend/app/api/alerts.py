@@ -327,9 +327,11 @@ async def list_rules(db: AsyncSession = Depends(get_db)):
                 SELECT id, name, metric_path, op, threshold, severity,
                        cooldown_sec, description, is_active, created_at
                 FROM alert_rules
+                WHERE name <> ALL(CAST(:hidden AS text[]))   -- ALERT_HIDDEN_RULES
                 ORDER BY id
                 """
-            )
+            ),
+            {"hidden": settings.alert_hidden_rules_list},
         )
     ).all()
     return [
@@ -704,11 +706,12 @@ async def recent_events(
                        e.dispatched_channels
                 FROM alert_events e
                 LEFT JOIN alert_rules r ON r.id = e.rule_id
+                WHERE r.name <> ALL(CAST(:hidden AS text[]))   -- ALERT_HIDDEN_RULES
                 ORDER BY e.fired_at DESC
                 LIMIT :lim
                 """
             ),
-            {"lim": limit},
+            {"lim": limit, "hidden": settings.alert_hidden_rules_list},
         )
     ).all()
     return [
