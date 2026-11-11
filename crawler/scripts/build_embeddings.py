@@ -2,6 +2,7 @@
 """임베딩 적재.
 
 실행:  DATABASE_URL=... python3 scripts/build_embeddings.py
+       DATABASE_URL=... python3 scripts/build_embeddings.py --status   # 읽기만 — 남은 행 · 이 DB 로 지은 저장소인가
 환경변수
   EMB_MODEL      임베딩 모델 (기본 bge-m3 — 한·영 교차 검색 실측 0.79)
   EMB_URL        ollama 주소 (기본 http://127.0.0.1:11434)
@@ -101,6 +102,61 @@ def embed_rows(rows, pool) -> tuple:
     return ids, (np.concatenate(vecs) if vecs else np.zeros((0, 0), np.float32)), ok_until
 
 
+def sample_ids(store: VectorStore, per_shard: int = 4) -> list:
+    """첫 · 가운데 · 마지막 조각에서 고르게 고른 (id, 저장된 벡터) — 덤프 복원 뒤 갈라진 뒤쪽 구간까지 보도록."""
+    sh = store._shards
+    picks = {}
+    for ids, vec in (sh[0], sh[len(sh) // 2], sh[-1]):
+        for pos in np.linspace(0, len(ids) - 1, per_shard).astype(int):
+            picks[int(ids[pos])] = np.asarray(vec[pos])
+    return sorted(picks.items())
+
+
+def alignment(picks: list, bodies: dict, min_cos: float = 0.98) -> dict:
+    """저장된 벡터가 지금 DB 의 같은 id 본문에서 나온 것인가.
+
+    벡터는 voc_records.id 로 붙는다 — id 가 다른 서버에서 옮겨 온 저장소면(병합으로 받는 cae00 은 dev 와 id 가 다르다)
+    다른 글에 엉뚱한 벡터가 붙는다. 같은 본문을 다시 임베딩하면 코사인이 1 에 가깝고 다른 글이면 한참 낮다.
+    DB 에 없는 id 는 missing. 본문이 바뀐 행도 differ 로 나온다 — 드물고, 그때 다시 채우는 쪽이 안전하다.
+    """
+    missing = [i for i, _ in picks if i not in bodies]
+    have = [(i, v, clean(bodies[i])) for i, v in picks if i in bodies and clean(bodies[i])]
+    out = {"checked": len(have), "same": 0, "missing": missing, "differ": []}
+    if have:
+        new = embed_batch([t for _, _, t in have])
+        new = new / np.linalg.norm(new, axis=1, keepdims=True)
+        cos = [float(np.dot(v, n)) for (_, v, _), n in zip(have, new)]
+        out["differ"] = [i for (i, _, _), c in zip(have, cos) if c < min_cos]
+        out["same"] = len(have) - len(out["differ"])
+        out["min_cos"] = round(min(cos), 4)
+    return out
+
+
+async def status() -> dict:
+    """읽기만 — 벡터 수 · 커서 · 남은 행(다음 실행이 훑을 행 — 0 이면 다 따라잡았다) · 맞춰 보기(alignment)."""
+    store = VectorStore(model=MODEL)
+    picks = sample_ids(store) if store.load() else []
+    cursor = int(store.manifest.get("cursor", 0))
+    engine = create_async_engine(os.environ["DATABASE_URL"])
+    try:
+        async with engine.connect() as c:
+            left = (await c.execute(text(
+                "SELECT count(*) FROM voc_records WHERE archived_at IS NULL "
+                "AND content_original IS NOT NULL AND id > :c"), {"c": cursor})).scalar()
+            rows = (await c.execute(text(       # 보관된 행도 — 임베딩한 본문은 그대로다
+                "SELECT id, LEFT(content_original, :chars) AS body FROM voc_records WHERE id = ANY(:ids)"),
+                {"ids": [i for i, _ in picks], "chars": int(store.manifest.get("chars", CHARS))})).all()
+    finally:
+        await engine.dispose()
+    res = {"vectors": store.count, "cursor": cursor, "remaining": int(left)}
+    if picks:
+        try:
+            res["alignment"] = alignment(picks, {r.id: r.body for r in rows})
+        except RuntimeError as e:          # ollama · bge-m3 가 없다
+            res["alignment"] = {"error": str(e)[:200]}
+    return res
+
+
 async def main() -> dict:
     db = os.getenv("DATABASE_URL", "")
     if not db:
@@ -167,5 +223,8 @@ async def main() -> dict:
 
 
 if __name__ == "__main__":
+    if sys.argv[1:] == ["--status"]:
+        print(json.dumps(asyncio.run(status()), ensure_ascii=False))
+        sys.exit(0)
     r = asyncio.run(main())
     sys.exit(1 if r.get("stopped") == "embed_error" or r.get("error") else 0)
