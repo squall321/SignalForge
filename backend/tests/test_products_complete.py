@@ -47,6 +47,8 @@ _UNDATED_EXPECTED = {
     "GW9",          # Watch9 미발표
     "GA27", "GA37", "GA57",
     "GF25",
+    # 0047 신규 — 출시 전
+    "GFIT4",
 }
 
 

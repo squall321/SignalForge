@@ -47,6 +47,7 @@ _UNDATED_EXPECTED = {
     "GA27", "GA37", "GA57",     # A 차차세대
     "GF25",                      # F25 미공개
     "GW9",                       # Watch9 미발표
+    "GFIT4",                     # 0047 신규 — Fit4 출시 전
 }
 
 
