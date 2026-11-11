@@ -13,7 +13,9 @@ cae00 에는 Redis · worker · beat 가 없다. 알림을 계산하는 beat 작
   싣지 않고 cae00 화면에서도 가린다. dev 화면은 그대로다.
 - **바깥 웹훅은 dev 만 보낸다.** cae00 은 웹훅 주소를 비운다. 실린 알림에는 `merged` 표시가 붙고 발송기가 그것을 건너뛴다.
   두 겹이라 언젠가 cae00 에 worker 를 띄워도 다시 보내지 않는다.
-- 지표 규칙 다섯(`anomaly_z_high` 등)은 꺼 둔 채다. dev 에서도 평가를 스케줄하지 않는다.
+- 지표 규칙 다섯(`anomaly_z_high` · `negative_rate_spike` · `new_term_spike` · `platforms_negative_share` ·
+  `platforms_negative_share_watch`)은 꺼 둔 채다. dev 에서도 평가를 스케줄하지 않고, cae00 화면에서도 가린다. **cae00 화면에는
+  결함 급등만 보인다.**
 - **벡터 — cae00 이 자기 VOC id 로 직접 짓는다.** cron 이 2시간마다 600초씩 커서를 이어받아 임베딩한다. cae00 은 병합으로 받아
   글의 id 가 dev 와 다르다. **dev 벡터를 복사해 오지 않는다** — 10-17 문서 4절의 '덤프 복원 구조면 복사해도 된다' 는 이제
   해당하지 않는다.
@@ -36,18 +38,20 @@ git log --oneline -10 | grep -E "ebfc4fe|154e2d1|9e34804|0055230"
 
 병합 스크립트는 다음 병합부터 새 코드로 돈다. 따로 띄울 것은 없다. 백엔드는 1절에서 `.env` 를 바꾼 뒤 다시 띄운다.
 
-## 1. `.env` — 웹훅 주소를 비운다 · 운영 알림 넷을 가린다
+## 1. `.env` — 웹훅 주소를 비운다 · 결함 급등 말고는 가린다
 
-웹훅 주소를 비운다. 그리고 가릴 규칙을 적는다.
+웹훅 주소를 비운다. 그리고 가릴 규칙 아홉(운영 알림 넷 · 지표 규칙 다섯)을 적는다.
 
 ```bash
 awk -F= '/^(SLACK_WEBHOOK_URL|ALERT_WEBHOOK_URL)=/{print $1, ($2=="" ? "비어 있음" : "값 있음")}' .env   # 주소 자체는 찍지 않는다
 sed -i -E 's/^(SLACK_WEBHOOK_URL|ALERT_WEBHOOK_URL)=.*/\1=/' .env
-grep -q '^ALERT_HIDDEN_RULES=' .env \
-  || echo 'ALERT_HIDDEN_RULES=collection_health,ops_status_violation,operations_monitor,backup_fail' >> .env
+sed -i '/^ALERT_HIDDEN_RULES=/d' .env          # 앞서 넷만 넣었어도 아홉으로 바뀐다
+echo 'ALERT_HIDDEN_RULES=collection_health,ops_status_violation,operations_monitor,backup_fail,anomaly_z_high,negative_rate_spike,new_term_spike,platforms_negative_share,platforms_negative_share_watch' >> .env
 awk -F= '/^(SLACK_WEBHOOK_URL|ALERT_WEBHOOK_URL)=/{print $1, ($2=="" ? "비어 있음" : "값 있음")}' .env; grep '^ALERT_HIDDEN_RULES=' .env
-# 기대: 둘 다 '비어 있음'(줄이 없어도 된다) · ALERT_HIDDEN_RULES=collection_health,ops_status_violation,operations_monitor,backup_fail
+# 기대: 둘 다 '비어 있음'(줄이 없어도 된다) · ALERT_HIDDEN_RULES= 이름 아홉
 ```
+
+가린 규칙의 행은 지우지 않는다. 나중에 dev 에서 지표 규칙을 켤 때는 9절을 본다.
 
 백엔드만 다시 띄운다. 백엔드는 `.env` 를 환경으로 물려받는다(up.sh 의 load_env). 11-07 문서 4절처럼 워치독 락을 쥔다.
 
@@ -68,10 +72,10 @@ B="http://127.0.0.1:${API_PORT:-8000}/api/v1"
 curl -s -H "X-API-Key: $API_KEY" "$B/alerts/channels" | python3 -c "import json,sys; print(json.load(sys.stdin)['slack'])"
 # 기대: 'enabled': False, 'dry_run': True — 웹훅을 비웠다
 curl -s -H "X-API-Key: $API_KEY" "$B/alerts/rules" | python3 -c "import json,sys; print(sorted(r['name'] for r in json.load(sys.stdin)))"
-# 기대: 운영 알림 넷이 없다
+# 기대: ['defect_anomaly'] (첫 병합 전이고 그 규칙이 아직 없으면 []). 다른 이름이 보이면 이 박스에서 따로 만든 규칙이다 — 그것도 위 줄에 더한다
 curl -s -H "X-API-Key: $API_KEY" "$B/_internal/alert-monitor?days=7" \
   | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['summary'], [r['name'] for r in d['rules']])"
-# 기대: 넷이 rules 에도 없고 summary 의 발화 수에도 들어가지 않는다
+# 기대: rules 는 ['defect_anomaly'] 하나, summary 의 발화 수도 결함 급등 것만
 ```
 
 ## 2. 알림이 실리는지 — 다음 병합
@@ -91,9 +95,9 @@ FROM alert_rules r LEFT JOIN alert_events e ON e.rule_id = r.id GROUP BY r.name 
 # 기대: defect_anomaly 의 알림은 모두 merged. 다른 규칙에 옛 알림이 있으면(박스를 처음 깔 때 들어온 것) 화면에서는 1절이 가린다
 ```
 
-**화면** — 알림 페이지의 최근 알림에 결함 급등만 보이고, 채널 칸에 `merged` 꼬리표가 붙는다(dev 에서 실려 온 알림). 운영 모니터링에는 결함 급등과 지표 규칙(꺼 둔 채라 발화 0 —
-'silent' 로 보인다)이 남는다. 지표 규칙까지 가리려면 그 이름을 `ALERT_HIDDEN_RULES` 에 더하고 백엔드를 다시 띄운다. 실시간
-배지(WebSocket)는 dev 와 같이 백엔드가 직접 낸 알림만 민다. 병합 알림은 목록에 보인다.
+**화면** — 알림 페이지의 최근 알림에 결함 급등만 보이고, 채널 칸에 `merged` 꼬리표가 붙는다(dev 에서 실려 온 알림). 규칙
+목록과 운영 모니터링에도 결함 급등 하나만 남는다(운영 알림 넷 · 지표 규칙 다섯은 1절이 가린다). 실시간 배지(WebSocket)는 dev 와
+같이 백엔드가 직접 낸 알림만 민다. 병합 알림은 목록에 보인다.
 
 MCP `defect_anomalies` 도구도 같은 알림을 읽는다. 첫 병합 뒤부터 빈 목록이 아니다.
 
@@ -182,5 +186,7 @@ grep "완료" logs/embed-new.log | tail -1      # 'stopped': 'end' 면 끝까지
 - 싣는 알림 규칙을 바꾸려면 `.env` 에 `SF_MERGE_ALERT_RULES=defect_anomaly,…` 를 넣는다(비우면 알림을 싣지 않는다). 병합이
   다음 차례에 읽는다.
 - 가리는 규칙을 바꾸려면 `ALERT_HIDDEN_RULES` 를 고치고 백엔드를 다시 띄운다(1절). 가린 알림의 행은 DB 에 그대로 있다.
+- **나중에 dev 에서 지표 규칙을 켜면, cae00 에서는 그 이름을 `ALERT_HIDDEN_RULES` 에서 빼야 보인다.** 그 알림까지 cae00 에
+  실으려면 `SF_MERGE_ALERT_RULES` 에도 더한다(병합은 거기 적힌 규칙만 싣는다).
 - dev 가 결함 급등 규칙의 임계 · 설명을 바꾸면 다음 병합에서 따라온다(`규칙 +0 ~1`).
 - 보관(archive)된 행의 벡터는 저장소에 남고 검색 SQL 이 걸러낸다. dev 와 같다.

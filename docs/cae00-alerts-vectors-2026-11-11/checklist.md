@@ -28,3 +28,5 @@ cae00 에는 Redis 가 없어 worker · beat 가 돌지 않는다. 그래서 알
       test_voc_dedup — 6-10 HN 역사 수집 행 50,651 에 content_hash 가 없다(보유율 95.67%, 이번 일과 무관 — 사용자에게 알림)
 - [x] cae00 문서 — `docs/DEPLOY_CAE00_2026-11-11-alerts-vectors.md`
 - [x] 커밋 · push · 포털 알림(커밋 · 시험 수 · SIF 필요 여부 · cae00 사람 몫 목록 · 문서 경로) — hwaxportal-a5
+- [x] 11-11 추가 결정 — cae00 은 지표 규칙 다섯도 가린다. 문서 ALERT_HIDDEN_RULES 를 이름 아홉으로, dev 에서 지표 규칙을 켤 때의
+      한 줄(목록에서 빼기 · SF_MERGE_ALERT_RULES 에 더하기) — 커밋 뒤 포털에 그 한 줄을 보낸다

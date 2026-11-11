@@ -24,6 +24,11 @@
 - **다시 보내지 않는 것은 두 겹** — cae00 은 웹훅 주소를 비운다(사용자 결정). 병합한 알림에는 `merged` 를 붙이고 slack-notifier 가
   건너뛴다 — 덤프 직전에 생겨 표지 없이 온 알림도, 누가 나중에 cae00 에 웹훅을 넣어도 다시 가지 않는다.
 - **지표 규칙은 켜지 않는다** — 쓰임을 본 뒤 다시 정한다.
+- **11-11 추가 — cae00 은 지표 규칙 다섯도 가린다**(사용자, 포털이 착지 뒤 전함). cae00 화면에는 결함 급등만 보인다.
+  ALERT_HIDDEN_RULES 는 이름 아홉(운영 알림 넷 + anomaly_z_high · negative_rate_spike · new_term_spike · platforms_negative_share ·
+  platforms_negative_share_watch). platforms_negative_share 는 alembic 이 아니라 dev 에서 실행 중에 만든 규칙이라 cae00 에 없을 수
+  있다 — 없는 이름은 걸러도 해가 없다. dev 에서 지표 규칙을 켜면 cae00 은 목록에서 빼야 보이고, 알림까지 보려면
+  SF_MERGE_ALERT_RULES 에도 더해야 실린다. 문서의 .env 명령은 앞서 넷만 넣은 박스도 아홉으로 바뀌게 지우고 다시 쓴다.
 - **벡터는 cae00 cron(②)** — id 가 cae00 것이라 번역이 필요 없다. dev 벡터를 싣는 길(①)은 4.9GB 와 조각마다 id 다시 쓰기가 들고,
   그래도 질의 임베딩용 ollama 는 cae00 에 있어야 한다.
 
