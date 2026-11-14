@@ -79,6 +79,16 @@ _DEFAULT_SUBREDDITS: List[str] = [
     # 90일 태깅이 apple 10,677 vs google 2,671). OAuth 크롤러에는 있었으나
     # reddit_rss 에는 빠져 있었고, OAuth 쪽은 2025-11 정책 변경으로 죽었다.
     "GooglePixel",
+    # 경쟁사 웨어러블 소유자 커뮤니티(2026-11-14, 사용자 결정). 위 목록은 삼성 커뮤니티 중심이라 가민·오우라·후프·
+    # 메타 글의 50~80% 가 r/GalaxyWatch · r/galaxybuds 에서 나왔고, 경쟁사가 삼성 서브레딧 안에서 더 좋게 말해졌다
+    # (웨어러블 경쟁사 조사의 VOC 분석). 이름은 Arctic Shift 로 2026-10 활동을 확인했다(메타 안경은 r/RaybanMeta).
+    "AppleWatch",
+    "airpods",
+    "PixelWatch",
+    "Garmin",
+    "ouraring",
+    "whoop",
+    "RaybanMeta",
 ]
 
 

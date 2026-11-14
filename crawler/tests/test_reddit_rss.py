@@ -235,3 +235,10 @@ def test_crawl_integrates_rss_posts_and_comments(monkeypatch):
     assert any(
         u.endswith("/r/samsung/comments/abc123.rss") for u in seen_urls
     )
+
+
+def test_default_subs_include_competitor_wearable_owners():
+    """경쟁사 웨어러블 소유자 커뮤니티(2026-11-14, 사용자 결정) — 삼성 서브레딧만 보면 경쟁사가 그 안에서 더 좋게 말해진다."""
+    want = {"AppleWatch", "airpods", "PixelWatch", "Garmin", "ouraring", "whoop", "RaybanMeta"}
+    assert want <= set(rrss._DEFAULT_SUBREDDITS)
+    assert len(rrss._DEFAULT_SUBREDDITS) == len(set(rrss._DEFAULT_SUBREDDITS))
