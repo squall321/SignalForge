@@ -23,7 +23,7 @@ import pytest
 
 _DSN = os.getenv(
     "SF_TEST_DSN",
-    "postgres://signalforge:signalforge_pass@127.0.0.1:5434/signalforge",
+    f"postgres://signalforge:{os.getenv('POSTGRES_PASSWORD', '')}@127.0.0.1:5434/signalforge",
 )
 
 NON_TARGET_SERIES = ("AP", "PX")

@@ -31,7 +31,7 @@ _PSQL_ARGS = [
     "-d", "signalforge",
     "-tA",
 ]
-_PSQL_ENV = {**os.environ, "PGPASSWORD": "signalforge_pass"}
+_PSQL_ENV = {**os.environ, "PGPASSWORD": os.environ.get("POSTGRES_PASSWORD", "")}
 
 
 def _psql(sql: str) -> str:

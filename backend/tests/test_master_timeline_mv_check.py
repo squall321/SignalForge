@@ -22,7 +22,7 @@ PG = {
     "port": os.getenv("POSTGRES_PORT", "5434"),
     "user": os.getenv("POSTGRES_USER", "signalforge"),
     "db": os.getenv("POSTGRES_DB", "signalforge"),
-    "password": os.getenv("PGPASSWORD", "signalforge_pass"),
+    "password": os.getenv("PGPASSWORD", os.getenv("POSTGRES_PASSWORD", "")),
 }
 BACKEND = os.getenv("SF_BACKEND_URL", "http://127.0.0.1:8000")
 
