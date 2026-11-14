@@ -43,9 +43,8 @@ fi
 
 echo "[4/4] 워커 등록 상태 (celery inspect registered)"
 cd "$ROOT/crawler" || exit 1
-REG=$(REDIS_URL='redis://:Soseks314!@127.0.0.1:6379/0' \
-      DATABASE_URL='postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge' \
-      "$ROOT/.venv/bin/celery" -A celery_app inspect registered 2>/dev/null | grep -c "run_auto_sync_to_drive")
+set -a; . "$ROOT/.env"; set +a   # REDIS_URL · DATABASE_URL 은 .env 에서 — 비밀번호를 여기 적지 않는다
+REG=$("$ROOT/.venv/bin/celery" -A celery_app inspect registered 2>/dev/null | grep -c "run_auto_sync_to_drive")
 if [ "${REG:-0}" -gt 0 ]; then
   echo "  PASS 워커가 task 등록"
 else
