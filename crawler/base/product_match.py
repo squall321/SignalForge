@@ -1404,8 +1404,11 @@ _ADJ_WINDOW = 24
 _ADJ_RIVAL_RE = re.compile(
     r"\b(apple|iphone|ipad|airpods|macbook|google|pixel|xiaomi|redmi|poco|"
     r"oneplus|oppo|vivo|realme|huawei|honor|motorola|moto|sony|xperia|nokia|"
-    r"asus|amazfit|garmin|fitbit|bose|jabra|jbl)"
-    r"(?:'s)?[\s\-]*(?:(?:x|gt)[\s\-]+)?$",
+    r"asus|amazfit|garmin|fitbit|bose|jabra|jbl|"
+    # 한국어는 붙여 쓴다 — '애플워치 울트라' 의 '워치 울트라' 가 GWU 로, '애플워치9' 가 GW9 로 갔다(2026-11-14).
+    # 일반 낱말과 겹치는 이름(보스 · 아너 · 비보 · 포코 · 모토)은 넣지 않는다
+    r"애플|아이폰|아이패드|에어팟|맥북|구글|픽셀|샤오미|레드미|원플러스|화웨이|소니|가민|핏빗|어메이즈핏)"
+    r"(?:'s|의)?[\s\-]*(?:(?:x|gt)[\s\-]+)?$",
     re.IGNORECASE,
 )
 # 'nothing'·'beats' 는 영단어와 구별이 안 돼 제외했다('beats the S25' 오발화).
@@ -1421,6 +1424,9 @@ _WORD_BRAND: Dict[str, str] = {
     "nokia": "nokia", "asus": "asus",
     "garmin": "garmin", "fitbit": "fitbit", "bose": "bose",
     "jabra": "jabra", "jbl": "jbl",
+    "애플": "apple", "아이폰": "apple", "아이패드": "apple", "에어팟": "apple", "맥북": "apple",
+    "구글": "google", "픽셀": "google", "샤오미": "xiaomi", "레드미": "xiaomi", "원플러스": "oneplus",
+    "화웨이": "huawei", "소니": "sony", "가민": "garmin", "핏빗": "fitbit", "어메이즈핏": "amazfit",
 }
 # 코드 접두사 → 브랜드. 없으면 삼성. 가장 긴 접두사가 이긴다(GM=갤럭시M vs GMN=가민).
 #
@@ -1465,10 +1471,11 @@ def _norm_brand_key(s: str) -> str:
     'pi̇xel'(i + U+0307 결합 점) 이라 사전에 없다. 그 KeyError 로 Reddit 역사
     수집이 2026-09-18~09-21 나흘간 매일 같은 자리에서 죽었다.
 
-    NFKD 로 분해해 결합 표시를 떼고 casefold 한다.
+    NFKD 로 분해해 결합 표시를 떼고 casefold 한다. 한글은 NFKD 가 자모로 풀어 사전 키('애플')와 갈리므로
+    결합 표시를 뗀 뒤 NFC 로 다시 모은다(2026-11-14 — 한국어 경쟁사 토큰).
     """
     d = unicodedata.normalize("NFKD", s)
-    return "".join(c for c in d if not unicodedata.combining(c)).casefold()
+    return unicodedata.normalize("NFC", "".join(c for c in d if not unicodedata.combining(c))).casefold()
 
 
 def _rival_adjacent(text: str, code: str, start: int) -> bool:

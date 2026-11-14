@@ -113,3 +113,23 @@ def test_guard_only_fires_when_brand_is_adjacent():
     """
     assert _rival_adjacent("Pixel Galaxy S25", "GS25", len("Pixel ")) is True
     assert _rival_adjacent("Pixel 9 Galaxy S25", "GS25", len("Pixel 9 ")) is False
+
+
+@pytest.mark.parametrize("text, want, banned", [
+    # 한국어는 브랜드를 붙여 쓴다 — '애플워치 울트라' 의 '워치 울트라' 가 GWU 로, '애플워치9' 가 GW9 로 갔다(2026-11-14)
+    ("애플워치 울트라처럼 비싸질까", {"AWU1"}, {"GWU"}),
+    ("애플워치9 살까 갤워치9 살까", {"GW9", "AWS9"}, set()),
+    ("애플워치6 배터리 교환기", set(), {"GW6"}),
+    ("다음 기기로 레드미 워치6를 기대하고 있습니다", {"RDW6"}, {"GW6"}),
+    ("갤럭시버즈코어나 원플러스버즈4", {"OPB4"}, {"GB4"}),
+])
+def test_korean_attached_rival_is_not_samsung(text, want, banned):
+    got = {c for c, _ in infer_all_product_codes(text)}
+    assert want <= got and not (banned & got), got
+
+
+def test_korean_rival_tokens_resolve_to_their_brand():
+    """한국어 경쟁사 토큰은 NFKD 가 자모로 풀어도 사전에서 찾혀야 한다 — 못 찾으면 경쟁사로 보아 자기 브랜드 매칭까지 버린다."""
+    for tok, brand in [("애플", "apple"), ("아이폰", "apple"), ("픽셀", "google"), ("샤오미", "xiaomi"),
+                       ("화웨이", "huawei"), ("가민", "garmin"), ("어메이즈핏", "amazfit")]:
+        assert _WORD_BRAND.get(_norm_brand_key(tok)) == brand, tok
