@@ -171,6 +171,36 @@ def test_new_model_codes_and_generations():
     assert re.match(O.SERIES["zflip"]["code_regex"], "GZFL7FE")
 
 
+@pytest.mark.parametrize("text, want, banned", [
+    # Watch Ultra2(2026-11-14) — 카탈로그에 없던 때는 'watch ultra 2' 가 1세대 GWU 로 갔다
+    ("My Galaxy Watch Ultra 2 battery drains fast", {"GWU2"}, {"GWU"}),
+    ("갤럭시 워치 울트라2 배터리 후기", {"GWU2"}, {"GWU"}),
+    ("워치 울트라 2세대 샀어요", {"GWU2"}, {"GWU"}),
+    ("Galaxy Watch Ultra 2nd gen review", {"GWU2"}, {"GWU"}),
+    ("Galaxy Watch Ultra 2 is better than my old Galaxy Watch Ultra", {"GWU2", "GWU"}, set()),
+    ("Galaxy Watch Ultra (2025) orange strap", {"GWU"}, {"GWU2"}),
+    ("Apple Watch Ultra 2 battery is great", set(), {"GWU", "GWU2"}),
+    # 단독 'Galaxy Ring' 은 팔리는 1세대 — 예전엔 출시 전 GR2 로 갔다
+    ("My Galaxy Ring battery swelled", {"GR1"}, {"GR2"}),
+    ("갤럭시 링 사이즈 키트 왔다", {"GR1"}, {"GR2"}),
+    ("Galaxy Ring 2 rumors early 2027", {"GR2"}, {"GR1"}),
+    ("갤럭시링2 언제 나오나", {"GR2"}, {"GR1"}),
+    ("Waiting for Galaxy Ring 2 to replace my Galaxy Ring", {"GR2", "GR1"}, set()),
+    ("Luna Ring 2.0 review", set(), {"GR1", "GR2"}),
+    # 붙여 쓴 한국어 경쟁사 — '애플워치 울트라' 의 '워치 울트라' 가 GWU 로 갔다. 막지 않으면 GWU 를 '2' 앞에서 막은 뒤
+    # GWU 의 첫 매칭이 애플 쪽으로 옮겨 애플 비교 언급까지 사라졌다(retag dry-run 표본, 2026-11-14)
+    ("갤워치 울트라2 가격? 애플워치 울트라처럼 100정도 잡으면 될까요", {"GWU2", "AWU1"}, {"GWU"}),
+    ("애플 워치 울트라 2 vs 갤럭시 워치 울트라2", {"GWU2", "AWU2"}, {"GWU"}),
+])
+def test_watch_ultra2_and_galaxy_ring_generations(text, want, banned):
+    got = set(_codes(text))
+    assert want <= got and not (banned & got), got
+
+
+def test_watch_ultra2_model_code():
+    assert M.product_of("L715") == "GWU2" and M.product_of("L705") == "GWU"
+
+
 def test_every_matcher_code_is_in_the_catalog_seed():
     """매처가 내는 코드가 카탈로그에 없으면 그 태그는 조용히 버려진다 — 시드 파일과 맞춘다."""
     seed = ROOT.parent / "backend" / "app" / "seeds" / "catalog_products.json"

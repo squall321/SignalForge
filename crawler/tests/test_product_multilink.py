@@ -182,7 +182,7 @@ def test_competitor_catalog_tagged(text, want):
 def test_competitor_does_not_steal_samsung():
     """경쟁사 추가가 삼성 매칭을 가로채면 안 된다."""
     for t, want in [("갤럭시 Z 폴드8 힌지 먼지", "GZF8"),
-                    ("Galaxy Watch Ultra 2 스트랩", "GWU"),
+                    ("Galaxy Watch Ultra 2 스트랩", "GWU2"),   # 2026-11-14 GWU2 신설 전에는 GWU 가 받았다
                     ("Galaxy Buds 4 Pro ANC", "GB4P")]:
         assert infer_all_product_codes(t)[0][0] == want
 

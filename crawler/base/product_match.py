@@ -46,6 +46,8 @@ _CLASSIC = r"classics?(?![0-9a-z])|클래식"
 _PLUS = r"\+|plus(?![0-9a-z])|플러스"
 _ULTRA = r"ultras?(?![0-9a-z])|울트라"
 _PRO = r"pro(?![0-9a-z])|프로"
+# 2세대 표기 — 'ultra 2' · 'ultra 2nd' · '울트라 2세대' · 'ring 2'. 뒤에 숫자가 이어지면(예: 'ring 20') 2세대가 아니다
+_GEN2 = r"2(?![0-9])"
 # 기본형의 변형을 **모두** 막는다 — FE 만 막으면 첫 매칭이 다음 변형('Galaxy S26 Ultra' · 'Buds 3 Pro' · 'Tab S10 Ultra')
 # 안으로 옮겨 가 같은 일이 났다(위 896행 중 58행이 남았다)
 # S 시리즈는 줄임말도 변형이 받는다 — 's26울'·'s26 ul'(Ultra) · 's26플'(Plus) · 'Fan Edition'(FE). 막지 않으면 'S26울 512' 에서
@@ -216,8 +218,10 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
 
     # ── Galaxy Watch (Ultra → 9 → 8) ──
     # 'watch 7 ultra' 는 Watch Ultra 를 Watch7 과 같이 나온 기기로 부른 것이다 — GW7 이 앞부분을 잡지 않게 여기서 받는다
-    ("GWU",   [r"watch\s*ultra", r"galaxy\s*watch\s*ultra", r"워치\s*울트라",
-               r"워치울트라", r"\b워치울" + _E, r"\bwatch\s*7\s*ultra", r"워치\s*7\s*울트라"]),
+    # Watch Ultra2(2026-08-07) — 카탈로그에 없던 때는 'watch ultra 2' 가 GWU 로 갔다(2026-07 이후 GWU 글의 71%, 2026-11-14 신설)
+    ("GWU2",  [r"watch\s*ultra\s*2(?:nd)?" + _E, r"워치\s*울트라\s*2" + _E, r"\bgwu\s?2" + _E]),
+    ("GWU",   _not_variant([r"watch\s*ultra", r"galaxy\s*watch\s*ultra", r"워치\s*울트라",
+               r"워치울트라", r"\b워치울" + _E, r"\bwatch\s*7\s*ultra", r"워치\s*7\s*울트라"], _GEN2)),
     # 줄임말 'GW9'·'GW8'·'GW8C' — 미태깅 표본 30건 모두 갤럭시 워치였다(2026-11-07)
     ("GW9",   [r"\bwatch\s*9" + _E, r"\bwatch9" + _E, r"galaxy\s*watch\s*9",
                r"워치\s*9" + _E, r"워치9", r"갤워치\s*9", r"갤워치9", r"\bgw\s?9" + _E]),
@@ -258,9 +262,10 @@ PRODUCT_PATTERNS: List[Tuple[str, List[str]]] = [
     ("GR2",   [r"(?:galaxy|samsung|갤럭시|삼성|갤)[\s\-'’]{0,6}(?:ring|링)\s*2" + _E,
                r"\bring\s*2" + _E + r"(?=[^\n]{0,80}(?:galaxy|samsung|갤럭시|삼성))",
                r"\bring2" + _E + r"(?=[^\n]{0,80}(?:galaxy|samsung|갤럭시|삼성))",
-               r"링2(?=[^\n]{0,80}(?:galaxy|samsung|갤럭시|삼성))",
-               # 단독 "Galaxy Ring"도 GR2 로 추정 (1세대 별도 추적 안 함)
-               r"galaxy\s*ring" + _E, r"갤럭시\s*링" + _E]),
+               r"링2(?=[^\n]{0,80}(?:galaxy|samsung|갤럭시|삼성))"]),
+    # 단독 'Galaxy Ring' 은 팔리고 있는 1세대(2024-07)다. 예전에는 1세대를 따로 쫓지 않아 GR2 로 보냈는데, GR2 는 아직 출시
+    # 전이라 Galaxy Ring 목소리가 2세대 코드에 722건, 1세대에 10건으로 갈렸다(2026-11-14). '링 2' 꼴은 GR2 가 받는다
+    ("GR1",   _not_variant([r"galaxy\s*ring" + _E, r"갤럭시\s*링" + _E], _GEN2)),
 
     # ═══════════ Galaxy 구세대 (비교용) ═══════════
     # ── S24 ──
