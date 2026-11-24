@@ -285,3 +285,85 @@ def test_rootdesign_task_code_and_model_code_resolve():
         it = O.interpret(q, plm=idx)
         assert it.products == ["GS25U"] and it.residual == [], (q, it.products, it.residual, it.notes)
         assert any("TK-77(감마_C2)" in n for n in it.notes), it.notes
+
+
+# ── PLM 프로젝트 · 푼 길 (SFO-1 · 2 · 3, 2026-11-25) ─────────────────────
+@pytest.fixture
+def plm_projects():
+    """자리표시 — 프로젝트 P1(옛 key P0 · 이름 '피원 프로젝트' · 마케팅명 별칭) → 과제 A(과제코드 C1) · 과제 B,
+    프로젝트 P9 → 사전에 없는 모델코드뿐, 프로젝트 P5 는 이름이 제품명과 같고 과제가 없다."""
+    data = {
+        "plm_project": [
+            {"key": "PRJ-P1", "label": "피원 프로젝트", "previous_keys": ["PRJ-P0"],
+             "properties": {"aliases": ["Galaxy S25 Ultra"]}},
+            {"key": "PRJ-P9", "label": "피나인", "properties": {}},
+            {"key": "PRJ-P5", "label": "Galaxy Z Fold8", "properties": {}}],
+        "plm_task": [
+            {"key": "과제A", "label": "과제A", "properties": {"task_code": "TK-C1", "project": "PRJ-P1"}},
+            {"key": "과제B", "label": "과제B", "properties": {"task_code": "TK-C2", "project": "PRJ-P0"}},
+            {"key": "과제Z", "label": "과제Z", "properties": {"task_code": "TK-C9", "project": "PRJ-P9"}}],
+        "plm_model": [
+            {"key": "M-A", "properties": {"task": "과제A", "model_code": "SM-S938B"}},
+            {"key": "M-B", "properties": {"task": "과제B", "model_code": "SM-F976B"}},
+            {"key": "M-Z", "properties": {"task": "과제Z", "model_code": "SM-X100A"}}],
+    }
+    return _plm.PlmIndex.from_rows(data)
+
+
+def test_project_key_old_key_and_name_resolve_through_tasks_to_products(plm_projects):
+    """프로젝트 → 과제 → 개발모델 → 모델코드 → 제품(SFO-1). 예전에는 프로젝트를 몰라 남는 말이 되고 증상만으로 전체를 찾았다."""
+    for q, how in (("PRJ-P1 발열", "key"), ("prj-p0 발열", "old_key"), ("피원 프로젝트 발열", "label")):
+        it = O.interpret(q, plm=plm_projects)
+        assert not it.products and [c for _, c in it.product_sets] == [("GS25U", "GZF8U")], (q, it.product_sets, it.notes)
+        assert it.residual == [] and it.symptoms == ["overheat"] and it.plm_projects == ["PRJ-P1"], (q, it.residual)
+        assert [(m["core_key"], m["matched_by"], m["matched_on"]) for m in it.plm_matches] == [
+            ({"type_slug": "plm_project", "key": "PRJ-P1"}, "project", how)], it.plm_matches
+        assert it.plm_matches[0]["via"] == "project → task → model → model_code" and not it.plm_unresolved
+        assert sum("프로젝트 PRJ-P1(피원 프로젝트) → 과제 2개" in n for n in it.notes) == 1, it.notes
+        route = O.plm_route(it)
+        assert route["core_key"] == {"type_slug": "plm_project", "key": "PRJ-P1"} and route["matched_by"] == "project"
+
+
+def test_project_without_linked_products_is_unresolved_not_a_word(plm_projects):
+    """알아들었지만 제품에 못 이은 프로젝트 — 남는 말로 두지 않고(낱말로 찾으면 엉뚱한 글이 섞인다) 까닭을 남긴다."""
+    it = O.interpret("PRJ-P9 발열", plm=plm_projects)
+    assert not it.products and not it.product_sets and it.residual == [] and it.plm_projects == ["PRJ-P9"]
+    assert [(u["core_key"], u["matched_by"], u["reason"]) for u in it.plm_unresolved] == [
+        ({"type_slug": "plm_project", "key": "PRJ-P9"}, "project", "in_core_no_local_data")]
+    assert "X100" in it.plm_unresolved[0]["detail"] and sum("프로젝트 PRJ-P9(피나인)" in n for n in it.notes) == 1
+    route = O.plm_route(it)
+    assert route["core_key"]["key"] == "PRJ-P9" and route["via"] is None and route["core_unresolved"]
+
+
+def test_project_name_or_alias_does_not_take_a_product_query(plm_projects):
+    """제품 감지가 먼저다 — 프로젝트 이름 · 마케팅명 별칭이 제품 이름과 같아도 제품 질의는 그 제품이다."""
+    for q, code in (("Galaxy S25 Ultra 발열", "GS25U"), ("Galaxy Z Fold8 힌지", "GZF8")):
+        it = O.interpret(q, plm=plm_projects)
+        assert it.products == [code] and not it.plm_projects and not it.plm_unresolved, (q, it.products, it.plm_projects)
+
+
+def test_same_task_by_code_and_name_writes_one_line(plm_projects):
+    """과제코드와 과제명을 함께 써도 줄 · 푼 길은 하나(SFO-2 — 11-24 실측에서 같은 줄이 두 번)."""
+    it = O.interpret("TK-C1 과제A 발열", plm=plm_projects)
+    assert it.products == ["GS25U"] and it.residual == [], (it.products, it.residual)
+    assert sum("→ GS25U" in n for n in it.notes) == 1, it.notes
+    assert [(m["core_key"]["key"], m["matched_by"]) for m in it.plm_matches] == [("과제A", "task_code")]
+    it = O.interpret("TK-C9 과제Z 발열", plm=plm_projects)              # 제품에 못 잇는 과제 — 줄 하나, 낱말로는 남긴다
+    assert not it.products and sum("제품에 이어지지 않는다" in n for n in it.notes) == 1, it.notes
+    assert [(u["core_key"], u["matched_by"]) for u in it.plm_unresolved] == [
+        ({"type_slug": "plm_task", "key": "과제Z"}, "task_code")]
+    assert "과제z" in it.residual, it.residual
+
+
+def test_matched_by_names_the_field_that_matched(plm_projects):
+    want = {"과제A 발열": ("plm_task", "과제A", "task_name"), "SM-S938B 발열": ("plm_model", "M-A", "model_code"),
+            "M-A 발열": ("plm_model", "M-A", "dev_model")}
+    for q, (typ, key, how) in want.items():
+        m = O.interpret(q, plm=plm_projects).plm_matches
+        assert [(x["core_key"]["type_slug"], x["core_key"]["key"], x["matched_by"]) for x in m] == [(typ, key, how)], (q, m)
+
+
+def test_project_named_with_another_projects_product_is_flagged(plm_projects):
+    """질의가 프로젝트 P9 를 key 로 짚었는데 해석한 제품은 P1 것 — 주의(SG-04)가 프로젝트 key 도 본다."""
+    it = O.interpret("PRJ-P9 Galaxy S25 Ultra 발열", plm=plm_projects)
+    assert it.products == ["GS25U"] and it.plm_caution and "피나인" in it.plm_caution["foreign_projects"], it.plm_caution

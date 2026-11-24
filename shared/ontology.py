@@ -536,6 +536,11 @@ class Interpretation:
     notes: List[str] = field(default_factory=list)
     plm_tasks: List[str] = field(default_factory=list)        # 질의가 과제·개발모델로 짚은 PLM 과제 key
     plm_caution: Optional[dict] = None                        # 해석한 제품이 PLM 프로젝트 여럿에 걸리면(SG-04)
+    plm_projects: List[str] = field(default_factory=list)     # 질의가 프로젝트 key · 옛 key · 이름으로 짚은 PLM 프로젝트(SFO-1)
+    # 푼 길 — core_key{type_slug,key} · matched_by · via · products(SFO-1 · SFO-3, ODB 허브 find_job 꼴)
+    plm_matches: List[dict] = field(default_factory=list)
+    # 알아들었지만 제품에 못 이은 PLM key — core_key · reason(in_core_no_local_data) · detail. 검색은 넓히지 않는다(SFO-1 · 2)
+    plm_unresolved: List[dict] = field(default_factory=list)
 
     @property
     def has_concepts(self) -> bool:
@@ -675,8 +680,9 @@ def _plm_product_projects(plm) -> Tuple[Dict[str, Dict[str, str]], Dict[str, Dic
     return exact, broad
 
 
-def _plm_named_projects(plm, norm: str, task_keys) -> Dict[str, str]:
-    """질의가 짚은 PLM 프로젝트 — 프로젝트 이름·마케팅명 별칭이 질의에 있거나, 질의의 과제·개발모델이 그 프로젝트 것."""
+def _plm_named_projects(plm, norm: str, task_keys, project_keys=()) -> Dict[str, str]:
+    """질의가 짚은 PLM 프로젝트 — 프로젝트 이름·마케팅명 별칭이 질의에 있거나, 질의의 과제·개발모델이 그 프로젝트 것,
+    또는 질의가 프로젝트 key · 옛 key 로 짚은 것(SFO-1)."""
     rx = getattr(plm, "_sf_project_rx", False)
     if rx is False:
         names = sorted(getattr(plm, "project_names", {}), key=len, reverse=True)
@@ -691,10 +697,12 @@ def _plm_named_projects(plm, norm: str, task_keys) -> Dict[str, str]:
         pk = plm.project_of(t)
         if pk:
             found.setdefault(pk, plm.projects.get(pk, pk))
+    for pk in project_keys or ():
+        found.setdefault(pk, plm.projects.get(pk, pk))
     return found
 
 
-def plm_caution(plm, codes, norm: str, task_keys=()) -> Optional[dict]:
+def plm_caution(plm, codes, norm: str, task_keys=(), project_keys=()) -> Optional[dict]:
     """해석한 제품 코드가 PLM 프로젝트 여럿에 걸리거나, 질의가 짚은 프로젝트가 그 제품의 프로젝트가 아니면 주의.
 
     SignalForge 제품은 프로젝트를 모른다 — 프로젝트 A 의 마케팅명·모델이 프로젝트 B 의 제품 코드로 풀리면 B 의 VOC 가
@@ -706,7 +714,7 @@ def plm_caution(plm, codes, norm: str, task_keys=()) -> Optional[dict]:
     exact, broad = _plm_product_projects(plm)
     linked = {c: dict(exact.get(c, {})) for c in codes}
     multi = {c: ps for c, ps in linked.items() if len(ps) >= 2}
-    named = _plm_named_projects(plm, norm, task_keys)
+    named = _plm_named_projects(plm, norm, task_keys, project_keys)
     reach = {pk for c in codes for pk in broad.get(c, {})}
     foreign = {pk: lab for pk, lab in named.items() if pk not in reach}
     if not multi and not foreign:
@@ -723,6 +731,25 @@ def plm_caution(plm, codes, norm: str, task_keys=()) -> Optional[dict]:
             "note": " · ".join(parts) + " (제품 행을 프로젝트별로 나눌지는 데이터 결정 대기 — SG-04)"}
 
 
+PLM_KIND = {"plm_project": "프로젝트", "plm_task": "과제", "plm_model": "개발모델"}     # 코어 type_slug → 줄에 쓰는 이름
+
+
+def plm_route(it: Interpretation) -> dict:
+    """응답에 싣는 푼 길(SFO-1 · 3, ODB 허브 find_job 꼴) — core_key{type_slug,key} · matched_by · via 는 질의에서 처음
+    잡힌 코어 객체, 모두는 core_matches. 알아들었지만 제품에 못 이은 것은 core_unresolved(reason · detail).
+    PLM 으로 푼 것이 없으면 빈 dict."""
+    out: dict = {}
+    if it.plm_matches:
+        m = it.plm_matches[0]
+        out.update(core_key=m["core_key"], matched_by=m["matched_by"], via=m["via"], core_matches=it.plm_matches)
+    elif it.plm_unresolved:
+        u = it.plm_unresolved[0]
+        out.update(core_key=u["core_key"], matched_by=u["matched_by"], via=None)
+    if it.plm_unresolved:
+        out["core_unresolved"] = it.plm_unresolved
+    return out
+
+
 def _plm_products(models: List[dict]) -> Tuple[List[str], List[str]]:
     """개발모델들 → (제품 코드, 사전에 없는 기본 코드). 모델코드 사전이 다리다(개발모델은 SignalForge 제품을 모른다)."""
     prods, missing = [], []
@@ -736,17 +763,38 @@ def _plm_products(models: List[dict]) -> Tuple[List[str], List[str]]:
     return list(dict.fromkeys(prods)), sorted(set(missing))
 
 
+def _plm_match(it: Interpretation, type_slug: str, key: str, label: str, matched_by: str, via: str,
+               products: List[str], raw: str, **extra):
+    """푼 길 하나(SFO-1 · 3) — 같은 코어 객체는 한 번만."""
+    ck = {"type_slug": type_slug, "key": key}
+    if not any(m["core_key"] == ck for m in it.plm_matches):
+        it.plm_matches.append({"core_key": ck, "label": label, "matched_by": matched_by, "via": via,
+                               "products": list(products), "raw": raw, **extra})
+
+
+def _plm_unresolved(it: Interpretation, type_slug: str, key: str, label: str, matched_by: str, detail: str,
+                    reason: str = "in_core_no_local_data"):
+    """알아들었지만 제품에 못 이은 PLM key(SFO-1 · 2) — 같은 코어 객체는 한 번만."""
+    ck = {"type_slug": type_slug, "key": key}
+    if not any(u["core_key"] == ck for u in it.plm_unresolved):
+        it.plm_unresolved.append({"core_key": ck, "label": label, "matched_by": matched_by, "reason": reason,
+                                  "detail": detail})
+
+
 def _detect_plm(it: Interpretation, spans: _Spans, plm):
     """PLM 거울(SP 허브) — 개발모델명·양산모델코드·과제코드·과제명(차수 접미어를 뗀 개발명도) → 그 과제의 제품.
-    제품에 이을 수 없으면 그 말은 남는 말로 둔다(본문에 개발명이 나오는 유출 글을 낱말로 찾게)."""
+    제품에 이을 수 없으면 그 말은 남는 말로 둔다(본문에 개발명이 나오는 유출 글을 낱말로 찾게 — 낱말로 찾을지, strict 라
+    넓히지 않을지는 검색이 정하고 적는다). 줄 · 묶음은 코어 객체마다 한 번 — 예전에는 매칭마다 써서 과제코드 + 과제명 ·
+    판 접미를 뗀 이름이 겹치면 같은 줄이 두 번 나왔다(11-24 실측, SFO-2)."""
     if not plm:
         return
     norm = spans.norm
-    hits = []                                             # (s, e, kind, models, tasks, raw)
+    hits = []                                             # (s, e, kind, models, tasks, raw, matched_by)
     for name in plm.multi_names:                          # 띄어 쓴 과제명('감마 프로')은 낱말 하나로 안 잡힌다
         for m in re.finditer(rf"(?<![0-9a-z가-힣]){re.escape(name)}(?![0-9a-z가-힣])", norm):
             tks = plm.by_name[name]
-            hits.append((m.start(), m.end(), "name", [x for t in tks for x in plm.task_models(t)], tks, m.group(0)))
+            hits.append((m.start(), m.end(), "name", [x for t in tks for x in plm.task_models(t)], tks, m.group(0),
+                         "task_name"))
     for m in _PLM_TOKEN.finditer(norm):
         tok = m.group(0)
         cands = [tok] + ([_strip_particle(tok)] if _HANGUL_END.search(tok) else [])
@@ -754,31 +802,105 @@ def _detect_plm(it: Interpretation, spans: _Spans, plm):
             if c in plm.by_model:
                 model = plm.models[plm.by_model[c]]
                 tasks = [model["task"]] if model.get("task") in plm.tasks else []
-                hits.append((m.start(), m.end(), "model", [model], tasks, tok))
+                by_code = c in {normalize(str(model.get(k) or "")) for k in ("model_code", "mass_model_code")}
+                hits.append((m.start(), m.end(), "model", [model], tasks, tok, "model_code" if by_code else "dev_model"))
                 break
             if c in plm.by_code:
                 tk = plm.by_code[c]
-                hits.append((m.start(), m.end(), "task", plm.task_models(tk), [tk], tok))
+                hits.append((m.start(), m.end(), "task", plm.task_models(tk), [tk], tok, "task_code"))
                 break
             if c in plm.by_name:
                 tks = plm.by_name[c]
-                hits.append((m.start(), m.end(), "name", [x for t in tks for x in plm.task_models(t)], tks, tok))
+                hits.append((m.start(), m.end(), "name", [x for t in tks for x in plm.task_models(t)], tks, tok,
+                             "task_name"))
                 break
-    for s, e, kind, models, tasks, raw in sorted(hits, key=lambda h: (h[0], -(h[1] - h[0]))):
+    done = set()
+    for s, e, kind, models, tasks, raw, how in sorted(hits, key=lambda h: (h[0], -(h[1] - h[0]))):
         if not spans.free(s, e):
             continue
         it.plm_tasks.extend(t for t in tasks if t not in it.plm_tasks)
-        tlabel = ", ".join(plm.tasks[t].get("display") or t for t in dict.fromkeys(tasks) if t in plm.tasks) or "-"
+        tkeys = list(dict.fromkeys(t for t in tasks if t in plm.tasks))
+        tlabel = ", ".join(plm.tasks[t].get("display") or t for t in tkeys) or "-"
+        if kind == "model":                               # 코어 객체 — 개발모델 하나, 또는 이름이 걸린 과제들
+            cores = [("plm_model", models[0]["key"], models[0].get("label") or models[0]["key"], [models[0]])]
+            via = "model → model_code"
+        else:
+            cores = [("plm_task", t, plm.tasks[t].get("display") or t, plm.task_models(t)) for t in tkeys]
+            via = "task → model → model_code"
+        dkey = tuple(c[:2] for c in cores)
         prods, missing = _plm_products(models)
         if not prods:
-            it.notes.append(f"과제 {tlabel} 는 제품에 이어지지 않는다 — 개발모델의 모델코드가 사전에 없다"
-                            f"({', '.join(missing) or '개발모델 없음'}). 본문 낱말로 찾는다")
+            if dkey not in done:
+                done.add(dkey)
+                why = f"개발모델의 모델코드가 사전에 없다({', '.join(missing) or '개발모델 없음'})"
+                it.notes.append(f"과제 {tlabel} 는 제품에 이어지지 않는다 — {why}")
+                for typ, key, label, _ms in cores:
+                    _plm_unresolved(it, typ, key, label, how, why)
             continue
         spans.take(s, e)
+        if dkey in done:                                  # 같은 과제의 겹친 매칭 — 자리만 차지하고 줄 · 묶음은 또 쓰지 않는다
+            continue
+        done.add(dkey)
         what = f"개발모델 {models[0]['key']} · 과제 {tlabel}" if kind == "model" else f"과제 {tlabel}"
         _add_products(it, prods, what, raw)
         it.notes.append(f"{what} → {', '.join(prods)}"
                         + (f" (사전에 없는 모델코드 {', '.join(missing)} 은 뺐다)" if missing else ""))
+        for typ, key, label, ms in cores:                 # 이름 하나가 과제 여럿에 걸리면 과제마다 제 제품으로
+            own, own_missing = _plm_products(ms) if len(cores) > 1 else (prods, missing)
+            if own:
+                _plm_match(it, typ, key, label, how, via, own, raw)
+            else:
+                _plm_unresolved(it, typ, key, label, how,
+                                f"개발모델의 모델코드가 사전에 없다({', '.join(own_missing) or '개발모델 없음'})")
+
+
+def _detect_plm_projects(it: Interpretation, spans: _Spans, plm):
+    """PLM 프로젝트 key · 옛 key · 이름 → 그 과제들의 개발모델 → 제품(SFO-1).
+
+    제품 · 과제 감지가 다 끝난 뒤 남은 말에만 본다 — 프로젝트 이름이 제품 이름과 같아도 제품 질의를 가로채지 않게.
+    알아들었는데 제품에 못 이으면 그 말을 남는 말로 두지 않는다(프로젝트 key 를 낱말로 찾으면 엉뚱한 글이 섞인다) —
+    plm_unresolved 에 적고, 검색은 넓히지 않고 0건 + reason 을 준다. 예전에는 프로젝트를 몰라 증상만으로 전체를 찾았다
+    (11-24 실측 — 프로젝트 + 증상이 범위 없이 1만 건)."""
+    if not plm or not getattr(plm, "by_project", None):
+        return
+    norm = spans.norm
+    hits = []                                             # (s, e, name, raw)
+    for name in plm.project_multi_names:
+        for m in re.finditer(rf"(?<![0-9a-z가-힣]){re.escape(name)}(?![0-9a-z가-힣])", norm):
+            hits.append((m.start(), m.end(), name, m.group(0)))
+    for m in _PLM_TOKEN.finditer(norm):
+        tok = m.group(0)
+        for c in [tok] + ([_strip_particle(tok)] if _HANGUL_END.search(tok) else []):
+            if c in plm.by_project:
+                hits.append((m.start(), m.end(), c, tok))
+                break
+    done = set()
+    for s, e, name, raw in sorted(hits, key=lambda h: (h[0], -(h[1] - h[0]))):
+        if not spans.free(s, e):
+            continue
+        spans.take(s, e)
+        for pk, how in plm.by_project[name]:
+            if pk in done:
+                continue
+            done.add(pk)
+            label = plm.projects.get(pk, pk)
+            disp = pk if normalize(pk) == normalize(label) else f"{pk}({label})"
+            tasks = plm.project_tasks.get(pk, [])
+            models = plm.project_models(pk)
+            prods, missing = _plm_products(models)
+            if pk not in it.plm_projects:
+                it.plm_projects.append(pk)
+            if not prods:
+                why = (f"과제 {len(tasks)}개 · 개발모델 {len(models)}개"
+                       + (f" · 사전에 없는 모델코드 {', '.join(missing)}" if missing else ""))
+                it.notes.append(f"프로젝트 {disp} 는 제품에 이어지지 않는다 — {why}")
+                _plm_unresolved(it, "plm_project", pk, label, "project", why)
+                continue
+            _add_products(it, prods, f"프로젝트 {disp}", raw)
+            it.notes.append(f"프로젝트 {disp} → 과제 {len(tasks)}개 · 개발모델 {len(models)}개 → 제품 {len(prods)}개"
+                            f"({', '.join(prods)})" + (f" (사전에 없는 모델코드 {', '.join(missing)} 은 뺐다)" if missing else ""))
+            _plm_match(it, "plm_project", pk, label, "project", "project → task → model → model_code", prods, raw,
+                       matched_on=how)
 
 
 def _detect_products(it: Interpretation, spans: _Spans, plm=None):
@@ -819,6 +941,7 @@ def _detect_products(it: Interpretation, spans: _Spans, plm=None):
         spans.take(s, e)
         it.products.append(code)
         _add(it, "product", code, norm[s:e], "scope")
+    _detect_plm_projects(it, spans, plm)
 
 
 def _take_all(rx: re.Pattern, spans: "_Spans"):
@@ -1032,7 +1155,8 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
         if t not in rest:
             rest.append(t)
     it.residual = rest[:3]
-    it.plm_caution = plm_caution(plm, it.products + [c for _, cs in it.product_sets for c in cs], norm, it.plm_tasks)
+    it.plm_caution = plm_caution(plm, it.products + [c for _, cs in it.product_sets for c in cs], norm, it.plm_tasks,
+                                 it.plm_projects)
     if it.plm_caution:
         it.notes.append("주의 — " + it.plm_caution["note"])
     return it

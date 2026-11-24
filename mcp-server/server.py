@@ -38,7 +38,7 @@ except Exception as _sem_err:  # noqa: BLE001
     print(f"[semantic] semantic import FAILED — {_SEM_NOTE}", flush=True)
 
     async def semantic_search_tool(query, product_code=None, limit=30, days=None,
-                                   order="relevance", match="auto"):
+                                   order="relevance", match="auto", strict=False):
         d = await search_voc_detail(query, product_code, min(limit, 100), days,
                                     "recent" if order == "relevance" else order, match)
         return {"query": query, "strategy": "keyword", "match_mode": d["match_mode"],
@@ -159,6 +159,10 @@ async def get_top_issues(
     return await get_top_issues_tool(product_code, period_days, min(top_n, 20))
 
 
+# 시맨틱 검색이 싣는 푼 길 · 일부러 찾지 않은 0건의 까닭(SFO-1 · 3) — search_voc 응답에 그대로 옮긴다
+_ROUTE_KEYS = ("reason", "core_key", "matched_by", "via", "core_matches", "core_unresolved")
+
+
 @mcp.tool()
 async def search_voc(
     keyword: str,
@@ -168,6 +172,7 @@ async def search_voc(
     order: str = "relevance",
     match: str = "auto",
     semantic: bool = True,
+    strict: bool = False,
 ) -> dict:
     """
     VOC 를 **뜻으로** 검색합니다. 한국어·영어·섞어 써도 됩니다 — 온톨로지가 자동 해석합니다.
@@ -180,8 +185,12 @@ async def search_voc(
       '레딧에서 픽셀 10 발열'(채널) · '인도 S25 불만'(시장) · 'S25 vs 아이폰 16 배터리'(둘 다 언급한 글)
     모델코드(SM-S938B · sm-s938n · SM-S9380)는 그 제품으로 봅니다 — 'SM-S938B 발열' = 'S25 울트라 발열'.
     출시 전 세대의 코드(SM-S958U)는 모델을 못 정해 그 세대 전부를 범위로 씁니다.
-    PLM 과제(SP 허브)가 연결된 서버에서는 과제코드 · 과제명(개발명) · 개발모델명으로도 찾습니다 —
-    'TK-001 발열' · '<개발명> 배터리' → 그 과제의 개발모델 → 제품. 연결 여부는 get_ontology 의 plm.
+    PLM 과제(SP 허브)가 연결된 서버에서는 프로젝트 key · 과제코드 · 과제명(개발명) · 개발모델명으로도 찾습니다 —
+    'TK-001 발열' · '<개발명> 배터리' · '<프로젝트 key> 발열' → 프로젝트 → 과제 → 개발모델 → 제품. 어떻게 풀었는지는
+    core_key{type_slug,key} · matched_by(project · task_code · task_name · model_code · dev_model) · via 와 notes 에
+    있습니다. 알아들었지만 이 서버의 제품에 잇지 못한 프로젝트는 넓히지 않고 0건 + reason(in_core_no_local_data)입니다.
+    제품에 못 이은 과제는 낱말 검색으로 물러나고 notes 에 한 줄을 적습니다 — strict=True 면 그때도 0건 + reason.
+    연결 여부는 get_ontology 의 plm.
     사전에 없는 표현도 찾습니다 — 은유·완곡 표현은 로컬 LLM 이 증상 개념으로 옮기고
     ('폰이 손난로 같아요' → 발열), 비슷한 문장은 임베딩(bge-m3)으로 찾습니다
     ('S25 울트라 하루를 못 버텨요' → 배터리 광탈 글). 사전이 질의를 다 설명하면 임베딩은 쓰지
@@ -194,6 +203,7 @@ async def search_voc(
 
     반환은 늘 객체입니다 — {total, results, strategy, match_mode, notes}. results 가 비었으면
     notes 에 까닭(시도한 경로·범위·기간)이 있습니다 — 0건을 "VOC 가 없다" 로 단정하지 마십시오.
+    reason 이 있으면 범위를 못 걸어 일부러 찾지 않은 0건입니다(in_core_no_local_data · product_not_in_catalog).
     strategy 가 'keyword' 면 시맨틱이 꺼졌거나 개념을 못 찾은 것이니 notes 를 함께 전하십시오.
     작성자 이름·계정·메일·전화·IMEI·일련번호 꼴은 가려서 나갑니다(개인정보 기본 가림, 모든 도구 공통).
 
@@ -205,16 +215,18 @@ async def search_voc(
         order: 'relevance'(기본, 관련도→최신) | 'recent'(최신순) | 'engagement'(참여도순)
         match: 키워드 검색으로 갈 때의 경로 — 'auto' | 'phrase' | 'fts' | 'substring'
         semantic: False 면 온톨로지 없이 예전 키워드 검색만 씁니다
+        strict: True 면 알아들은 범위 말(PLM 과제 · 제품)을 못 걸 때 낱말 검색으로 넓히지 않고 0건 + reason
     """
     if not semantic:
         d = await search_voc_detail(keyword, product_code, min(limit, 100), days,
                                     "recent" if order == "relevance" else order, match)
         return {"total": d["total"], "truncated": d["truncated"], "results": d["results"], "strategy": "keyword",
                 "match_mode": d["match_mode"], "notes": d["notes"]}
-    r = await semantic_search_tool(keyword, product_code, limit, days, order, match)
+    r = await semantic_search_tool(keyword, product_code, limit, days, order, match, strict)
     return {"total": r["total"], "results": r["results"], "strategy": r["strategy"],
             "match_mode": r.get("match_mode") or r["strategy"],
-            "notes": (r.get("interpretation") or {}).get("notes", [])}
+            "notes": (r.get("interpretation") or {}).get("notes", []),
+            **{k: r[k] for k in _ROUTE_KEYS if k in r}}
 
 
 @mcp.tool()
@@ -224,6 +236,7 @@ async def semantic_search(
     limit: int = 30,
     days: Optional[int] = None,
     order: str = "relevance",
+    strict: bool = False,
 ) -> dict:
     """search_voc 와 같은 시맨틱 검색에 **해석 내용**을 함께 돌려줍니다.
 
@@ -237,6 +250,8 @@ async def semantic_search(
       vector    임베딩 사용 여부·후보 수 (사전이 다 설명하면 쓰지 않는다)
     strategy — semantic(개념) · vector(개념 없이 임베딩·낱말) · keyword(둘 다 없을 때 예전 검색)
     total 은 조건을 만족한 전체 건수, results 는 관련도 순 상위 limit 건(같은 본문은 접는다).
+    PLM 으로 푼 질의면 core_key · matched_by · via · core_matches, 못 이은 PLM key 는 core_unresolved,
+    범위를 못 걸어 찾지 않은 0건이면 reason — search_voc 와 같다.
 
     Args:
         query: 검색어 (자연어)
@@ -244,8 +259,9 @@ async def semantic_search(
         limit: 반환 건수 (기본 30, 최대 100)
         days: 최근 N일 — 선택
         order: 'relevance' | 'recent' | 'engagement'
+        strict: True 면 알아들은 범위 말을 못 걸 때 넓히지 않고 0건 + reason
     """
-    return await semantic_search_tool(query, product_code, limit, days, order)
+    return await semantic_search_tool(query, product_code, limit, days, order, strict=strict)
 
 
 @mcp.tool()
@@ -275,12 +291,17 @@ async def resolve_product_keyword(keyword: str) -> dict:
     (2026-10-15 실측) — 'S25 Ultra' 9,680 · 'Galaxy S25 Ultra' 2,296 ·
     'S25Ultra' 315 · '갤럭시 S25 울트라' 88. 제품 태깅 기준은 GS25U 9,502 입니다.
     이 도구로 코드를 먼저 확정한 뒤 product_code 로 조회하면 흔들리지 않습니다.
+    카탈로그 이름 · 별칭 사전에 없으면 PLM 거울(연결된 서버)로 풉니다 — 프로젝트 key · 옛 key · 이름, 과제코드 · 과제명,
+    개발모델명 → 개발모델 → 모델코드 → 제품(resolved_via 'plm', 제품 여럿이면 resolved_codes). 어떻게 풀었는지는
+    core_key{type_slug,key} · matched_by · via. PLM 이 알아들었지만 이 서버의 제품에 못 이으면 reason
+    'in_core_no_local_data' 와 core_unresolved(까닭)입니다.
 
     Args:
         keyword: 제품명·별칭·코드 중 아무 것 ('S25 울트라', 'Galaxy Z Fold8', 'GZF8')
 
     Returns:
-        resolved_code, tagged_count, keyword_hits, candidates(최대 5), note
+        resolved_code, resolved_via, tagged_count, keyword_hits, candidates(최대 5), note
+        (+ PLM 으로 풀면 resolved_codes · core_key · matched_by · via · core_matches, 못 이으면 reason · core_unresolved)
     """
     return await resolve_product_keyword_tool(keyword)
 

@@ -149,7 +149,51 @@ def _resolve(it: "O.Interpretation", cat: Dict, product_code: Optional[str]) -> 
     plat_ids = [p["id"] for p in cat["platforms"] if p["code"] in set(it.channels)]
     return {"pids": pids, "groups": groups, "labels": labels, "compare_all": compare_all,
             "text_groups": text_groups, "platform_ids": plat_ids, "notes": notes,
-            "scoped": bool(pids) or bool(text_groups), "broad": broad}
+            "scoped": bool(pids) or bool(text_groups), "broad": broad, "unknown": unknown}
+
+
+def _core_label(u: Dict) -> str:
+    return f"{O.PLM_KIND.get(u['core_key']['type_slug'], u['core_key']['type_slug'])} {u.get('label') or u['core_key']['key']}"
+
+
+def _scope_stop(it: "O.Interpretation", sc: Dict, cat: Dict, product_code: Optional[str],
+                strict: bool) -> Tuple[Optional[Tuple[str, str]], List[Dict]]:
+    """알아들은 범위 말을 못 걸 때 — ((reason, 설명) 이면 넓히지 않고 0건, None 이면 찾는다, 낱말로 물러나는 PLM key).
+
+    못 건 범위를 빼고 찾으면 범위 없는 검색이 된다 — 프로젝트 P1 + 증상이 전체 1만 건으로 나왔다(11-24 실측, SFO-1).
+    · 늘 0건 — 제품에 못 이은 프로젝트, PLM 으로 푼 제품이 이 서버 카탈로그에 없음(둘 다 다른 제품 범위가 없을 때)
+    · strict — 위에 더해 못 이은 과제 · 개발모델, 카탈로그에 없는 제품도 다른 범위가 있어도 0건(SFO-2)
+    · 그 밖의 못 이은 과제 · 개발모델은 낱말 검색으로 물러난다 — 그 말은 남는 말로 남아 본문에서 찾는다."""
+    by_code = cat["by_code"]
+    codes = [product_code.upper()] if product_code else (
+        it.products + [c for _, cs in it.product_sets for c in cs])
+    other = (codes[0] in by_code) if product_code else (bool(it.series) or any(c in by_code for c in codes))
+    gone = [{**m, "reason": "in_core_no_local_data",
+             "detail": f"이 서버 카탈로그에 없는 제품 {', '.join(m['products'])}"}
+            for m in it.plm_matches if not any(c in by_code for c in m["products"])]
+    hard, soft = [], []
+    for u in list(it.plm_unresolved) + gone:
+        is_project = u["core_key"]["type_slug"] == "plm_project" or u in gone
+        (hard if strict or (is_project and not other) else soft).append(u)
+    if hard:
+        labels = ", ".join(_core_label(u) for u in hard)    # 까닭은 해석 줄 · '범위에서 뺐다' 줄에 이미 있다
+        return ("in_core_no_local_data",
+                f"알아들었지만 이 서버의 제품에 잇지 못한 {labels} — 범위 없이 찾으면 다른 제품의 글이 섞이니 넓히지 않고 "
+                "0건으로 돌려준다" + (" (strict)" if strict else "")), []
+    if strict and sc["unknown"]:
+        return ("product_not_in_catalog",
+                f"넓히지 않고 0건으로 돌려준다 — 해석한 제품 {', '.join(sc['unknown'])} 은 이 서버 카탈로그에 없다 (strict)"), []
+    return None, [u for u in soft if u not in gone]      # 카탈로그에 없는 제품은 _resolve 가 '범위에서 뺐다' 를 적는다
+
+
+def _fallback_note(soft: List[Dict], scoped: bool) -> str:
+    """제품에 못 이은 PLM key 를 두고 찾을 때의 한 줄(SFO-2) — 여럿이어도 한 줄. 범위가 없으면 낱말 검색으로 물러난 것이다
+    (프로젝트는 범위가 없으면 0건이라 여기 오지 않는다)."""
+    labels = ", ".join(_core_label(u) for u in soft)
+    if scoped:
+        return f"{labels} → 제품 연결 없음 — 범위는 다른 말로 건 것만 썼다(넓히지 않으려면 strict=True)"
+    return (f"{labels} → 제품 연결 없음, 낱말 검색으로 바꿨다 — 범위 없이 본문 낱말 · 뜻으로 찾아 관계없는 글이 섞일 수 "
+            "있다(넓히지 않으려면 strict=True)")
 
 
 _ROLE_RANK = "CASE l.role WHEN 'primary' THEN 2 WHEN 'compared' THEN 1 ELSE 0.5 END"
@@ -543,17 +587,29 @@ def _dedup(rows: List[Dict], limit: int) -> List[Dict]:
 
 async def semantic_search_tool(query: str, product_code: Optional[str] = None, limit: int = 30,
                                days: Optional[int] = None, order: str = "relevance",
-                               match: str = "auto") -> Dict:
+                               match: str = "auto", strict: bool = False) -> Dict:
     """질의 해석 + 결과.
 
-    순서 — 사전 해석 → (증상이 없으면) LLM 개념 추론 → 질의 임베딩 → 범위 → SQL.
+    순서 — 사전 해석 → 범위 → (증상이 없으면) LLM 개념 추론 → 질의 임베딩 → SQL.
     개념도 벡터도 없으면 예전 키워드 검색(strategy='keyword')이다.
+    알아들은 범위 말(PLM 프로젝트 · 과제)을 못 걸면 넓히지 않고 0건 + reason 이다(_scope_stop). strict 면 못 이은 과제 ·
+    카탈로그에 없는 제품도 그렇다 — 아니면 낱말 검색으로 물러나고 notes 에 한 줄을 적는다(SFO-1 · 2).
     """
     limit = max(1, min(int(limit or 30), 100))
     t0 = time.monotonic()
     async with get_db_session() as db:
         cat = await _load_catalog(db)
         it = O.interpret(query, channel_lexicon=cat["lexicon"], plm=P.mirror())
+        sc = _resolve(it, cat, product_code)
+        stop, soft = _scope_stop(it, sc, cat, product_code, strict)
+        if stop:
+            view = _interpretation_view(it, sc, days or it.days)
+            view["notes"].append(stop[1])
+            return {"query": query, "strategy": "semantic", "interpretation": view, "total": 0,
+                    "elapsed_ms": int((time.monotonic() - t0) * 1000), "results": [], "reason": stop[0],
+                    **O.plm_route(it)}
+        if soft:
+            sc["notes"].append(_fallback_note(soft, sc["scoped"]))
         llm = []
         if not it.symptoms and (it.residual or not it.has_concepts):
             llm = await infer_symptoms(query)
@@ -579,12 +635,12 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
             for r in rows:
                 r.setdefault("score", None)
                 r.setdefault("matched", ["키워드 일치"])
+            # 해석 줄(PLM 과제가 제품에 이어지지 않는다 등)을 버리지 않는다 — 예전에는 이 줄로 갈아 끼워 사라졌다(SFO-2)
             return {"query": query, "strategy": "keyword", "match_mode": kd["match_mode"],
-                    "interpretation": {"concepts": [], "notes": [
+                    "interpretation": {"concepts": [], "notes": it.notes + sc["notes"] + [
                         "온톨로지 개념도 벡터 색인도 없어 키워드 검색으로 찾았다"] + kd["notes"], "residual": it.residual},
                     "total": len(rows), "elapsed_ms": int((time.monotonic() - t0) * 1000),
-                    "results": rows}
-        sc = _resolve(it, cat, product_code)
+                    "results": rows, **O.plm_route(it)}
         sc["scope_n"] = 0
         if sc["pids"]:
             # 범위 크기를 먼저 잰다(인덱스만 읽어 수십 ms). CTE 에는 통계가 없어 플래너가 늘
@@ -665,7 +721,7 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
                                  + " — 기간·시장·채널을 넓히거나 semantic=False 로 키워드 검색을 해 보라")
     return {"query": query, "strategy": "semantic" if it.has_concepts else "vector",
             "interpretation": view, "total": total,
-            "elapsed_ms": int((time.monotonic() - t0) * 1000), "results": results}
+            "elapsed_ms": int((time.monotonic() - t0) * 1000), "results": results, **O.plm_route(it)}
 
 
 def _plm_status() -> Dict:
