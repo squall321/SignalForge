@@ -67,6 +67,12 @@
 - **core_type 과 core_key 는 함께** — 하나만 오면 reason bad_arguments. 코어 key 가 오면 semantic=False 여도 시맨틱으로(키워드
   길은 범위를 못 건다). 시맨틱이 꺼진 서버(온톨로지 import 실패)는 키워드로 넓히지 않고 0건 + reason semantic_unavailable.
 
+- **HP-71 — 자리표시는 따옴표로** — `.env` 는 스크립트가 bash 로 읽는다(`load_env` 는 .env 가 없으면 .env.example 을 복사해
+  바로 `. .env`). 따옴표 없는 `<포털 도메인>` 은 bash 가 리다이렉션으로 읽어 새 박스의 up.sh 가 깨지거나 엉뚱한 파일을 만든다 —
+  `NO_PROXY="<포털 도메인>"` · `SF_SP_CORE_URL="https://<포털 도메인>/rootdesign/rootdesign/api"`. 자리표시를 안 바꾼 채 토큰이
+  있어도 requests 가 InvalidURL 로 네트워크 전에 막는다(토큰이 밖으로 나가지 않는다). NO_PROXY 를 채워도 스크립트가
+  localhost · 127.0.0.1 · ::1 을 늘 덧붙인다(`export_proxy`).
+
 ## 시험 돌리기 (worktree)
 
 - 크롤러 이미지에는 pytest 가 없다(이미지가 사용자 site 를 끈다 — SG-01 뒤) — 스크래치에 `pip install --target <dir> pytest` 해 둔

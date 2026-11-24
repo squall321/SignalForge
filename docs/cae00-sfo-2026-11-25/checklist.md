@@ -33,5 +33,6 @@ SFO-3 → SFO-5 → SFO-4(운영 쪽 답 R25-Q4 뒤) → HP-71. 5차 라운드 �
 - [x] SFO-5 — search_voc 에 core_type · core_key(옛 key 도) · 못 풀면 다른 범위가 있어도 0건 + reason 넷 · 시맨틱 꺼진
       서버는 넓히지 않음 · `PlmIndex.project_key` · `task_key` · 시험(ontology 새 2 · 검색 새 2 · 색인)
 - [ ] SFO-4(R25-Q4 답 뒤)
-- [ ] HP-71
+- [x] HP-71 — `.env.example` 에 SF_SP_CORE_URL(포털 경로 꼴 · rootdesign 두 번인 까닭 한 줄) · NO_PROXY 포털 도메인 자리표시 —
+      bash 가 읽으니 따옴표로, 바꾸지 않은 주소는 네트워크 전에 막힘 확인
 - [ ] 시험 전체(crawler · MCP · backend) · 가지 커밋 · 동결 풀리면 main 으로 · 포털에 착지 알림 · cae00 문서
