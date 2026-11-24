@@ -22,9 +22,8 @@
 - **프로젝트 감지는 제품 감지가 다 끝난 뒤, 남은 자리에만** — 이름이 제품 이름과 같아도 제품이 먼저(시험 고정).
 - **푼 길은 해석에 남긴다** — `plm_matches`(core_key{type_slug,key} · matched_by · via · products · raw, 프로젝트는
   matched_on key|old_key|label) · `plm_unresolved`(core_key · matched_by · reason · detail) · `plm_projects`. 응답 칸은
-  `ontology.plm_route(it)` 하나로 짓는다 — core_key · matched_by · via 는 질의에서 처음 잡힌 코어 객체, 모두는
-  core_matches, 못 이은 것은 core_unresolved. 과제 쪽 core_key 는 과제 자신(ODB 는 프로젝트를 주지만 SignalForge 는 과제가
-  더 좁다).
+  `ontology.core_route(it)` 하나로 짓는다(SFO-3 에서 plm_route · core_matches 를 core_route · resolutions 로 바꿈 — 사전으로
+  푼 것도 담아 'core' 만이 아니다). 과제 쪽 core_key 는 과제 자신(ODB 는 프로젝트를 주지만 SignalForge 는 과제가 더 좁다).
 - **matched_by** — project · task_code · task_name · model_code(모델코드 · 양산모델코드 칸이 맞음) · dev_model(개발모델
   key · 이름이 맞음). 요청서 목록(task_code · task_name · project · model_code · marketing_name)에 dev_model 을 더했다 —
   ODB 에는 개발모델명 길이 없다. marketing_name 은 SFO-3 에서(카탈로그 · 별칭으로 푼 것).
@@ -44,6 +43,20 @@
   no_catalog_match 그대로 두고 reason · core_unresolved — status 값을 늘리면 받는 쪽 분기가 깨질 수 있다. PLM 이 알아들은 말이면
   카탈로그 이름 부분일치는 답으로 내지 않는다(후보로만).
 - **주의(SG-04)도 프로젝트 key 를 본다** — `plm_caution(…, project_keys)`. 'P9 + P1 의 제품' 이면 다른 프로젝트 주의.
+
+- **SFO-3 — 사전으로 푼 것도 푼 길에** — `name_matches`(matched_by marketing_name · via alias = 태깅의 별칭 사전, matched_by
+  model_code · via model_code = 모델코드 사전, span). `core_route` 의 `resolutions` = PLM 으로 푼 것(앞) + 사전으로 푼 것(뒤),
+  위 칸(core_key · matched_by · via)은 첫 resolution. via 는 '그 말에서 제품까지의 길'(ODB 는 '코어 key 까지의 길').
+- **마케팅명의 core_key** — 질의의 그 자리(span)가 코어 프로젝트의 이름 · 마케팅명 별칭(`project_names`)과 겹치면 그 프로젝트.
+  별칭 하나가 프로젝트 여럿이면 core_key 는 null 로 두고 `core_candidates` — 하나로 정하지 않는다(그 제품 VOC 를 가르지 못함은
+  주의 SG-04 가 말한다). 코어가 모르는 표기('S25 울트라' — 코어 별칭은 'Galaxy S25 Ultra')는 null 이다. 제품 → 개발모델 →
+  프로젝트로 거슬러 짐작하지 않는다 — core_key 는 맞춘 객체이지 짐작이 아니다.
+- **자체 모델코드 사전으로 푼 모델코드의 core_key 는 null** — 거울의 개발모델에 그 코드가 있으면 `_detect_plm` 이 먼저 잡아
+  plm_model 이 된다. 코어 `plm_model_code` 로 잇는 것은 SFO-4(운영 쪽 칸 이름 R25-Q4 뒤).
+- **resolve 의 카탈로그 · 별칭 길도 칸을 싣는다** — `_name_route` 가 해석의 같은 제품 resolution 을 쓰고(core_key), 해석이 못 잡은
+  카탈로그 이름이면 matched_by 만(키워드가 제품 코드면 product_code). via 는 resolve 자신의 길(catalog_name · alias).
+- **과제 0 인 거울은 '없음'** — PlmIndex 는 `__len__` 이 과제 수라 과제가 없으면 거짓이다. 온톨로지 전체가 `if not plm` 으로
+  쓰니 같은 뜻으로 둔다(시험 거울에는 과제를 하나 넣는다).
 
 ## 시험 돌리기 (worktree)
 

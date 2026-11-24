@@ -338,7 +338,28 @@ def _plm_resolve(keyword: str) -> Tuple[dict, List[str]]:
     if not plm:
         return {}, []
     it = _O.interpret(keyword, plm=plm)
-    return _O.plm_route(it), list(dict.fromkeys(c for m in it.plm_matches for c in m["products"]))
+    return _O.core_route(it), list(dict.fromkeys(c for m in it.plm_matches for c in m["products"]))
+
+
+def _name_route(keyword: str, code: str, via: str) -> dict:
+    """카탈로그 이름 · 별칭 사전으로 푼 resolve 의 푼 길(SFO-3). 해석이 같은 제품을 사전으로 잡았으면 그 matched_by ·
+    core_key(마케팅명이 코어 프로젝트의 별칭이면 그 프로젝트 — 거울이 있을 때)를 쓰고, 못 잡았으면 matched_by 만
+    (키워드가 제품 코드면 product_code)."""
+    nm = None
+    try:
+        import ontology as _O                     # ontology 가 /crawler 경로를 잡는다
+        from base import plm_mirror as _P
+    except Exception:  # noqa: BLE001
+        _O = None
+    if _O is not None:
+        it = _O.interpret(keyword, plm=_P.mirror())
+        nm = next((m for m in it.name_matches if code in m["products"]), None)
+    res = {"core_key": nm["core_key"] if nm else None, "label": nm["label"] if nm else None,
+           "matched_by": nm["matched_by"] if nm else (
+               "product_code" if _norm_name(keyword) == _norm_name(code) else "marketing_name"),
+           "via": via, "products": [code], "raw": keyword,
+           **({"core_candidates": nm["core_candidates"]} if nm and nm.get("core_candidates") else {})}
+    return {"core_key": res["core_key"], "matched_by": res["matched_by"], "via": via, "resolutions": [res]}
 
 
 _BY_CODES_SQL = text("""
@@ -416,6 +437,8 @@ async def resolve_product_keyword_tool(keyword: str) -> dict:
     best = matches[0] if matches else None
     if route and via == "catalog_name" and best and not best["exact"]:
         best = None                                     # PLM 이 알아들은 말 — 이름 부분일치는 답이 아니다(후보로만)
+    if best and via != "plm":
+        route = _name_route(keyword, best["code"], via)   # 카탈로그 · 별칭으로 푼 것도 푼 길 칸을 싣는다(SFO-3)
     hits_txt = (f"{kw_count:,}건" if kw_exact else f"약 {kw_count:,}건(시간 상한을 넘겨 {_SAMPLE_PCT}% 표본으로 어림)"
                 if kw_count is not None else "건수 미상(시간 상한 안에 세지 못함)")
     out = {

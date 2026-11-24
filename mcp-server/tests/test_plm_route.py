@@ -104,7 +104,7 @@ def test_project_whose_products_are_not_in_this_catalog_is_not_widened(S):
     _use_catalog(S, "GS24")
     r = asyncio.run(S.semantic_search_tool("PRJ-P1 발열"))
     assert r["total"] == 0 and r["reason"] == "in_core_no_local_data", r
-    assert r["core_key"]["key"] == "PRJ-P1" and r["core_matches"][0]["products"] == ["GS25U", "GZF8U"]
+    assert r["core_key"]["key"] == "PRJ-P1" and r["resolutions"][0]["products"] == ["GS25U", "GZF8U"]
 
 
 def test_resolved_project_scopes_the_search(S):
@@ -222,3 +222,19 @@ def test_resolve_unlinked_project_gives_reason_not_a_guess(Q):
     assert out["status"] == "no_catalog_match" and out["resolved_code"] is None, out
     assert out["reason"] == "in_core_no_local_data" and out["core_key"]["key"] == "PRJ-P9"
     assert out["core_unresolved"][0]["matched_by"] == "project" and "잇지 못했다" in out["note"]
+
+
+def test_resolve_catalog_name_and_code_carry_the_route(monkeypatch):
+    """카탈로그 이름으로 푼 것도 푼 길 칸(SFO-3) — 마케팅명이 코어 프로젝트의 별칭이면 core_key, 제품 코드면 product_code."""
+    from tools import query as Q
+    monkeypatch.setattr(P, "mirror", lambda *a, **k: _mirror())
+    exact = _Res(rows=[{"code": "GS25U", "name_en": "Galaxy S25 Ultra", "name_ko": None, "brand": "samsung",
+                        "category": "phone", "tagged_count": 10, "exact": True}])
+    db = FakeDB([("SET LOCAL", _Res()), ("false AS exact", _by_codes), ("AS exact", exact),
+                 ("FROM voc_records v", _Res(scalar=3))])
+    monkeypatch.setattr(Q, "get_db_session", _session(db))
+    out = asyncio.run(Q.resolve_product_keyword_tool("Galaxy S25 Ultra"))
+    assert out["resolved_via"] == "catalog_name" and (out["matched_by"], out["via"]) == ("marketing_name", "catalog_name")
+    assert out["core_key"] == {"type_slug": "plm_project", "key": "PRJ-P1"} and out["resolutions"][0]["products"] == ["GS25U"]
+    out = asyncio.run(Q.resolve_product_keyword_tool("GS25U"))
+    assert (out["core_key"], out["matched_by"], out["via"]) == (None, "product_code", "catalog_name"), out

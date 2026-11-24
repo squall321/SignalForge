@@ -541,6 +541,9 @@ class Interpretation:
     plm_matches: List[dict] = field(default_factory=list)
     # 알아들었지만 제품에 못 이은 PLM key — core_key · reason(in_core_no_local_data) · detail. 검색은 넓히지 않는다(SFO-1 · 2)
     plm_unresolved: List[dict] = field(default_factory=list)
+    # 사전(별칭 사전 · 모델코드 사전)으로 푼 제품 — matched_by(marketing_name · model_code) · via · products · span. 그 자리가
+    # 코어 프로젝트의 이름 · 마케팅명 별칭이면 core_key 도(SFO-3 — 코어가 이 말을 어느 객체로 아는지)
+    name_matches: List[dict] = field(default_factory=list)
 
     @property
     def has_concepts(self) -> bool:
@@ -629,6 +632,12 @@ def _add_products(it: Interpretation, codes: Iterable[str], label: str, via: str
         _add(it, "product", ",".join(codes), via, "scope")
 
 
+def _name_match(it: Interpretation, matched_by: str, via: str, codes, span: Optional[Tuple[int, int]], raw: str):
+    """사전으로 푼 제품의 푼 길(SFO-3) — core_key 는 거울이 있을 때 _name_core_keys 가 채운다."""
+    it.name_matches.append({"core_key": None, "label": None, "matched_by": matched_by, "via": via,
+                            "products": list(dict.fromkeys(codes)), "raw": raw, "span": list(span) if span else None})
+
+
 def _detect_model_codes(it: Interpretation, spans: _Spans):
     """모델코드(SM-S938B) — 이름보다 정확하다. 출시 전 세대의 코드는 그 세대 전부를 한 묶음으로."""
     for raw, base, s, e in _mc.iter_codes(spans.norm):
@@ -640,6 +649,7 @@ def _detect_model_codes(it: Interpretation, spans: _Spans):
             continue
         spans.take(s, e)
         _add_products(it, prods, f"모델코드 {raw.upper()}", raw)
+        _name_match(it, "model_code", "model_code", prods, (s, e), raw)
         if len(prods) > 1:
             it.notes.append(f"모델코드 {raw.upper()} 는 출시 전이라 모델을 못 정해 세대 전체({', '.join(prods)})로 봤다")
 
@@ -680,18 +690,41 @@ def _plm_product_projects(plm) -> Tuple[Dict[str, Dict[str, str]], Dict[str, Dic
     return exact, broad
 
 
-def _plm_named_projects(plm, norm: str, task_keys, project_keys=()) -> Dict[str, str]:
-    """질의가 짚은 PLM 프로젝트 — 프로젝트 이름·마케팅명 별칭이 질의에 있거나, 질의의 과제·개발모델이 그 프로젝트 것,
-    또는 질의가 프로젝트 key · 옛 key 로 짚은 것(SFO-1)."""
+def _project_name_spans(plm, norm: str) -> List[Tuple[int, int, List[str]]]:
+    """질의 속 PLM 프로젝트 이름 · 마케팅명 별칭의 자리 — (시작, 끝, 프로젝트 key 들). 긴 이름부터 맞춘다. 정규식은 거울 객체에
+    붙여 한 번만 짓는다(거울이 바뀌면 mirror() 가 새 객체를 준다)."""
     rx = getattr(plm, "_sf_project_rx", False)
     if rx is False:
         names = sorted(getattr(plm, "project_names", {}), key=len, reverse=True)
         rx = (re.compile(r"(?<![0-9a-z가-힣])(" + "|".join(map(re.escape, names)) + r")(?![0-9a-z가-힣])")
               if names else None)
         plm._sf_project_rx = rx
+    return [(m.start(1), m.end(1), plm.project_names.get(m.group(1), [])) for m in (rx.finditer(norm) if rx else ())]
+
+
+def _name_core_keys(it: Interpretation, plm):
+    """사전으로 푼 제품의 자리가 코어 프로젝트의 이름 · 별칭이면 그 프로젝트를 core_key 로(SFO-3). 별칭 하나가 프로젝트
+    여럿이면 core_key 는 비우고 core_candidates 에 — 하나로 정하지 않는다(그 제품의 VOC 를 가르지 못함은 주의 SG-04 가 말한다)."""
+    if not plm or not it.name_matches:
+        return
+    named = _project_name_spans(plm, it.norm)
+    for m in it.name_matches:
+        if not m["span"]:
+            continue
+        s, e = m["span"]
+        pks = list(dict.fromkeys(pk for ns, ne, ps in named if ns < e and s < ne for pk in ps))
+        if len(pks) == 1:
+            m.update(core_key={"type_slug": "plm_project", "key": pks[0]}, label=plm.projects.get(pks[0], pks[0]))
+        elif pks:
+            m["core_candidates"] = [{"type_slug": "plm_project", "key": pk} for pk in pks]
+
+
+def _plm_named_projects(plm, norm: str, task_keys, project_keys=()) -> Dict[str, str]:
+    """질의가 짚은 PLM 프로젝트 — 프로젝트 이름·마케팅명 별칭이 질의에 있거나, 질의의 과제·개발모델이 그 프로젝트 것,
+    또는 질의가 프로젝트 key · 옛 key 로 짚은 것(SFO-1)."""
     found: Dict[str, str] = {}
-    for m in (rx.finditer(norm) if rx else ()):
-        for pk in plm.project_names.get(m.group(1), []):
+    for _s, _e, pks in _project_name_spans(plm, norm):
+        for pk in pks:
             found.setdefault(pk, plm.projects.get(pk, pk))
     for t in task_keys or ():
         pk = plm.project_of(t)
@@ -734,14 +767,17 @@ def plm_caution(plm, codes, norm: str, task_keys=(), project_keys=()) -> Optiona
 PLM_KIND = {"plm_project": "프로젝트", "plm_task": "과제", "plm_model": "개발모델"}     # 코어 type_slug → 줄에 쓰는 이름
 
 
-def plm_route(it: Interpretation) -> dict:
-    """응답에 싣는 푼 길(SFO-1 · 3, ODB 허브 find_job 꼴) — core_key{type_slug,key} · matched_by · via 는 질의에서 처음
-    잡힌 코어 객체, 모두는 core_matches. 알아들었지만 제품에 못 이은 것은 core_unresolved(reason · detail).
-    PLM 으로 푼 것이 없으면 빈 dict."""
+def core_route(it: Interpretation) -> dict:
+    """응답에 싣는 푼 길(SFO-1 · 3, ODB 허브 find_job 꼴).
+
+    resolutions — 범위로 푼 말마다 {core_key{type_slug,key} 또는 null, matched_by, via, products, raw}. PLM 으로 푼 것(프로젝트 ·
+    과제 · 개발모델)이 앞, 사전(별칭 · 모델코드)으로 푼 것이 뒤. via 는 그 말에서 제품까지의 길이다. core_key · matched_by · via
+    는 첫 resolution. 알아들었지만 제품에 못 이은 PLM key 는 core_unresolved(reason · detail) — 푼 것이 없으면 그 첫 것이 위
+    칸이 된다. 푼 것도 못 이은 것도 없으면 빈 dict."""
+    res = [{k: v for k, v in m.items() if k != "span"} for m in it.plm_matches + it.name_matches]
     out: dict = {}
-    if it.plm_matches:
-        m = it.plm_matches[0]
-        out.update(core_key=m["core_key"], matched_by=m["matched_by"], via=m["via"], core_matches=it.plm_matches)
+    if res:
+        out.update(core_key=res[0]["core_key"], matched_by=res[0]["matched_by"], via=res[0]["via"], resolutions=res)
     elif it.plm_unresolved:
         u = it.plm_unresolved[0]
         out.update(core_key=u["core_key"], matched_by=u["matched_by"], via=None)
@@ -919,6 +955,8 @@ def _detect_products(it: Interpretation, spans: _Spans, plm=None):
                 continue
             it.products.append(code)
             _add(it, "product", code, norm[sp[0][0]:sp[0][1]] if sp else code, "scope")
+            _name_match(it, "marketing_name", "alias", [code], sp[0] if sp else None,
+                        norm[sp[0][0]:sp[0][1]] if sp else code)
     # 질의 전용 약칭('노트9', '워치4 클래식') — 레거시보다 먼저 봐야 '워치4 클래식' 이
     # 레거시의 '워치4'(GW4) 에 자리를 뺏기지 않는다
     for src, fmt in _Q_PRODUCT_ALIAS:
@@ -930,6 +968,7 @@ def _detect_products(it: Interpretation, spans: _Spans, plm=None):
             if code not in it.products:
                 it.products.append(code)
                 _add(it, "product", code, m.group(0), "scope")
+                _name_match(it, "marketing_name", "alias", [code], (m.start(), m.end()), m.group(0))
     # 구형 모델 — 이미 잡은 자리를 가린 뒤 레거시를 본다('S25 vs 노트 9 엣지')
     for _ in range(3):
         m = _pm.legacy_fallback_match(spans.masked("\x00"))
@@ -941,7 +980,9 @@ def _detect_products(it: Interpretation, spans: _Spans, plm=None):
         spans.take(s, e)
         it.products.append(code)
         _add(it, "product", code, norm[s:e], "scope")
+        _name_match(it, "marketing_name", "alias", [code], (s, e), norm[s:e])
     _detect_plm_projects(it, spans, plm)
+    _name_core_keys(it, plm)
 
 
 def _take_all(rx: re.Pattern, spans: "_Spans"):

@@ -160,7 +160,7 @@ async def get_top_issues(
 
 
 # 시맨틱 검색이 싣는 푼 길 · 일부러 찾지 않은 0건의 까닭(SFO-1 · 3) — search_voc 응답에 그대로 옮긴다
-_ROUTE_KEYS = ("reason", "core_key", "matched_by", "via", "core_matches", "core_unresolved")
+_ROUTE_KEYS = ("reason", "core_key", "matched_by", "via", "resolutions", "core_unresolved")
 
 
 @mcp.tool()
@@ -186,9 +186,12 @@ async def search_voc(
     모델코드(SM-S938B · sm-s938n · SM-S9380)는 그 제품으로 봅니다 — 'SM-S938B 발열' = 'S25 울트라 발열'.
     출시 전 세대의 코드(SM-S958U)는 모델을 못 정해 그 세대 전부를 범위로 씁니다.
     PLM 과제(SP 허브)가 연결된 서버에서는 프로젝트 key · 과제코드 · 과제명(개발명) · 개발모델명으로도 찾습니다 —
-    'TK-001 발열' · '<개발명> 배터리' · '<프로젝트 key> 발열' → 프로젝트 → 과제 → 개발모델 → 제품. 어떻게 풀었는지는
-    core_key{type_slug,key} · matched_by(project · task_code · task_name · model_code · dev_model) · via 와 notes 에
-    있습니다. 알아들었지만 이 서버의 제품에 잇지 못한 프로젝트는 넓히지 않고 0건 + reason(in_core_no_local_data)입니다.
+    'TK-001 발열' · '<개발명> 배터리' · '<프로젝트 key> 발열' → 프로젝트 → 과제 → 개발모델 → 제품.
+    어떻게 풀었는지는 응답의 core_key{type_slug,key} · matched_by · via(그 말에서 제품까지의 길) · resolutions(범위로 푼
+    말마다)와 notes 에 있습니다 — matched_by 는 project · task_code · task_name · model_code · dev_model(PLM) ·
+    marketing_name(별칭 사전) · model_code(모델코드 사전). 마케팅명이 코어 프로젝트의 별칭이면 core_key 가 그 프로젝트,
+    코어 객체가 없으면 core_key 는 null 입니다.
+    알아들었지만 이 서버의 제품에 잇지 못한 프로젝트는 넓히지 않고 0건 + reason(in_core_no_local_data)입니다.
     제품에 못 이은 과제는 낱말 검색으로 물러나고 notes 에 한 줄을 적습니다 — strict=True 면 그때도 0건 + reason.
     연결 여부는 get_ontology 의 plm.
     사전에 없는 표현도 찾습니다 — 은유·완곡 표현은 로컬 LLM 이 증상 개념으로 옮기고
@@ -250,7 +253,7 @@ async def semantic_search(
       vector    임베딩 사용 여부·후보 수 (사전이 다 설명하면 쓰지 않는다)
     strategy — semantic(개념) · vector(개념 없이 임베딩·낱말) · keyword(둘 다 없을 때 예전 검색)
     total 은 조건을 만족한 전체 건수, results 는 관련도 순 상위 limit 건(같은 본문은 접는다).
-    PLM 으로 푼 질의면 core_key · matched_by · via · core_matches, 못 이은 PLM key 는 core_unresolved,
+    범위로 푼 말이 있으면 core_key · matched_by · via · resolutions, 못 이은 PLM key 는 core_unresolved,
     범위를 못 걸어 찾지 않은 0건이면 reason — search_voc 와 같다.
 
     Args:
@@ -293,15 +296,16 @@ async def resolve_product_keyword(keyword: str) -> dict:
     이 도구로 코드를 먼저 확정한 뒤 product_code 로 조회하면 흔들리지 않습니다.
     카탈로그 이름 · 별칭 사전에 없으면 PLM 거울(연결된 서버)로 풉니다 — 프로젝트 key · 옛 key · 이름, 과제코드 · 과제명,
     개발모델명 → 개발모델 → 모델코드 → 제품(resolved_via 'plm', 제품 여럿이면 resolved_codes). 어떻게 풀었는지는
-    core_key{type_slug,key} · matched_by · via. PLM 이 알아들었지만 이 서버의 제품에 못 이으면 reason
-    'in_core_no_local_data' 와 core_unresolved(까닭)입니다.
+    core_key{type_slug,key} · matched_by · via · resolutions — 카탈로그 이름 · 별칭으로 푼 것도 싣습니다(matched_by
+    marketing_name · model_code · product_code, 마케팅명이 코어 프로젝트의 별칭이면 core_key 가 그 프로젝트, 아니면 null).
+    PLM 이 알아들었지만 이 서버의 제품에 못 이으면 reason 'in_core_no_local_data' 와 core_unresolved(까닭)입니다.
 
     Args:
         keyword: 제품명·별칭·코드 중 아무 것 ('S25 울트라', 'Galaxy Z Fold8', 'GZF8')
 
     Returns:
         resolved_code, resolved_via, tagged_count, keyword_hits, candidates(최대 5), note
-        (+ PLM 으로 풀면 resolved_codes · core_key · matched_by · via · core_matches, 못 이으면 reason · core_unresolved)
+        core_key · matched_by · via · resolutions (+ PLM 으로 풀면 resolved_codes, 못 이으면 reason · core_unresolved)
     """
     return await resolve_product_keyword_tool(keyword)
 

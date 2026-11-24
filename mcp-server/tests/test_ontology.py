@@ -320,7 +320,7 @@ def test_project_key_old_key_and_name_resolve_through_tasks_to_products(plm_proj
             ({"type_slug": "plm_project", "key": "PRJ-P1"}, "project", how)], it.plm_matches
         assert it.plm_matches[0]["via"] == "project → task → model → model_code" and not it.plm_unresolved
         assert sum("프로젝트 PRJ-P1(피원 프로젝트) → 과제 2개" in n for n in it.notes) == 1, it.notes
-        route = O.plm_route(it)
+        route = O.core_route(it)
         assert route["core_key"] == {"type_slug": "plm_project", "key": "PRJ-P1"} and route["matched_by"] == "project"
 
 
@@ -331,7 +331,7 @@ def test_project_without_linked_products_is_unresolved_not_a_word(plm_projects):
     assert [(u["core_key"], u["matched_by"], u["reason"]) for u in it.plm_unresolved] == [
         ({"type_slug": "plm_project", "key": "PRJ-P9"}, "project", "in_core_no_local_data")]
     assert "X100" in it.plm_unresolved[0]["detail"] and sum("프로젝트 PRJ-P9(피나인)" in n for n in it.notes) == 1
-    route = O.plm_route(it)
+    route = O.core_route(it)
     assert route["core_key"]["key"] == "PRJ-P9" and route["via"] is None and route["core_unresolved"]
 
 
@@ -367,3 +367,31 @@ def test_project_named_with_another_projects_product_is_flagged(plm_projects):
     """질의가 프로젝트 P9 를 key 로 짚었는데 해석한 제품은 P1 것 — 주의(SG-04)가 프로젝트 key 도 본다."""
     it = O.interpret("PRJ-P9 Galaxy S25 Ultra 발열", plm=plm_projects)
     assert it.products == ["GS25U"] and it.plm_caution and "피나인" in it.plm_caution["foreign_projects"], it.plm_caution
+
+
+def test_dictionary_resolutions_carry_matched_by_and_core_key(plm_projects):
+    """사전으로 푼 것도 푼 길에 남긴다(SFO-3) — 마케팅명(별칭 사전) · 모델코드(모델코드 사전). 그 자리가 코어 프로젝트의
+    마케팅명 별칭이면 core_key 가 그 프로젝트, 코어가 모르는 표기 · 거울 없음이면 null."""
+    r = O.core_route(O.interpret("Galaxy S25 Ultra 발열", plm=plm_projects))
+    assert (r["core_key"], r["matched_by"], r["via"]) == (
+        {"type_slug": "plm_project", "key": "PRJ-P1"}, "marketing_name", "alias"), r
+    assert r["resolutions"][0]["products"] == ["GS25U"] and "span" not in r["resolutions"][0]
+    r = O.core_route(O.interpret("SM-S931U 화면", plm=plm_projects))          # 거울에 없는 모델코드 — 자체 사전으로
+    assert (r["core_key"], r["matched_by"], r["via"], r["resolutions"][0]["products"]) == (
+        None, "model_code", "model_code", ["GS25"]), r
+    assert O.core_route(O.interpret("S25 울트라 발열", plm=plm_projects))["core_key"] is None, "코어 별칭이 아닌 표기"
+    r = O.core_route(O.interpret("Galaxy S25 Ultra 발열"))
+    assert r["core_key"] is None and r["matched_by"] == "marketing_name", "거울이 없으면 core_key 는 null"
+    assert O.core_route(O.interpret("발열")) == {}, "범위로 푼 말이 없으면 칸도 없다"
+
+
+def test_plm_resolutions_come_first_and_alias_on_two_projects_is_not_decided(plm_projects):
+    r = O.core_route(O.interpret("Galaxy Z Fold8 vs TK-C1 발열", plm=plm_projects))
+    assert [x["matched_by"] for x in r["resolutions"]] == ["task_code", "marketing_name"] and r["matched_by"] == "task_code"
+    data = {"plm_project": [{"key": "PRJ-X", "label": "엑스", "properties": {"aliases": ["Galaxy S25 Ultra"]}},
+                            {"key": "PRJ-Y", "label": "와이", "properties": {"aliases": ["Galaxy S25 Ultra"]}}],
+            "plm_task": [{"key": "과제X", "label": "과제X", "properties": {"project": "PRJ-X"}}],   # 과제 0 인 거울은 '없음'
+            "plm_model": []}
+    m = O.core_route(O.interpret("Galaxy S25 Ultra 발열", plm=_plm.PlmIndex.from_rows(data)))["resolutions"][0]
+    assert m["core_key"] is None and m["core_candidates"] == [
+        {"type_slug": "plm_project", "key": "PRJ-X"}, {"type_slug": "plm_project", "key": "PRJ-Y"}], m

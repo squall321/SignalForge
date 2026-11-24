@@ -607,7 +607,7 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
             view["notes"].append(stop[1])
             return {"query": query, "strategy": "semantic", "interpretation": view, "total": 0,
                     "elapsed_ms": int((time.monotonic() - t0) * 1000), "results": [], "reason": stop[0],
-                    **O.plm_route(it)}
+                    **O.core_route(it)}
         if soft:
             sc["notes"].append(_fallback_note(soft, sc["scoped"]))
         llm = []
@@ -640,7 +640,7 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
                     "interpretation": {"concepts": [], "notes": it.notes + sc["notes"] + [
                         "온톨로지 개념도 벡터 색인도 없어 키워드 검색으로 찾았다"] + kd["notes"], "residual": it.residual},
                     "total": len(rows), "elapsed_ms": int((time.monotonic() - t0) * 1000),
-                    "results": rows, **O.plm_route(it)}
+                    "results": rows, **O.core_route(it)}
         sc["scope_n"] = 0
         if sc["pids"]:
             # 범위 크기를 먼저 잰다(인덱스만 읽어 수십 ms). CTE 에는 통계가 없어 플래너가 늘
@@ -721,7 +721,7 @@ async def semantic_search_tool(query: str, product_code: Optional[str] = None, l
                                  + " — 기간·시장·채널을 넓히거나 semantic=False 로 키워드 검색을 해 보라")
     return {"query": query, "strategy": "semantic" if it.has_concepts else "vector",
             "interpretation": view, "total": total,
-            "elapsed_ms": int((time.monotonic() - t0) * 1000), "results": results, **O.plm_route(it)}
+            "elapsed_ms": int((time.monotonic() - t0) * 1000), "results": results, **O.core_route(it)}
 
 
 def _plm_status() -> Dict:
