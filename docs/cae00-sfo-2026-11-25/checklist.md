@@ -30,7 +30,8 @@ SFO-3 → SFO-5 → SFO-4(운영 쪽 답 R25-Q4 뒤) → HP-71. 5차 라운드 �
         실패 넷은 무관 — context-notes)
 - [x] SFO-3 — 사전으로 푼 것(마케팅명 · 모델코드)도 resolutions 에, 마케팅명이 코어 프로젝트 별칭이면 core_key ·
       `core_route`(plm_route 를 바꿈) · resolve 의 카탈로그 · 별칭 길도 칸 · 시험(ontology 새 2 · resolve 새 1)
-- [ ] SFO-5
+- [x] SFO-5 — search_voc 에 core_type · core_key(옛 key 도) · 못 풀면 다른 범위가 있어도 0건 + reason 넷 · 시맨틱 꺼진
+      서버는 넓히지 않음 · `PlmIndex.project_key` · `task_key` · 시험(ontology 새 2 · 검색 새 2 · 색인)
 - [ ] SFO-4(R25-Q4 답 뒤)
 - [ ] HP-71
 - [ ] 시험 전체(crawler · MCP · backend) · 가지 커밋 · 동결 풀리면 main 으로 · 포털에 착지 알림 · cae00 문서

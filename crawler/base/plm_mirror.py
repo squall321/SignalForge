@@ -407,6 +407,14 @@ class PlmIndex:
             return None
         return ref if ref in self.project_info else self._project_by_old.get(ref, ref)
 
+    def project_key(self, key: str) -> Optional[str]:
+        """프로젝트의 지금 key — 옛 key(개명 · 합쳐짐)도 받는다(SFO-5 코어 key 로 찾기). 거울에 없으면 None."""
+        return key if key in self.project_info else self._project_by_old.get(key)
+
+    def task_key(self, key: str) -> Optional[str]:
+        """과제의 지금 key — 옛 key 도 받는다. 거울에 없으면 None."""
+        return key if key in self.tasks else self._task_by_old.get(key)
+
     def task_models(self, task_key: str) -> List[dict]:
         t = self.tasks.get(task_key)
         return [self.models[k] for k in (t["models"] if t else [])]

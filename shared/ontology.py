@@ -890,6 +890,56 @@ def _detect_plm(it: Interpretation, spans: _Spans, plm):
                                 f"개발모델의 모델코드가 사전에 없다({', '.join(own_missing) or '개발모델 없음'})")
 
 
+CORE_KEY_TYPES = ("plm_project", "plm_task", "plm_model")      # 코어 key 로 범위를 걸 수 있는 타입(SFO-5)
+
+
+def _apply_core_key(it: Interpretation, plm, core_type: str, core_key: str):
+    """코어 key 로 범위를 건다(SFO-5) — 운영 박스 ontology_lookup 이 넘기는 다음 호출. 말로 찾지 않고 key(옛 key 도)로 바로
+    푼다. 못 풀면 plm_unresolved(matched_by core_key) — 검색은 다른 범위가 있어도 넓히지 않는다(부른 쪽이 범위를 정했다).
+    reason — unsupported_core_type · no_core_mirror · not_in_core_mirror · in_core_no_local_data."""
+    key = str(core_key or "").strip()
+    raw = f"{core_type}:{key}"
+    if core_type not in CORE_KEY_TYPES:
+        it.notes.append(f"코어 key {raw} — 이 서버가 풀 수 있는 타입은 {', '.join(CORE_KEY_TYPES)} 다")
+        _plm_unresolved(it, core_type, key, key, "core_key", "풀 수 없는 코어 타입", reason="unsupported_core_type")
+        return
+    if not plm:
+        it.notes.append(f"코어 key {raw} — 이 서버에는 PLM 거울이 없어 풀지 못한다")
+        _plm_unresolved(it, core_type, key, key, "core_key", "PLM 거울 없음", reason="no_core_mirror")
+        return
+    if core_type == "plm_project":
+        cur = plm.project_key(key)
+        models = plm.project_models(cur) if cur else []
+        label, via = (plm.projects.get(cur, cur) if cur else key), "project → task → model → model_code"
+    elif core_type == "plm_task":
+        cur = plm.task_key(key)
+        models = plm.task_models(cur) if cur else []
+        label, via = ((plm.tasks[cur].get("display") or cur) if cur else key), "task → model → model_code"
+    else:
+        cur = key if key in plm.models else None
+        models = [plm.models[cur]] if cur else []
+        label, via = ((plm.models[cur].get("label") or cur) if cur else key), "model → model_code"
+    if not cur:
+        it.notes.append(f"코어 key {raw} 는 이 서버의 PLM 거울에 없다 — 받기가 늦었거나 지워진 key 일 수 있다")
+        _plm_unresolved(it, core_type, key, key, "core_key", "거울에 없는 key", reason="not_in_core_mirror")
+        return
+    if core_type == "plm_project" and cur not in it.plm_projects:
+        it.plm_projects.append(cur)
+    elif core_type == "plm_task" and cur not in it.plm_tasks:
+        it.plm_tasks.append(cur)
+    renamed = f" (옛 key → 지금 {cur})" if cur != key else ""
+    prods, missing = _plm_products(models)
+    if not prods:
+        why = (f"개발모델 {len(models)}개" + (f" · 사전에 없는 모델코드 {', '.join(missing)}" if missing else ""))
+        it.notes.append(f"코어 key {raw}{renamed} 는 제품에 이어지지 않는다 — {why}")
+        _plm_unresolved(it, core_type, cur, label, "core_key", why)
+        return
+    _add_products(it, prods, f"코어 key {label}", raw)
+    it.notes.append(f"코어 key {raw}{renamed} → 개발모델 {len(models)}개 → 제품 {len(prods)}개({', '.join(prods)})"
+                    + (f" (사전에 없는 모델코드 {', '.join(missing)} 은 뺐다)" if missing else ""))
+    _plm_match(it, core_type, cur, label, "core_key", via, prods, raw)
+
+
 def _detect_plm_projects(it: Interpretation, spans: _Spans, plm):
     """PLM 프로젝트 key · 옛 key · 이름 → 그 과제들의 개발모델 → 제품(SFO-1).
 
@@ -1006,12 +1056,17 @@ def _channel_patterns(lexicon: Dict[str, List[str]]):
     return out
 
 
-def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = None, plm=None) -> Interpretation:
+def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = None, plm=None,
+              core: Optional[Tuple[str, str]] = None) -> Interpretation:
     """질의 → 개념 해석. channel_lexicon 은 {표면형: [플랫폼 코드]} (호출부가 DB 에서 만든다).
-    plm 은 PLM 거울 색인(base.plm_mirror.PlmIndex) — 호출부가 넘긴다(이 함수는 파일을 읽지 않는다)."""
+    plm 은 PLM 거울 색인(base.plm_mirror.PlmIndex) — 호출부가 넘긴다(이 함수는 파일을 읽지 않는다).
+    core 는 (코어 타입, 코어 key) — 질의 낱말과 따로 그 코어 객체의 제품을 범위로 건다(SFO-5, 빈 질의여도)."""
     norm = normalize(query)
     it = Interpretation(query=query, norm=norm)
+    if core:
+        _apply_core_key(it, plm, *core)
     if not norm:
+        _set_caution(it, plm)
         return it
     spans = _Spans(norm)
 
@@ -1196,11 +1251,15 @@ def interpret(query: str, *, channel_lexicon: Optional[Dict[str, List[str]]] = N
         if t not in rest:
             rest.append(t)
     it.residual = rest[:3]
-    it.plm_caution = plm_caution(plm, it.products + [c for _, cs in it.product_sets for c in cs], norm, it.plm_tasks,
-                                 it.plm_projects)
+    _set_caution(it, plm)
+    return it
+
+
+def _set_caution(it: Interpretation, plm):
+    it.plm_caution = plm_caution(plm, it.products + [c for _, cs in it.product_sets for c in cs], it.norm,
+                                 it.plm_tasks, it.plm_projects)
     if it.plm_caution:
         it.notes.append("주의 — " + it.plm_caution["note"])
-    return it
 
 
 def add_symptoms(it: Interpretation, keys: Iterable[str], *, via: str, role: str = "inferred"):

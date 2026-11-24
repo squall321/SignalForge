@@ -238,3 +238,21 @@ def test_resolve_catalog_name_and_code_carry_the_route(monkeypatch):
     assert out["core_key"] == {"type_slug": "plm_project", "key": "PRJ-P1"} and out["resolutions"][0]["products"] == ["GS25U"]
     out = asyncio.run(Q.resolve_product_keyword_tool("GS25U"))
     assert (out["core_key"], out["matched_by"], out["via"]) == (None, "product_code", "catalog_name"), out
+
+
+# ── core_type · core_key 인자 (SFO-5) ───────────────────────────────────
+def test_core_key_argument_scopes_the_search(S):
+    it = O.interpret("발열", plm=_mirror(), core=("plm_project", "PRJ-P0"))       # 옛 key 도
+    cat = _catalog("GS25U", "GZF8U")
+    sc = S._resolve(it, cat, None)
+    assert S._scope_stop(it, sc, cat, None, False) == (None, []) and sc["pids"] == [1, 2]
+
+
+def test_core_key_argument_that_cannot_be_resolved_stops_even_beside_other_scope(S):
+    """부른 쪽이 코어 key 로 범위를 정했다 — 질의에 다른 제품이 있어도 넓히지(바꾸지) 않고 0건 + reason."""
+    _use_catalog(S, "GS25U", "GZF8U")
+    r = asyncio.run(S.semantic_search_tool("Galaxy S25 Ultra 발열", core_type="plm_project", core_key="NOPE"))
+    assert r["total"] == 0 and r["reason"] == "not_in_core_mirror", r
+    r = asyncio.run(S.semantic_search_tool("발열", core_type="plm_project", core_key="PRJ-P9"))
+    assert r["reason"] == "in_core_no_local_data" and r["core_key"] == {"type_slug": "plm_project", "key": "PRJ-P9"}
+    assert any("넓히지 않고" in n for n in r["interpretation"]["notes"])

@@ -395,3 +395,27 @@ def test_plm_resolutions_come_first_and_alias_on_two_projects_is_not_decided(plm
     m = O.core_route(O.interpret("Galaxy S25 Ultra 발열", plm=_plm.PlmIndex.from_rows(data)))["resolutions"][0]
     assert m["core_key"] is None and m["core_candidates"] == [
         {"type_slug": "plm_project", "key": "PRJ-X"}, {"type_slug": "plm_project", "key": "PRJ-Y"}], m
+
+
+def test_core_key_argument_scopes_without_words(plm_projects):
+    """코어 key 로 바로 범위(SFO-5) — 질의 낱말과 따로, 옛 key 도, 빈 질의여도."""
+    for key in ("PRJ-P1", "PRJ-P0"):
+        it = O.interpret("발열", plm=plm_projects, core=("plm_project", key))
+        assert [c for _, c in it.product_sets] == [("GS25U", "GZF8U")] and it.symptoms == ["overheat"], (key, it.notes)
+        assert [(m["core_key"], m["matched_by"]) for m in it.plm_matches] == [
+            ({"type_slug": "plm_project", "key": "PRJ-P1"}, "core_key")] and it.plm_projects == ["PRJ-P1"]
+    assert any("옛 key → 지금 PRJ-P1" in n for n in it.notes), it.notes
+    it = O.interpret("", plm=plm_projects, core=("plm_task", "과제A"))
+    assert it.products == ["GS25U"] and it.plm_tasks == ["과제A"], "빈 질의여도 범위는 건다"
+    assert O.interpret("", plm=plm_projects, core=("plm_model", "M-B")).products == ["GZF8U"]
+
+
+def test_core_key_argument_that_cannot_be_resolved_says_why(plm_projects):
+    cases = {("plm_project", "PRJ-P9"): "in_core_no_local_data", ("plm_project", "NOPE"): "not_in_core_mirror",
+             ("part", "P-1"): "unsupported_core_type"}
+    for core, reason in cases.items():
+        it = O.interpret("발열", plm=plm_projects, core=core)
+        assert not it.products and not it.product_sets, (core, it.products)
+        assert [(u["reason"], u["matched_by"]) for u in it.plm_unresolved] == [(reason, "core_key")], (core, it.plm_unresolved)
+    it = O.interpret("발열", plm=None, core=("plm_project", "PRJ-P1"))
+    assert [u["reason"] for u in it.plm_unresolved] == ["no_core_mirror"]

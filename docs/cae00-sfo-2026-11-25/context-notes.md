@@ -58,6 +58,15 @@
 - **과제 0 인 거울은 '없음'** — PlmIndex 는 `__len__` 이 과제 수라 과제가 없으면 거짓이다. 온톨로지 전체가 `if not plm` 으로
   쓰니 같은 뜻으로 둔다(시험 거울에는 과제를 하나 넣는다).
 
+- **SFO-5 — 코어 key 인자** — `search_voc(core_type, core_key)` → `interpret(…, core=(타입, key))` → `_apply_core_key` 가 질의
+  낱말과 따로 그 코어 객체의 제품을 범위로 건다(빈 질의여도). 타입은 plm_project · plm_task · plm_model(plm_model_code 는
+  SFO-4 뒤). 옛 key 도 받는다(`PlmIndex.project_key` · `task_key`). matched_by 는 core_key.
+- **코어 key 로 건 범위를 못 풀면 늘 0건** — 다른 범위가 질의에 있어도(부른 쪽이 범위를 정했다, 다른 제품으로 바꿔 찾지 않는다).
+  reason 을 넷으로 가른다 — unsupported_core_type(이 서버가 못 푸는 타입) · no_core_mirror(거울 없음) · not_in_core_mirror(거울에
+  없는 key — 받기가 늦었거나 지워짐) · in_core_no_local_data(있지만 이 서버 제품에 못 이음). 0건 줄의 reason 은 첫 hard 의 것.
+- **core_type 과 core_key 는 함께** — 하나만 오면 reason bad_arguments. 코어 key 가 오면 semantic=False 여도 시맨틱으로(키워드
+  길은 범위를 못 건다). 시맨틱이 꺼진 서버(온톨로지 import 실패)는 키워드로 넓히지 않고 0건 + reason semantic_unavailable.
+
 ## 시험 돌리기 (worktree)
 
 - 크롤러 이미지에는 pytest 가 없다(이미지가 사용자 site 를 끈다 — SG-01 뒤) — 스크래치에 `pip install --target <dir> pytest` 해 둔

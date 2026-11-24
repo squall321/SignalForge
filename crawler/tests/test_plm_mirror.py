@@ -262,3 +262,5 @@ def test_project_index_and_models_linked_through_old_task_keys():
     assert idx.by_project["prj-p2"] == [("PRJ-P2", "key")]
     assert "이" not in idx.by_project and "galaxy z fold8" not in idx.by_project, "세 글자 미만 이름 · 별칭은 넣지 않는다"
     assert idx.project_names["galaxy z fold8"] == ["PRJ-P1"], "별칭은 주의(SG-04)에는 그대로 쓴다"
+    assert (idx.project_key("PRJ-P0"), idx.project_key("PRJ-P1"), idx.project_key("NOPE")) == ("PRJ-P1", "PRJ-P1", None)
+    assert (idx.task_key("TK-A-OLD"), idx.task_key("TK-B"), idx.task_key("NOPE")) == ("TK-A", "TK-B", None), "SFO-5 코어 key"

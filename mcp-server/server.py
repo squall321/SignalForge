@@ -38,7 +38,10 @@ except Exception as _sem_err:  # noqa: BLE001
     print(f"[semantic] semantic import FAILED — {_SEM_NOTE}", flush=True)
 
     async def semantic_search_tool(query, product_code=None, limit=30, days=None,
-                                   order="relevance", match="auto", strict=False):
+                                   order="relevance", match="auto", strict=False, core_type=None, core_key=None):
+        if core_type or core_key:                     # 코어 key 범위는 온톨로지가 건다 — 키워드로 넓히지 않는다(SFO-5)
+            return {"query": query, "strategy": "keyword", "match_mode": "none", "total": 0, "results": [],
+                    "reason": "semantic_unavailable", "interpretation": {"notes": [_SEM_NOTE]}}
         d = await search_voc_detail(query, product_code, min(limit, 100), days,
                                     "recent" if order == "relevance" else order, match)
         return {"query": query, "strategy": "keyword", "match_mode": d["match_mode"],
@@ -173,6 +176,8 @@ async def search_voc(
     match: str = "auto",
     semantic: bool = True,
     strict: bool = False,
+    core_type: Optional[str] = None,
+    core_key: Optional[str] = None,
 ) -> dict:
     """
     VOC 를 **뜻으로** 검색합니다. 한국어·영어·섞어 써도 됩니다 — 온톨로지가 자동 해석합니다.
@@ -219,13 +224,21 @@ async def search_voc(
         match: 키워드 검색으로 갈 때의 경로 — 'auto' | 'phrase' | 'fts' | 'substring'
         semantic: False 면 온톨로지 없이 예전 키워드 검색만 씁니다
         strict: True 면 알아들은 범위 말(PLM 과제 · 제품)을 못 걸 때 낱말 검색으로 넓히지 않고 0건 + reason
+        core_type: 코어 key 로 범위 걸기 — 'plm_project' · 'plm_task' · 'plm_model' (core_key 와 함께). 운영 박스
+            ontology_lookup 이 푼 코어 key 를 그대로 넘기는 길이다. keyword 는 증상 등 나머지 조건(빈 글자도 된다).
+            못 풀면 다른 범위가 있어도 0건 + reason(not_in_core_mirror · in_core_no_local_data · no_core_mirror ·
+            unsupported_core_type). 시맨틱 검색으로만 찾는다(semantic=False 여도)
+        core_key: 그 코어 객체의 key (옛 key 도 받는다)
     """
-    if not semantic:
+    if bool(core_type) != bool(core_key):
+        return {"total": 0, "results": [], "strategy": "semantic", "match_mode": "none", "reason": "bad_arguments",
+                "notes": ["core_type 과 core_key 는 함께 준다"]}
+    if not semantic and not core_type:
         d = await search_voc_detail(keyword, product_code, min(limit, 100), days,
                                     "recent" if order == "relevance" else order, match)
         return {"total": d["total"], "truncated": d["truncated"], "results": d["results"], "strategy": "keyword",
                 "match_mode": d["match_mode"], "notes": d["notes"]}
-    r = await semantic_search_tool(keyword, product_code, limit, days, order, match, strict)
+    r = await semantic_search_tool(keyword, product_code, limit, days, order, match, strict, core_type, core_key)
     return {"total": r["total"], "results": r["results"], "strategy": r["strategy"],
             "match_mode": r.get("match_mode") or r["strategy"],
             "notes": (r.get("interpretation") or {}).get("notes", []),

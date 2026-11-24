@@ -161,7 +161,8 @@ def _scope_stop(it: "O.Interpretation", sc: Dict, cat: Dict, product_code: Optio
     """알아들은 범위 말을 못 걸 때 — ((reason, 설명) 이면 넓히지 않고 0건, None 이면 찾는다, 낱말로 물러나는 PLM key).
 
     못 건 범위를 빼고 찾으면 범위 없는 검색이 된다 — 프로젝트 P1 + 증상이 전체 1만 건으로 나왔다(11-24 실측, SFO-1).
-    · 늘 0건 — 제품에 못 이은 프로젝트, PLM 으로 푼 제품이 이 서버 카탈로그에 없음(둘 다 다른 제품 범위가 없을 때)
+    · 늘 0건 — 제품에 못 이은 프로젝트, PLM 으로 푼 제품이 이 서버 카탈로그에 없음(둘 다 다른 제품 범위가 없을 때),
+      코어 key 인자로 건 범위를 못 풂(다른 범위가 있어도 — 부른 쪽이 범위를 정했다, SFO-5)
     · strict — 위에 더해 못 이은 과제 · 개발모델, 카탈로그에 없는 제품도 다른 범위가 있어도 0건(SFO-2)
     · 그 밖의 못 이은 과제 · 개발모델은 낱말 검색으로 물러난다 — 그 말은 남는 말로 남아 본문에서 찾는다."""
     by_code = cat["by_code"]
@@ -174,11 +175,12 @@ def _scope_stop(it: "O.Interpretation", sc: Dict, cat: Dict, product_code: Optio
     hard, soft = [], []
     for u in list(it.plm_unresolved) + gone:
         is_project = u["core_key"]["type_slug"] == "plm_project" or u in gone
-        (hard if strict or (is_project and not other) else soft).append(u)
+        forced = u["matched_by"] == "core_key"
+        (hard if strict or forced or (is_project and not other) else soft).append(u)
     if hard:
         labels = ", ".join(_core_label(u) for u in hard)    # 까닭은 해석 줄 · '범위에서 뺐다' 줄에 이미 있다
-        return ("in_core_no_local_data",
-                f"알아들었지만 이 서버의 제품에 잇지 못한 {labels} — 범위 없이 찾으면 다른 제품의 글이 섞이니 넓히지 않고 "
+        return (hard[0]["reason"],
+                f"이 서버의 제품에 잇지 못한 {labels} — 범위 없이 찾으면 다른 제품의 글이 섞이니 넓히지 않고 "
                 "0건으로 돌려준다" + (" (strict)" if strict else "")), []
     if strict and sc["unknown"]:
         return ("product_not_in_catalog",
@@ -587,19 +589,22 @@ def _dedup(rows: List[Dict], limit: int) -> List[Dict]:
 
 async def semantic_search_tool(query: str, product_code: Optional[str] = None, limit: int = 30,
                                days: Optional[int] = None, order: str = "relevance",
-                               match: str = "auto", strict: bool = False) -> Dict:
+                               match: str = "auto", strict: bool = False, core_type: Optional[str] = None,
+                               core_key: Optional[str] = None) -> Dict:
     """질의 해석 + 결과.
 
     순서 — 사전 해석 → 범위 → (증상이 없으면) LLM 개념 추론 → 질의 임베딩 → SQL.
     개념도 벡터도 없으면 예전 키워드 검색(strategy='keyword')이다.
     알아들은 범위 말(PLM 프로젝트 · 과제)을 못 걸면 넓히지 않고 0건 + reason 이다(_scope_stop). strict 면 못 이은 과제 ·
     카탈로그에 없는 제품도 그렇다 — 아니면 낱말 검색으로 물러나고 notes 에 한 줄을 적는다(SFO-1 · 2).
+    core_type · core_key 를 주면 질의 낱말과 따로 그 코어 객체의 제품을 범위로 건다(SFO-5) — 못 풀면 늘 0건 + reason.
     """
     limit = max(1, min(int(limit or 30), 100))
     t0 = time.monotonic()
     async with get_db_session() as db:
         cat = await _load_catalog(db)
-        it = O.interpret(query, channel_lexicon=cat["lexicon"], plm=P.mirror())
+        it = O.interpret(query, channel_lexicon=cat["lexicon"], plm=P.mirror(),
+                         core=(core_type, core_key) if (core_type or core_key) else None)
         sc = _resolve(it, cat, product_code)
         stop, soft = _scope_stop(it, sc, cat, product_code, strict)
         if stop:
