@@ -234,3 +234,33 @@ def test_rootdesign_style_key_is_name_code_in_task_code_and_aliases():
     assert idx.by_name["델타"] == ["델타"]
     assert idx.models["SM-S938N_KOR"]["model_code"] == "SM-S938N" and idx.by_model["sm-s938n"] == "SM-S938N_KOR"
     assert idx.tasks["감마_C2"]["display"] == "TK-77(감마_C2)"
+
+
+def test_project_index_and_models_linked_through_old_task_keys():
+    """프로젝트 key · 옛 key · 이름 → 프로젝트, 프로젝트 → 과제 → 개발모델(SFO-1). 개발모델의 과제 참조가 옛 과제 key 여도
+    잇는다 — 예전에는 지금 key 와만 맞춰 개명 · 합쳐진 과제의 모델이 빠졌다. 별칭(마케팅명)은 프로젝트 색인에 넣지 않는다
+    (제품 이름 질의를 PLM 이 가로채지 않게 — 주의용 project_names 에만)."""
+    data = {
+        "plm_project": [{"key": "PRJ-P1", "label": "피원 프로젝트", "previous_keys": ["PRJ-P0"],
+                         "properties": {"aliases": ["Galaxy Z Fold8"]}},
+                        {"key": "PRJ-P2", "label": "이", "properties": {}}],
+        "plm_task": [{"key": "TK-A", "label": "과제A", "properties": {"project": "PRJ-P0"}, "previous_keys": ["TK-A-OLD"]},
+                     {"key": "TK-B", "label": "과제B", "properties": {"project": "PRJ-P1"}},
+                     {"key": "TK-C", "label": "과제C", "properties": {"project": "PRJ-P2"}}],
+        "plm_model": [{"key": "M-A", "properties": {"task": "TK-A-OLD", "model_code": "SM-F971B"}},
+                      {"key": "M-B", "properties": {"task": "TK-B", "model_code": "SM-S938B"}},
+                      {"key": "M-X", "properties": {"task": "NO-SUCH", "model_code": "SM-S938N"}},
+                      {"key": "M-N", "properties": {"task": None}}],
+    }
+    idx = P.PlmIndex.from_rows(data)
+    assert idx.models["M-A"]["task"] == "TK-A" and [m["key"] for m in idx.task_models("TK-A")] == ["M-A"], "옛 과제 key 로도"
+    assert idx.project_tasks == {"PRJ-P1": ["TK-A", "TK-B"], "PRJ-P2": ["TK-C"]}, "옛 프로젝트 key 를 가리키는 과제도"
+    assert [m["key"] for m in idx.project_models("PRJ-P1")] == ["M-A", "M-B"] and idx.project_models("PRJ-P2") == []
+    assert idx.project_models("NO-SUCH") == []
+    assert idx.by_project["prj-p1"] == [("PRJ-P1", "key")] and idx.by_project["prj-p0"] == [("PRJ-P1", "old_key")]
+    assert idx.by_project["피원 프로젝트"] == [("PRJ-P1", "label")] and idx.project_multi_names == ["피원 프로젝트"]
+    assert idx.by_project["prj-p2"] == [("PRJ-P2", "key")]
+    assert "이" not in idx.by_project and "galaxy z fold8" not in idx.by_project, "세 글자 미만 이름 · 별칭은 넣지 않는다"
+    assert idx.project_names["galaxy z fold8"] == ["PRJ-P1"], "별칭은 주의(SG-04)에는 그대로 쓴다"
+    assert (idx.project_key("PRJ-P0"), idx.project_key("PRJ-P1"), idx.project_key("NOPE")) == ("PRJ-P1", "PRJ-P1", None)
+    assert (idx.task_key("TK-A-OLD"), idx.task_key("TK-B"), idx.task_key("NOPE")) == ("TK-A", "TK-B", None), "SFO-5 코어 key"

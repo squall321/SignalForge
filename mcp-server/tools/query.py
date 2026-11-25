@@ -1,7 +1,7 @@
 """MCP Query Tools — VOC 조회"""
 import re
 
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from datetime import datetime
 import os
 from db import get_db_session
@@ -322,8 +322,44 @@ def _plm_caution_for(keyword: str, codes: List[str]) -> Optional[dict]:
     plm = _P.mirror()
     if not plm:
         return None
-    it = _O.interpret(keyword, plm=plm)            # 질의가 과제·개발모델로 짚은 것까지
-    return _O.plm_caution(plm, codes, it.norm, it.plm_tasks)
+    it = _O.interpret(keyword, plm=plm)            # 질의가 과제·개발모델 · 프로젝트 key 로 짚은 것까지
+    return _O.plm_caution(plm, codes, it.norm, it.plm_tasks, it.plm_projects)
+
+
+def _plm_resolve(keyword: str) -> Tuple[dict, List[str]]:
+    """키워드를 PLM 거울로 푼다(SFO-1) — (푼 길, 제품 코드). 프로젝트 key · 옛 key · 이름, 과제코드 · 과제명, 개발모델명 ·
+    모델코드 → 개발모델 → 모델코드 사전 → 제품. 거울이 없거나 PLM 말이 아니면 ({}, [])."""
+    try:
+        import ontology as _O                     # ontology 가 /crawler 경로를 잡는다
+        from base import plm_mirror as _P
+    except Exception:  # noqa: BLE001
+        return {}, []
+    plm = _P.mirror()
+    if not plm:
+        return {}, []
+    it = _O.interpret(keyword, plm=plm)
+    return _O.core_route(it), list(dict.fromkeys(c for m in it.plm_matches for c in m["products"]))
+
+
+def _name_route(keyword: str, code: str, via: str) -> dict:
+    """카탈로그 이름 · 별칭 사전으로 푼 resolve 의 푼 길(SFO-3). 해석이 같은 제품을 사전으로 잡았으면 그 matched_by ·
+    core_key(마케팅명이 코어 프로젝트의 별칭이면 그 프로젝트 — 거울이 있을 때)를 쓰고, 못 잡았으면 matched_by 만
+    (키워드가 제품 코드면 product_code)."""
+    nm = None
+    try:
+        import ontology as _O                     # ontology 가 /crawler 경로를 잡는다
+        from base import plm_mirror as _P
+    except Exception:  # noqa: BLE001
+        _O = None
+    if _O is not None:
+        it = _O.interpret(keyword, plm=_P.mirror())
+        nm = next((m for m in it.name_matches if code in m["products"]), None)
+    res = {"core_key": nm["core_key"] if nm else None, "label": nm["label"] if nm else None,
+           "matched_by": nm["matched_by"] if nm else (
+               "product_code" if _norm_name(keyword) == _norm_name(code) else "marketing_name"),
+           "via": via, "products": [code], "raw": keyword,
+           **({"core_candidates": nm["core_candidates"]} if nm and nm.get("core_candidates") else {})}
+    return {"core_key": res["core_key"], "matched_by": res["matched_by"], "via": via, "resolutions": [res]}
 
 
 _BY_CODES_SQL = text("""
@@ -371,6 +407,7 @@ async def resolve_product_keyword_tool(keyword: str) -> dict:
     kw_clause, kw_params, used_match = _keyword_clause(keyword)
     _nk = _norm_name(keyword)
     via = "catalog_name"
+    route, plm_codes, plm_found = {}, [], []
     async with get_db_session() as db:
         matches = [dict(r) for r in (await db.execute(
             _RESOLVE_SQL, {"k": _nk, "klike": f"%{_nk}%"})).mappings().all()]
@@ -384,9 +421,24 @@ async def resolve_product_keyword_tool(keyword: str) -> dict:
                 if alias:
                     matches = alias + [m for m in matches if m["code"] not in found]
                     via = "alias"
+        if via != "alias" and (not matches or not matches[0]["exact"]):
+            # 그래도 없으면 PLM 거울로 — 프로젝트 · 과제 · 개발모델 → 제품(SFO-1). 예전에는 PLM 을 주의에만 써서
+            # 프로젝트 key · 과제코드도 no_catalog_match 였다(11-24 실측)
+            route, plm_codes = _plm_resolve(keyword)
+            if plm_codes:
+                found = {r["code"]: dict(r) for r in (await db.execute(
+                    _BY_CODES_SQL, {"codes": plm_codes})).mappings().all()}
+                plm_found = [found[c] for c in plm_codes if c in found]
+                if plm_found:
+                    matches = plm_found + [m for m in matches if m["code"] not in found]
+                    via = "plm"
         kw_count, kw_exact = await _keyword_hits(db, kw_clause, kw_params)
 
     best = matches[0] if matches else None
+    if route and via == "catalog_name" and best and not best["exact"]:
+        best = None                                     # PLM 이 알아들은 말 — 이름 부분일치는 답이 아니다(후보로만)
+    if best and via != "plm":
+        route = _name_route(keyword, best["code"], via)   # 카탈로그 · 별칭으로 푼 것도 푼 길 칸을 싣는다(SFO-3)
     hits_txt = (f"{kw_count:,}건" if kw_exact else f"약 {kw_count:,}건(시간 상한을 넘겨 {_SAMPLE_PCT}% 표본으로 어림)"
                 if kw_count is not None else "건수 미상(시간 상한 안에 세지 못함)")
     out = {
@@ -399,13 +451,23 @@ async def resolve_product_keyword_tool(keyword: str) -> dict:
         "resolved_via": via if best else None,
         "tagged_count": best["tagged_count"] if best else None,
         "status": "resolved" if best else "no_catalog_match",
+        **route,
     }
-    caution = _plm_caution_for(keyword, [best["code"]]) if best else None
+    plm_codes_out = [m["code"] for m in plm_found] if via == "plm" else []
+    if plm_codes_out:
+        out["resolved_codes"] = plm_codes_out           # 프로젝트 하나가 제품 여럿으로 풀린다 — candidates 는 5개까지
+    caution = _plm_caution_for(keyword, plm_codes_out or [best["code"]]) if best else None
     if caution:
         out["plm_caution"] = caution
     if best and best["tagged_count"] == 0 and (kw_count or 0) > 0:
         out["status"] = "no_tagged_records"
         out["note"] = no_tagged_note(best["code"], kw_count, keyword, used_match)
+    elif best and via == "plm":
+        out["note"] = (
+            f"키워드 '{keyword}' 는 PLM 으로 풀었다(matched_by {route['matched_by']} · via {route['via']}) → 제품 "
+            f"{', '.join(plm_codes_out)}. 키워드 검색 {hits_txt} vs 첫 제품 {best['code']} 태깅 "
+            f"{best['tagged_count']:,}건. search_voc 에 이 말을 그대로 넣으면 그 제품 범위로 찾는다."
+        )
     elif best:
         gap = f"(차이 {best['tagged_count'] - kw_count:+d})" if kw_exact else ""
         out["note"] = (
@@ -414,6 +476,17 @@ async def resolve_product_keyword_tool(keyword: str) -> dict:
             f"키워드 검색 {hits_txt} vs 제품 태깅 {best['tagged_count']:,}건{gap}. 제품 단위 질문이면 "
             f"search_voc(product_code='{best['code']}') 또는 제품 축 통계를 쓰는 것이 "
             f"표기에 흔들리지 않는다."
+        )
+    elif route:
+        # PLM 이 알아들었지만 이 서버의 제품에 못 이었다 — 넓혀 짐작하지 않고 까닭을 준다(SFO-1, ODB find_job 꼴)
+        import ontology as _O                     # route 가 있으면 _plm_resolve 가 이미 import 했다
+        why = (" · ".join(u["detail"] for u in route.get("core_unresolved", []))
+               or f"이 서버 카탈로그에 없는 제품 {', '.join(plm_codes)}")
+        ck = route["core_key"]
+        out["reason"] = "in_core_no_local_data"
+        out["note"] = (
+            f"'{keyword}' 는 PLM {_O.PLM_KIND.get(ck['type_slug'], ck['type_slug'])} {ck['key']} 로 알아들었지만 이 서버의 "
+            f"제품에 잇지 못했다({why}). 일반 키워드로 보면 {used_match} 경로로 {hits_txt}이다."
         )
     else:
         out["note"] = (

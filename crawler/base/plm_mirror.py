@@ -333,9 +333,38 @@ class PlmIndex:
                 f = _fold(str(n))
                 if len(f) >= 3 and pk not in self.project_names.setdefault(f, []):
                     self.project_names[f].append(pk)
+        # 개발모델의 과제 참조도 옛 key 일 수 있다(과제 개명 · 합쳐짐) — 프로젝트처럼 옛 key 로도 잇는다(키트 §2-4).
+        # 예전에는 지금 key 와만 맞춰 개명 · 합쳐진 과제의 모델이 빠졌다(2026-11-25 SFO 조사)
+        self._task_by_old: Dict[str, str] = {}
+        for tk, t in self.tasks.items():
+            for old in t["previous_keys"]:
+                self._task_by_old.setdefault(str(old), tk)
         for m in self.models.values():
-            if m["task"] in self.tasks:
-                self.tasks[m["task"]]["models"].append(m["key"])
+            ref = m["task"]
+            tk = (ref if ref in self.tasks else self._task_by_old.get(ref)) if isinstance(ref, str) and ref else None
+            if tk:
+                m["task"] = tk
+                self.tasks[tk]["models"].append(m["key"])
+        # 프로젝트 key · 옛 key · 이름 → 프로젝트, 프로젝트 → 과제(SFO-1). 질의가 프로젝트를 짚으면 그 과제들의 제품으로 푼다.
+        # 별칭(마케팅명)은 넣지 않는다 — 'Galaxy S26' 같은 제품 이름 질의를 PLM 이 가로채 범위가 바뀐다(주의 project_names 만)
+        self.project_tasks: Dict[str, List[str]] = {}
+        for tk in self.tasks:
+            pk = self.project_of(tk)
+            if pk in self.project_info:
+                self.project_tasks.setdefault(pk, []).append(tk)
+        self.by_project: Dict[str, List[Tuple[str, str]]] = {}     # fold → [(프로젝트 key, 'key' | 'old_key' | 'label')]
+
+        def add_project(name, pk: str, how: str, minlen: int):
+            f = _fold(str(name))
+            if len(f) >= minlen and all(p != pk for p, _ in self.by_project.get(f, [])):
+                self.by_project.setdefault(f, []).append((pk, how))
+
+        for pk, pi in self.project_info.items():
+            add_project(pk, pk, "key", 2)
+            for old in pi["previous_keys"]:
+                add_project(old, pk, "old_key", 2)
+            add_project(pi["label"], pk, "label", 3)
+        self.project_multi_names: List[str] = sorted((n for n in self.by_project if " " in n), key=len, reverse=True)
         self.key_is_name = any(t["task_code"] for t in self.tasks.values())
         self.by_code: Dict[str, str] = {}
         self.by_name: Dict[str, List[str]] = {}
@@ -378,9 +407,21 @@ class PlmIndex:
             return None
         return ref if ref in self.project_info else self._project_by_old.get(ref, ref)
 
+    def project_key(self, key: str) -> Optional[str]:
+        """프로젝트의 지금 key — 옛 key(개명 · 합쳐짐)도 받는다(SFO-5 코어 key 로 찾기). 거울에 없으면 None."""
+        return key if key in self.project_info else self._project_by_old.get(key)
+
+    def task_key(self, key: str) -> Optional[str]:
+        """과제의 지금 key — 옛 key 도 받는다. 거울에 없으면 None."""
+        return key if key in self.tasks else self._task_by_old.get(key)
+
     def task_models(self, task_key: str) -> List[dict]:
         t = self.tasks.get(task_key)
         return [self.models[k] for k in (t["models"] if t else [])]
+
+    def project_models(self, project_key: str) -> List[dict]:
+        """프로젝트의 과제들의 개발모델(SFO-1)."""
+        return [m for tk in self.project_tasks.get(project_key, []) for m in self.task_models(tk)]
 
 
 _cache: Dict[str, Tuple[float, float, Optional[PlmIndex]]] = {}
