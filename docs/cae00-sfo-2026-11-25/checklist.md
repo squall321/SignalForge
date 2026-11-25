@@ -37,4 +37,5 @@ SFO-3 → SFO-5 → SFO-4(운영 쪽 답 R25-Q4 뒤) → HP-71. 5차 라운드 �
       bash 가 읽으니 따옴표로, 바꾸지 않은 주소는 네트워크 전에 막힘 확인
 - [x] 시험 전체 — crawler 2,040 통과(실패 넷 무관) · MCP 212 통과(worktree · main 둘 다) · backend 는 코드를 안 건드려 안 돌림
 - [x] 가지 커밋 · 동결 해제(hwaxportal-71, 2026-11-25) 뒤 main 으로 --no-ff 병합 `1ea7aa3` · cae00 문서 `docs/DEPLOY_CAE00_2026-11-25.md`
-- [ ] push · 포털(hwaxportal-71)에 착지 알림 다섯 가지(push 뒤 해시 · Drive · SIF sha256 · 운영 손일 · DB 이관)
+- [x] push `4e44497` · dev sf-mcp 다시 띄움(살아 있는 서버에서 새 인자 · 응답 칸 확인) · 포털(hwaxportal-71)에 착지 알림 다섯 가지
+      (push 뒤 해시 · Drive 그대로 · SIF 변경 없음 — 허브 캐시 열쇠 해당 없음 · 운영 손일 · DB 이관 없음)
