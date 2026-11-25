@@ -35,4 +35,6 @@ SFO-3 → SFO-5 → SFO-4(운영 쪽 답 R25-Q4 뒤) → HP-71. 5차 라운드 �
 - [ ] SFO-4(R25-Q4 답 뒤)
 - [x] HP-71 — `.env.example` 에 SF_SP_CORE_URL(포털 경로 꼴 · rootdesign 두 번인 까닭 한 줄) · NO_PROXY 포털 도메인 자리표시 —
       bash 가 읽으니 따옴표로, 바꾸지 않은 주소는 네트워크 전에 막힘 확인
-- [ ] 시험 전체(crawler · MCP · backend) · 가지 커밋 · 동결 풀리면 main 으로 · 포털에 착지 알림 · cae00 문서
+- [x] 시험 전체 — crawler 2,040 통과(실패 넷 무관) · MCP 212 통과(worktree · main 둘 다) · backend 는 코드를 안 건드려 안 돌림
+- [x] 가지 커밋 · 동결 해제(hwaxportal-71, 2026-11-25) 뒤 main 으로 --no-ff 병합 `1ea7aa3` · cae00 문서 `docs/DEPLOY_CAE00_2026-11-25.md`
+- [ ] push · 포털(hwaxportal-71)에 착지 알림 다섯 가지(push 뒤 해시 · Drive · SIF sha256 · 운영 손일 · DB 이관)

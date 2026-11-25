@@ -73,6 +73,11 @@
   있어도 requests 가 InvalidURL 로 네트워크 전에 막는다(토큰이 밖으로 나가지 않는다). NO_PROXY 를 채워도 스크립트가
   localhost · 127.0.0.1 · ::1 을 늘 덧붙인다(`export_proxy`).
 
+- **SP 키트 확인(2026-11-25 병합 전)** — SP main HEAD a70c4de → a6feab5(9커밋 — 온톨로지 넣기 · 관리, 키 · slug 변경 · 정의 제안),
+  KIT_VERSION 은 2026-11-06 그대로이고 `coreapi` · 키트 파일 변경이 없어 받는 쪽에 닿지 않는다. 키트 폴더 그대로.
+- **배포** — 코드는 바인드라 이미지(SIF) · Drive 그대로, DB 이관 없음, PLM 다시 받기 없음(색인은 이미 받은 사본에서 짓는다).
+  cae00 은 코드 받기 · sf-mcp 다시 띄우기 · 확인만(`docs/DEPLOY_CAE00_2026-11-25.md`).
+
 ## 시험 돌리기 (worktree)
 
 - 크롤러 이미지에는 pytest 가 없다(이미지가 사용자 site 를 끈다 — SG-01 뒤) — 스크래치에 `pip install --target <dir> pytest` 해 둔
