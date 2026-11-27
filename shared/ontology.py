@@ -300,6 +300,24 @@ CATEGORY_TEXT: Dict[str, List[str]] = {
     "buds": ["earbuds", "galaxy buds", "airpods"], "laptop": ["laptop", "galaxy book"],
     "ring": ["galaxy ring", "smart ring"], "phone": ["phone", "smartphone"],
 }
+# 경쟁사 브랜드 서브레딧 — 서브레딧 → (브랜드, 기기, 브랜드 대표 제품 코드). 글의 60% 는 모델 이름이 없어('my watch') 제품
+# 링크가 안 붙는다. 질의가 그 브랜드와 기기를 함께 짚었거나('애플워치' · '가민 워치') 대표 제품으로 풀리면 그 서브레딧의 제품
+# 링크 없는 글도 범위에 넣는다 — 데이터는 그대로다(사용자 결정 2026-11-27). 브랜드만으로는 넣지 않는다 — '아이폰 배터리' 도
+# 브랜드 apple 로만 풀려 애플워치 글이 섞였다. 서브레딧은 글의 source_url(/r/<이름>/)에만 있다.
+SUBREDDIT_SCOPE: Dict[str, Tuple[str, Optional[str], Optional[str]]] = {
+    "AppleWatch": ("apple", "watch", None), "airpods": ("apple", "buds", None),
+    "PixelWatch": ("google", "watch", None), "Garmin": ("garmin", "watch", None),
+    "ouraring": ("oura", "ring", "OURA"), "whoop": ("whoop", None, "WHP"), "RaybanMeta": ("meta", None, "MRB"),
+}
+
+
+def subreddit_scope(brands: Iterable[str], categories: Iterable[str], product_codes: Iterable[str]) -> List[str]:
+    """범위에 넣을 브랜드 서브레딧 — 브랜드와 기기가 함께 맞을 때, 또는 대표 제품 코드로 풀렸을 때."""
+    brands, cats, codes = set(brands), set(categories), set(product_codes)
+    return [sub for sub, (brand, cat, code) in SUBREDDIT_SCOPE.items()
+            if (brand in brands and cat in cats) or (code and code in codes)]
+
+
 # 시장 — (code, 단어 정규식(대소문자 무시), 약어 정규식(대소문자 구분), 언어)
 # 국가 필드는 플랫폼 기본값(US 96%)이 많아, 해당 언어 글도 그 시장으로 본다.
 MARKETS: List[Tuple[str, str, Optional[str], Optional[str]]] = [

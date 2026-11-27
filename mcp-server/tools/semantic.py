@@ -129,7 +129,7 @@ def _resolve(it: "O.Interpretation", cat: Dict, product_code: Optional[str]) -> 
     if it.channels and not [p for p in cat["platforms"] if p["code"] in set(it.channels)]:
         notes.append(f"수집하지 않는 채널이라 채널 조건을 뺐다: {', '.join(it.channels)}")
 
-    text_groups, broad = [], False
+    text_groups, broad, subs = [], False, []
     if not groups and not product_code and (it.categories or it.brands):
         broad = True
         cats = {c for c, _ in it.categories}
@@ -143,13 +143,23 @@ def _resolve(it: "O.Interpretation", cat: Dict, product_code: Optional[str]) -> 
             text_groups.append([t for b in sorted(brands) for t in O.BRANDS[b][1]])
         if cats:
             text_groups.append([t for c in sorted(cats) for t in O.CATEGORY_TEXT.get(c, [])])
+        subs = O.subreddit_scope(brands, cats, ())
+    else:                       # 브랜드 대표 제품 코드로 풀렸으면(오우라 OURA 등) 좁은 범위에도
+        subs = O.subreddit_scope((), (), [product_code.upper()] if product_code else
+                                 it.products + [c for _, cs in it.product_sets for c in cs])
+    # 브랜드 서브레딧의 제품 링크 없는 글('my watch') — 모델 이름이 없어 링크가 안 붙는다(사용자 결정 2026-11-27)
+    sub_pids = [p["id"] for p in cat["platforms"] if p["code"] in ("reddit", "reddit_rss")]
+    sub_urls = [f"%/r/{x.lower()}/%" for x in subs] if sub_pids else []
+    if sub_urls:
+        labels.append("브랜드 서브레딧의 제품 링크 없는 글(" + ", ".join(f"r/{x}" for x in subs) + ")")
 
     compare_all = it.compare_all and len(groups) >= 2 and not product_code
     pids = sorted({i for g in groups for i in g})
     plat_ids = [p["id"] for p in cat["platforms"] if p["code"] in set(it.channels)]
     return {"pids": pids, "groups": groups, "labels": labels, "compare_all": compare_all,
             "text_groups": text_groups, "platform_ids": plat_ids, "notes": notes,
-            "scoped": bool(pids) or bool(text_groups), "broad": broad, "unknown": unknown}
+            "scoped": bool(pids) or bool(text_groups) or bool(sub_urls), "broad": broad, "unknown": unknown,
+            "sub_urls": sub_urls, "sub_pids": sub_pids if sub_urls else []}
 
 
 def _core_label(u: Dict) -> str:
@@ -225,6 +235,11 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
     tg = fts_groups_clause(sc["text_groups"], prefix="sg") if sc["text_groups"] else None
     if tg:
         params.update(tg[1])
+    sub_cond = None             # 브랜드 서브레딧의 제품 링크 없는 글(_resolve) — 레딧 플랫폼으로 먼저 좁히고 url 로 가른다
+    if sc.get("sub_urls"):
+        params.update(sub_urls=sc["sub_urls"], sub_pids=sc["sub_pids"])
+        sub_cond = ("v.product_id IS NULL AND v.platform_id = ANY(CAST(:sub_pids AS int[])) "
+                    "AND v.source_url ILIKE ANY(CAST(:sub_urls AS text[]))")
 
     # ── 범위 ──
     filter_scope = sc["broad"] and has_soft and not sc["compare_all"]
@@ -244,6 +259,8 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
                          "WHERE l.product_id = ANY(CAST(:pids AS int[]))")
         if tg:
             parts.append(f"SELECT v.id, 0.25 AS prank FROM voc_active v WHERE v.product_id IS NULL AND {tg[0]}")
+        if sub_cond:
+            parts.append(f"SELECT v.id, 0.2 AS prank FROM voc_active v WHERE {sub_cond}")
         ctes.append("scope AS MATERIALIZED (SELECT id, max(prank) AS prank FROM ("
                     + " UNION ALL ".join(parts) + ") u GROUP BY id)")
     has_scope = bool(ctes)
@@ -378,6 +395,8 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
             conds.append(cl)
             params.update(p)
         flag("f_brandtext", "v.product_id IS NULL AND " + " AND ".join(conds) if conds else "FALSE", 0.25)
+        if sub_cond:
+            flag("f_subreddit", sub_cond, 0.2)
     if it.boost_components:
         params["bcomps"] = it.boost_components
         flag("f_bcomp", "EXISTS (SELECT 1 FROM voc_defects d2 WHERE d2.voc_id = v.id "
@@ -410,7 +429,8 @@ def _build_sql(it: "O.Interpretation", sc: Dict, *, limit: int, days: Optional[i
              f"FROM cand c JOIN voc_active v ON v.id = c.id{scope_join}{vec_join} "
              f"WHERE {' AND '.join(inner_where)}")
     if filter_scope:     # 넓은 범위 — 그 브랜드·기기에 링크됐거나, 태그 없이 이름이 나오는 글
-        inner = (f"SELECT * FROM ({inner}) z0 WHERE z0.prank IS NOT NULL OR z0.f_brandtext")
+        inner = (f"SELECT * FROM ({inner}) z0 WHERE z0.prank IS NOT NULL OR z0.f_brandtext"
+                 + (" OR z0.f_subreddit" if sub_cond else ""))
     sql = f"""WITH {', '.join(ctes)},
 ranked AS (
   SELECT z.*, ({' + '.join(score)}) AS score, count(*) OVER () AS total
@@ -526,7 +546,8 @@ _SRC_LABEL = {"S": "결함 주석(증상)", "C": "결함 주석(부품)", "TS": 
               "TC": "본문(부품 동의어)", "T": "주제 주석", "P": "제품 범위", "F": "필터"}
 
 
-_PRANK_LABEL = {2.0: "대표 제품", 1.0: "비교 대상 제품", 0.5: "언급된 제품", 0.25: "브랜드·기기 이름(태그 없음)"}
+_PRANK_LABEL = {2.0: "대표 제품", 1.0: "비교 대상 제품", 0.5: "언급된 제품", 0.25: "브랜드·기기 이름(태그 없음)",
+                0.2: "브랜드 서브레딧 글(태그 없음)"}
 
 
 def _explain_row(r: Dict, it: "O.Interpretation") -> List[str]:
@@ -537,6 +558,8 @@ def _explain_row(r: Dict, it: "O.Interpretation") -> List[str]:
         out.append(_PRANK_LABEL.get(float(r["prank"]), "제품 범위"))
     elif r.get("f_brandtext"):
         out.append(_PRANK_LABEL[0.25])
+    elif r.get("f_subreddit"):
+        out.append(_PRANK_LABEL[0.2])
     if r.get("f_bcomp"):
         out.append("결함 주석(관련 부품)")
     if r.get("f_btopic"):
