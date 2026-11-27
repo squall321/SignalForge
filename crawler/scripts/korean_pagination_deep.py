@@ -25,7 +25,7 @@
 
 실행:
   cd crawler
-  DATABASE_URL=postgresql://signalforge:signalforge_pass@127.0.0.1:5434/signalforge \\
+  DATABASE_URL=postgresql://signalforge:$POSTGRES_PASSWORD@127.0.0.1:5434/signalforge \\
     ../.venv/bin/python scripts/korean_pagination_deep.py
 """
 from __future__ import annotations
@@ -50,6 +50,7 @@ for _site in ("CLIEN", "DCINSIDE", "PPOMPPU", "FMKOREA", "DOGDRIP"):
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base.audit import audit_round  # noqa: E402  (Harvest3 트랙 P2: start/end 자동 보장)
+from base.pg_env import pg_password  # noqa: E402
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -86,7 +87,7 @@ def _psql_scalar(sql: str) -> str:
         out = subprocess.run(
             ["psql", "-h", "127.0.0.1", "-p", "5434", "-U", "signalforge",
              "-d", "signalforge", "-tA", "-c", sql],
-            env={**os.environ, "PGPASSWORD": "signalforge_pass"},
+            env={**os.environ, "PGPASSWORD": pg_password()},
             capture_output=True, text=True, timeout=20,
         )
         return out.stdout.strip() or "?"

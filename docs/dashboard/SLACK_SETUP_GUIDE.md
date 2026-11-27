@@ -77,7 +77,7 @@ curl -s http://127.0.0.1:8000/api/v1/alerts/channels | jq .
 
 ```bash
 cd /home/koopark/claude/SignalForge/crawler
-DATABASE_URL="postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge" \
+DATABASE_URL="postgresql+asyncpg://signalforge:$POSTGRES_PASSWORD@127.0.0.1:5434/signalforge" \
 ALERT_WEBHOOK_URL="https://hooks.slack.com/services/T/B/X" \
 python -m insight.slack_notifier --limit 3
 ```

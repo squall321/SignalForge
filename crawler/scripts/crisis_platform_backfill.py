@@ -58,6 +58,7 @@ import httpx
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base.crawler import RawVOC  # noqa: E402
+from base.pg_env import pg_password  # noqa: E402
 
 # v2/v1 search 인프라 재사용
 from scripts.crisis_backfill_v2 import (  # noqa: E402
@@ -387,7 +388,7 @@ def _psql(sql: str) -> str:
         out = subprocess.run(
             ["psql", "-h", "127.0.0.1", "-p", "5434", "-U", "signalforge",
              "-d", "signalforge", "-tA", "-c", sql],
-            env={**os.environ, "PGPASSWORD": "signalforge_pass"},
+            env={**os.environ, "PGPASSWORD": pg_password()},
             capture_output=True, text=True, timeout=30,
         )
         return out.stdout.strip()

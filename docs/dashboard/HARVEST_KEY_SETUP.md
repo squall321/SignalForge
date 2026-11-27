@@ -180,7 +180,7 @@ OR crawler dispatcher 직접:
 
 ```bash
 cd /home/koopark/claude/SignalForge/crawler
-DATABASE_URL="postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge" \
+DATABASE_URL="postgresql+asyncpg://signalforge:$POSTGRES_PASSWORD@127.0.0.1:5434/signalforge" \
 ALERT_WEBHOOK_URL="https://hooks.slack.com/services/..." \
 /home/koopark/claude/SignalForge/.venv/bin/python -m insight.slack_notifier --limit 3
 ```

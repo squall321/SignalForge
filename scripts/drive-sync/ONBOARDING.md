@@ -86,7 +86,7 @@ bash backup-to-drive.sh
 bash sync-from-drive.sh
 
 # row count 비교
-PGPASSWORD=signalforge_pass psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
   -c "SELECT count(*) FROM voc_records;"
 ```
 

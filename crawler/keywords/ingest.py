@@ -41,9 +41,10 @@ def _resolve_dsn() -> str:
         url = "postgres://" + url[len("postgres+asyncpg://"):]
     if url:
         return url
+    from base.pg_env import pg_password
     return (
         f"postgresql://{os.getenv('POSTGRES_USER','signalforge')}:"
-        f"{os.getenv('POSTGRES_PASSWORD','signalforge_pass')}@"
+        f"{pg_password()}@"
         f"{os.getenv('POSTGRES_HOST','127.0.0.1')}:"
         f"{os.getenv('POSTGRES_PORT','5434')}/"
         f"{os.getenv('POSTGRES_DB','signalforge')}"

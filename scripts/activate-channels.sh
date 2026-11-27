@@ -47,7 +47,7 @@ set +a
 POSTGRES_HOST="${POSTGRES_HOST:-127.0.0.1}"
 POSTGRES_PORT="${POSTGRES_PORT:-5434}"
 POSTGRES_USER="${POSTGRES_USER:-signalforge}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-signalforge_pass}"
+: "${POSTGRES_PASSWORD:?.env 의 POSTGRES_PASSWORD 가 비었다}"
 POSTGRES_DB="${POSTGRES_DB:-signalforge}"
 
 # ── DB UPDATE 유틸 ──────────────────────────────────────────────────

@@ -18,7 +18,7 @@ case "$CMD" in
     migrate)
         echo "==> Alembic 마이그레이션 실행..."
         apptainer exec \
-            --env "DATABASE_URL=postgresql+asyncpg://signalforge:${POSTGRES_PASSWORD:-signalforge_pass}@localhost:5432/signalforge" \
+            --env "DATABASE_URL=postgresql+asyncpg://signalforge:${POSTGRES_PASSWORD:?.env 의 POSTGRES_PASSWORD 가 비었다}@localhost:5432/signalforge" \
             --bind "$PROJECT_ROOT/backend:/app" \
             "$SIF_DIR/backend.sif" \
             sh -c "cd /app && alembic upgrade head"
@@ -27,7 +27,7 @@ case "$CMD" in
     seed)
         echo "==> 마스터 데이터 시딩..."
         apptainer exec \
-            --env "DATABASE_URL=postgresql+asyncpg://signalforge:${POSTGRES_PASSWORD:-signalforge_pass}@localhost:5432/signalforge" \
+            --env "DATABASE_URL=postgresql+asyncpg://signalforge:${POSTGRES_PASSWORD:?.env 의 POSTGRES_PASSWORD 가 비었다}@localhost:5432/signalforge" \
             --bind "$PROJECT_ROOT/backend:/app" \
             "$SIF_DIR/backend.sif" \
             sh -c "cd /app && python -m app.seeds.seed_master"
@@ -41,7 +41,7 @@ case "$CMD" in
             exit 0
         fi
         apptainer exec \
-            --env "DATABASE_URL=postgresql+asyncpg://signalforge:${POSTGRES_PASSWORD:-signalforge_pass}@localhost:5432/signalforge" \
+            --env "DATABASE_URL=postgresql+asyncpg://signalforge:${POSTGRES_PASSWORD:?.env 의 POSTGRES_PASSWORD 가 비었다}@localhost:5432/signalforge" \
             --bind "$PROJECT_ROOT/backend:/app" \
             "$SIF_DIR/backend.sif" \
             sh -c "cd /app && alembic downgrade base && alembic upgrade head"

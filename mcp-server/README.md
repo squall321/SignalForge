@@ -106,6 +106,6 @@ MCP 도구를 쓰면 아래가 전부 가려지지만, DB 를 직접 건드릴 �
 `apptainer exec` 는 instance 의 `--env` 를 상속 안 함 → 접속 정보를 직접 넘긴다.
 
 ```bash
-apptainer exec --env PGPASSWORD=signalforge_pass instance://sf_postgres \
+apptainer exec --env PGPASSWORD="$POSTGRES_PASSWORD" instance://sf_postgres \
   psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge -tAc "SELECT count(*) FROM voc_records"
 ```

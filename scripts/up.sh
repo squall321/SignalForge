@@ -7,6 +7,10 @@ set -euo pipefail
 # shellcheck source=/dev/null
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 load_env
+# 비밀번호가 비면 멈춘다 — 예시의 공개 기본값을 없앴다(2026-11-27). 새 pgdata 는 빈 비밀번호로 초기화되지 않고,
+# 있는 pgdata 는 scram 이라 붙지 못한다 — 서비스가 하나씩 실패하기 전에 여기서 알린다
+[[ -n "${POSTGRES_PASSWORD:-}" ]] || { echo "[ERROR] .env 의 POSTGRES_PASSWORD 가 비었다 — " \
+  "python3 -c 'import secrets; print(secrets.token_hex(24))' 로 만들어 적는다" >&2; exit 1; }
 export_proxy
 require_apptainer
 ensure_dirs

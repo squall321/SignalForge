@@ -78,7 +78,8 @@ def _psql_count() -> int:
         "= (SELECT id FROM platforms WHERE code='xda');",
     ]
     env = os.environ.copy()
-    env.setdefault("PGPASSWORD", "signalforge_pass")
+    from base.pg_env import pg_password
+    env.setdefault("PGPASSWORD", pg_password())
     try:
         out = subprocess.run(
             cmd, env=env, capture_output=True, text=True, timeout=20
@@ -103,7 +104,8 @@ def _activate_platform() -> bool:
         "RETURNING id;",
     ]
     env = os.environ.copy()
-    env.setdefault("PGPASSWORD", "signalforge_pass")
+    from base.pg_env import pg_password
+    env.setdefault("PGPASSWORD", pg_password())
     try:
         out = subprocess.run(
             cmd, env=env, capture_output=True, text=True, timeout=10

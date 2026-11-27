@@ -9,12 +9,15 @@ jobs:
   locust-smoke:
     name: Locust Smoke (10u / 30s)
     runs-on: ubuntu-22.04
+    env:
+      # CI 일회용 DB — 운영 비밀번호와 무관하다(공개 리포의 옛 기본값을 쓰지 않는다, 2026-11-27)
+      DATABASE_URL: postgresql+asyncpg://signalforge:ci-only-not-secret@127.0.0.1:5434/signalforge
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_USER: signalforge
-          POSTGRES_PASSWORD: signalforge_pass
+          POSTGRES_PASSWORD: ci-only-not-secret
           POSTGRES_DB: signalforge
         ports:
           - 5434:5432

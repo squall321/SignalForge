@@ -35,6 +35,7 @@ DRY_RUN = os.getenv("DRY_RUN", "0") == "1"
 # (HN 은 module level constant 들이 env 미지원이라 setattr 로만 처리)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from base.pg_env import pg_password  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 log = logging.getLogger("h1_backfill")
@@ -96,7 +97,7 @@ def _psql_scalar(sql: str) -> str:
         out = subprocess.run(
             ["psql", "-h", "127.0.0.1", "-p", "5434", "-U", "signalforge",
              "-d", "signalforge", "-tA", "-c", sql],
-            env={**os.environ, "PGPASSWORD": "signalforge_pass"},
+            env={**os.environ, "PGPASSWORD": pg_password()},
             capture_output=True, text=True, timeout=20,
         )
         return out.stdout.strip() or "?"

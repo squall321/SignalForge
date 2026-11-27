@@ -10,7 +10,7 @@ P1-3: voc_records → mv_voc_daily 일일 집계 머티리얼라이즈드 뷰.
 - 30분 주기 자동 REFRESH 는 crawler/celery_app.py beat_schedule "refresh-mv-voc-daily-30m" 참조.
 
 수동 재계산(전체 재빌드) 1줄:
-    PGPASSWORD=signalforge_pass psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
+    PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
         -c "REFRESH MATERIALIZED VIEW mv_voc_daily;"
 """
 from alembic import op

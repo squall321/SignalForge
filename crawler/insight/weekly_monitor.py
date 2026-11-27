@@ -84,7 +84,8 @@ def _dsn() -> str:
     host = os.getenv("POSTGRES_HOST", "127.0.0.1")
     port = os.getenv("POSTGRES_PORT", "5434")
     user = os.getenv("POSTGRES_USER", "signalforge")
-    pwd = os.getenv("POSTGRES_PASSWORD", "signalforge_pass")
+    from base.pg_env import pg_password
+    pwd = pg_password()
     db = os.getenv("POSTGRES_DB", "signalforge")
     return f"postgresql://{user}:{pwd}@{host}:{port}/{db}"
 

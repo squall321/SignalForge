@@ -829,7 +829,8 @@ def _refresh_mv(view: str, timeout: int = 300) -> dict:
     # 그 계약을 유지한다(테스트·수동 실행이 env 설정 없이 돌 수 있어야 함).
     url = os.getenv("DATABASE_URL", "")
     if not url:
-        _pw = os.getenv("PGPASSWORD", os.getenv("POSTGRES_PASSWORD", "signalforge_pass"))
+        from base.pg_env import pg_password
+        _pw = pg_password()
         url = (f"postgresql+asyncpg://{os.getenv('POSTGRES_USER', 'signalforge')}:{_pw}"
                f"@{os.getenv('POSTGRES_HOST', '127.0.0.1')}:{os.getenv('POSTGRES_PORT', '5434')}"
                f"/{os.getenv('POSTGRES_DB', 'signalforge')}")
@@ -970,7 +971,8 @@ def evaluate_alert_rules(self):
     import json as _json
     import time
 
-    env = {**os.environ, "PGPASSWORD": os.getenv("PGPASSWORD", "signalforge_pass")}
+    from base.pg_env import pg_password
+    env = {**os.environ, "PGPASSWORD": pg_password()}
     psql_base = [
         "psql", "-h", os.getenv("POSTGRES_HOST", "127.0.0.1"),
         "-p", os.getenv("POSTGRES_PORT", "5434"),
@@ -1508,9 +1510,8 @@ def run_auto_sync_to_drive(self) -> dict:
         # 4) voc_count (best-effort — 실패 시 None)
         voc_count: Optional[int] = None
         try:
-            env = {**os.environ,
-                   "PGPASSWORD": os.getenv("PGPASSWORD",
-                                            os.getenv("POSTGRES_PASSWORD", "signalforge_pass"))}
+            from base.pg_env import pg_password
+            env = {**os.environ, "PGPASSWORD": pg_password()}
             psql_args = [
                 "psql", "-h", os.getenv("POSTGRES_HOST", "127.0.0.1"),
                 "-p", os.getenv("POSTGRES_PORT", "5434"),

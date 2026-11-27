@@ -43,7 +43,7 @@ BLUESKY_PASSWORD=xxxx-xxxx-xxxx-xxxx
 bash /home/koopark/claude/SignalForge/scripts/activate-channels.sh
 
 # 또는 수동
-PGPASSWORD=signalforge_pass psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
   -c "UPDATE platforms SET is_active = true WHERE code = 'bluesky';"
 ```
 

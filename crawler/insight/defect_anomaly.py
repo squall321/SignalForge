@@ -82,7 +82,8 @@ def _dsn() -> str:
     url = os.getenv("DATABASE_URL", "").strip()
     if url:
         return url.replace("postgresql+asyncpg://", "postgresql://")
-    pw = os.getenv("PGPASSWORD", os.getenv("POSTGRES_PASSWORD", "signalforge_pass"))
+    from base.pg_env import pg_password
+    pw = pg_password()
     return (f"postgresql://{os.getenv('POSTGRES_USER', 'signalforge')}:{pw}"
             f"@{os.getenv('POSTGRES_HOST', '127.0.0.1')}:{os.getenv('POSTGRES_PORT', '5434')}"
             f"/{os.getenv('POSTGRES_DB', 'signalforge')}")

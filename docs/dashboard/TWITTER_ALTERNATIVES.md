@@ -48,7 +48,7 @@ cd /home/koopark/claude/SignalForge/backend
 alembic upgrade head
 
 # 2) 활성화 (.env 키 채운 후)
-PGPASSWORD=signalforge_pass psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
   -c "UPDATE platforms SET is_active = true WHERE code = 'bluesky';"
 
 # 3) celery 재시작 (worker + beat)

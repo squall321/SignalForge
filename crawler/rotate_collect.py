@@ -20,6 +20,7 @@ import time
 sys.path.insert(0, os.path.dirname(__file__))
 
 from platforms.clien import ClienCrawler
+from base.pg_env import pg_password  # noqa: E402
 from platforms.ppomppu import PpomppuCrawler
 from platforms.dcinside import DCInsideCrawler
 from platforms.xda import XDACrawler
@@ -72,7 +73,7 @@ def db_total() -> str:
         out = subprocess.run(
             ["psql", "-h", "127.0.0.1", "-p", "5434", "-U", "signalforge",
              "-d", "signalforge", "-tA", "-c", "SELECT count(*) FROM voc_records;"],
-            env={**os.environ, "PGPASSWORD": "signalforge_pass"},
+            env={**os.environ, "PGPASSWORD": pg_password()},
             capture_output=True, text=True, timeout=15,
         )
         return out.stdout.strip() or "?"

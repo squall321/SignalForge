@@ -37,7 +37,7 @@
 cd /home/koopark/claude/SignalForge/mcp-server
 source .venv/bin/activate
 # DATABASE_URL 은 .env 또는 환경변수로
-export DATABASE_URL='postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge'
+export DATABASE_URL="postgresql+asyncpg://signalforge:$POSTGRES_PASSWORD@127.0.0.1:5434/signalforge"
 export MCP_PORT=8002    # 기본 8001, 운영은 8002
 python server.py
 ```
@@ -58,7 +58,7 @@ python server.py
       "command": "/home/koopark/claude/SignalForge/mcp-server/.venv/bin/python",
       "args": ["/home/koopark/claude/SignalForge/mcp-server/server.py"],
       "env": {
-        "DATABASE_URL": "postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge",
+        "DATABASE_URL": "postgresql+asyncpg://signalforge:<POSTGRES_PASSWORD>@127.0.0.1:5434/signalforge",
         "MCP_PORT": "8002"
       }
     }

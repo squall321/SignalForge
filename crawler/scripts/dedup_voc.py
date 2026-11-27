@@ -47,10 +47,7 @@ from insight.backfill_audit import record_run  # noqa: E402
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("dedup_voc")
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge",
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "")  # .env 에서 — 기본 DSN 은 두지 않는다(2026-11-27)
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -136,6 +133,8 @@ async def _write_delete_backup(db: AsyncSession, path: Path) -> int:
 
 
 async def dedup_run(dry: bool = False, backup: bool = False) -> dict:
+    if not DATABASE_URL:
+        raise SystemExit("DATABASE_URL 이 환경에 없다 — .env 를 읽고(set -a; . ./.env; set +a) 부른다")
     engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
     SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 

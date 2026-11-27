@@ -25,7 +25,7 @@ JSONL 파일 한 줄당 1 이벤트:
 
 실행
 ----
-DATABASE_URL=postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge \\
+DATABASE_URL=postgresql+asyncpg://signalforge:$POSTGRES_PASSWORD@127.0.0.1:5434/signalforge \\
   TAG_NON_TARGET_DRY_RUN=0 \\
   /home/koopark/claude/SignalForge/.venv/bin/python \\
   /home/koopark/claude/SignalForge/crawler/scripts/tag_non_target.py
