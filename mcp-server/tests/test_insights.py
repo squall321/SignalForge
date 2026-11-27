@@ -2,13 +2,12 @@
 
 실행:
     cd /home/koopark/claude/SignalForge/mcp-server
-    DATABASE_URL='postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge' \
+    DATABASE_URL='postgresql+asyncpg://signalforge:$POSTGRES_PASSWORD@127.0.0.1:5434/signalforge' \
         .venv/bin/python -m pytest tests/test_insights.py -v
 또는 직접 실행:
     .venv/bin/python tests/test_insights.py
 """
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -16,10 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-os.environ.setdefault(
-    "DATABASE_URL",
-    "postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge",
-)
+# DATABASE_URL 은 conftest 가 정한다(저장소 .env) — 기본 비밀번호를 박아 두지 않는다
 
 from tools.insights import (  # noqa: E402
     _tokenize,

@@ -8,7 +8,7 @@
   neg_excerpt_1 .. neg_excerpt_5   (최신 부정 5건 — 번역본 우선)
 
 직접 실행:
-  DATABASE_URL=postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge \
+  DATABASE_URL=postgresql+asyncpg://signalforge:$POSTGRES_PASSWORD@127.0.0.1:5434/signalforge \
     /home/koopark/claude/SignalForge/.venv/bin/python -m exports.products_csv
 """
 from __future__ import annotations

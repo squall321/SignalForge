@@ -5,7 +5,7 @@ exports.csv_export / exports.products_csv 단위 테스트.
 
 실행:
   cd /home/koopark/claude/SignalForge/crawler && \
-    DATABASE_URL=postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge \
+    DATABASE_URL=postgresql+asyncpg://signalforge:$POSTGRES_PASSWORD@127.0.0.1:5434/signalforge \
     ../.venv/bin/python -m pytest tests/test_exports.py -v
 """
 import csv

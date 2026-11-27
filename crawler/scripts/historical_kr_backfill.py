@@ -38,6 +38,7 @@ for _site in ("CLIEN", "PPOMPPU", "DCINSIDE"):
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from platforms.clien import ClienCrawler  # noqa: E402
+from base.pg_env import pg_password  # noqa: E402
 from platforms.ppomppu import PpomppuCrawler  # noqa: E402
 from platforms.dcinside import DCInsideCrawler  # noqa: E402
 
@@ -64,7 +65,7 @@ def _psql_scalar(sql: str) -> str:
         out = subprocess.run(
             ["psql", "-h", "127.0.0.1", "-p", "5434", "-U", "signalforge",
              "-d", "signalforge", "-tA", "-c", sql],
-            env={**os.environ, "PGPASSWORD": "signalforge_pass"},
+            env={**os.environ, "PGPASSWORD": pg_password()},
             capture_output=True, text=True, timeout=20,
         )
         return out.stdout.strip() or "?"

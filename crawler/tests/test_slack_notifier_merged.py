@@ -15,7 +15,8 @@ asyncpg = pytest.importorskip("asyncpg")
 def _dsn() -> str:
     url = os.getenv("DATABASE_URL", "")
     if not url:
-        pw = os.getenv("PGPASSWORD", os.getenv("POSTGRES_PASSWORD", "signalforge_pass"))
+        from base.pg_env import pg_password
+        pw = pg_password()
         url = (f"postgresql://{os.getenv('POSTGRES_USER', 'signalforge')}:{pw}@{os.getenv('POSTGRES_HOST', '127.0.0.1')}:"
                f"{os.getenv('POSTGRES_PORT', '5434')}/{os.getenv('POSTGRES_DB', 'signalforge')}")
     return url.replace("postgresql+asyncpg://", "postgresql://")

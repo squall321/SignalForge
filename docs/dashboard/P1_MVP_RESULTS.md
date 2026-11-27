@@ -22,7 +22,7 @@ cd /home/koopark/claude/SignalForge/frontend
 npm install && npm run dev          # http://127.0.0.1:5174
 
 # 3) mv_voc_daily 수동 refresh (긴급 시)
-PGPASSWORD=signalforge_pass psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
   -c "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_voc_daily;"
 
 # 4) Celery beat (30분 자동 refresh + 크롤 회전)

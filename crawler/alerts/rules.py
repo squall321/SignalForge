@@ -41,7 +41,8 @@ def _async_db_url() -> str:
                .replace("postgresql://", "postgresql+asyncpg://")
         )
     user = os.getenv("POSTGRES_USER", "signalforge")
-    pwd  = os.getenv("POSTGRES_PASSWORD", "signalforge_pass")
+    from base.pg_env import pg_password
+    pwd  = pg_password()
     host = os.getenv("POSTGRES_HOST", "127.0.0.1")
     port = os.getenv("POSTGRES_PORT", "5434")
     db   = os.getenv("POSTGRES_DB", "signalforge")

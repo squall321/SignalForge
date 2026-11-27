@@ -55,7 +55,7 @@
 
 - sf_postgres apptainer instance: 다운 → scripts/up.sh 로 복구
 - backend uvicorn / celery worker / celery beat / MCP 모두 가동
-- Redis 정상 (Soseks314! 인증)
+- Redis 정상 (requirepass 인증)
 - crawler worker 가 DB 저장 중 (dcinside/clien/dogdrip 활발)
 - `.env` 의 `REDDIT_USER_AGENT` 값에 공백/슬래시 있어 set -a; source 실패 → 따옴표 추가로 해결
 

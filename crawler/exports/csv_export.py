@@ -17,7 +17,7 @@ voc_records → CSV (gzip) 익스포트.
   published_at, collected_at
 
 직접 실행:
-  DATABASE_URL=postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge \
+  DATABASE_URL=postgresql+asyncpg://signalforge:$POSTGRES_PASSWORD@127.0.0.1:5434/signalforge \
     /home/koopark/claude/SignalForge/.venv/bin/python -m exports.csv_export --days 1
 """
 from __future__ import annotations

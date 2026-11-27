@@ -49,7 +49,7 @@ bash scripts/status.sh
 | **Apptainer 버전** | 1.3.3 |
 | **postgres.sif** | `postgres:16-alpine` 기반, `/home/koopark/claude/SignalForge/apptainer/sif/postgres.sif` |
 | **DB 포트** | 5434 (5432/5433/5435 충돌로 변경) |
-| **Redis 비밀번호** | `Soseks314!` (시스템 redis.conf) |
+| **Redis 비밀번호** | `.env` 의 REDIS_PASSWORD (시스템 redis.conf 의 requirepass — 문서에 값을 적지 않는다) |
 | **DB 마이그레이션** | Alembic `0001_initial_schema.py` 완료 |
 | **마스터 데이터 시딩** | 제품(12종), 플랫폼(9종), 카테고리(12종) 시딩 완료 |
 | **FastAPI 헬스체크** | `GET /health` → 200 OK |
@@ -320,7 +320,7 @@ Apptainer: 1.3.3
 ```ini
 APP_NAME=sf
 POSTGRES_PORT=5434
-REDIS_PASSWORD=Soseks314!
+REDIS_PASSWORD=<redis.conf 의 requirepass>
 MCP_PORT=8002
 BUILD_PROXY_HTTPS=off
 BUILD_PROXY_HTTP=off

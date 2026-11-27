@@ -334,7 +334,8 @@ def collect_mv_stats(mvs: Tuple[str, ...] = WATCHED_MVS) -> List[MVStats]:
 
     url = os.getenv("DATABASE_URL", "")
     if not url:
-        pw = os.getenv("PGPASSWORD", os.getenv("POSTGRES_PASSWORD", "signalforge_pass"))
+        from base.pg_env import pg_password
+        pw = pg_password()
         url = (f"postgresql+asyncpg://{os.getenv('POSTGRES_USER', 'signalforge')}:{pw}"
                f"@{os.getenv('POSTGRES_HOST', '127.0.0.1')}:"
                f"{os.getenv('POSTGRES_PORT', '5434')}/{os.getenv('POSTGRES_DB', 'signalforge')}")

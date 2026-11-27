@@ -35,7 +35,9 @@ From: python:3.12-slim
     export PYTHONNOUSERSITE=1
 
 %runscript
-    exec uvicorn app.main:app --host 0.0.0.0 --port "${API_PORT:-8000}" "$@"
+    exec uvicorn app.main:app --host "${API_HOST:-0.0.0.0}" --port "${API_PORT:-8000}" "$@"
 
 %startscript
-    exec uvicorn app.main:app --host 0.0.0.0 --port "${API_PORT:-8000}"
+    # API_HOST(.env) — 포털 nginx 가 같은 서버에서 127.0.0.1 로 닿으면 127.0.0.1 로 둔다. 예전에는 0.0.0.0 이 박혀 있어
+    # SSO 게이트 밖인 /ws/realtime 이 바깥에서 닿았다(2026-11-27, dev 는 127.0.0.1). 기본값은 예전 그대로
+    exec uvicorn app.main:app --host "${API_HOST:-0.0.0.0}" --port "${API_PORT:-8000}"

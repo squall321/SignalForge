@@ -37,14 +37,19 @@ ROOT_DIR = Path(__file__).resolve().parents[2]     # /home/koopark/claude/Signal
 REPORTS_DIR = ROOT_DIR / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# DB 접속 — .env 또는 기본값. asyncpg 는 postgres:// 또는 postgresql:// 둘 다 인식.
-DB_DSN = os.getenv(
-    "DATABASE_URL",
-    "postgresql://signalforge:signalforge_pass@127.0.0.1:5434/signalforge",
-)
+# DB 접속 — DATABASE_URL(.env). 기본 DSN 은 두지 않는다(공개 리포의 옛 기본 비밀번호였다, 2026-11-27) — 없으면 접속할 때
+# 멈춘다. asyncpg 는 postgres:// 또는 postgresql:// 둘 다 인식.
+DB_DSN = os.getenv("DATABASE_URL", "")
 # SQLAlchemy 비동기 prefix 가 들어왔으면 asyncpg 가 받아들이는 형식으로 정리
 if DB_DSN.startswith("postgresql+asyncpg://"):
     DB_DSN = "postgresql://" + DB_DSN.split("://", 1)[1]
+
+
+def _dsn() -> str:
+    if not DB_DSN:
+        raise RuntimeError("DATABASE_URL 이 환경에 없다 — .env 를 읽고(set -a; . ./.env; set +a) 부른다")
+    return DB_DSN
+
 
 # Celery beat schedule 로드용
 _CRAWLER_DIR = ROOT_DIR / "crawler"
@@ -132,7 +137,7 @@ async def _collect_platform_stats_async(now: datetime) -> list[PlatformHealth]:
     t_7d = now - timedelta(days=7)
     beat_codes = load_beat_platforms()
     results: list[PlatformHealth] = []
-    conn = await asyncpg.connect(DB_DSN)
+    conn = await asyncpg.connect(_dsn())
     try:
         rows = await conn.fetch(sql, t_24h, t_7d)
     finally:
@@ -176,7 +181,7 @@ async def _collect_nlp_quality_async(now: datetime) -> dict[str, Any]:
     FROM voc_records
     WHERE collected_at >= $1
     """
-    conn = await asyncpg.connect(DB_DSN)
+    conn = await asyncpg.connect(_dsn())
     try:
         r = await conn.fetchrow(sql_total, t_7d)
     finally:
@@ -197,7 +202,7 @@ async def _collect_nlp_quality_async(now: datetime) -> dict[str, Any]:
 
 
 async def _collect_totals_async() -> tuple[int, int]:
-    conn = await asyncpg.connect(DB_DSN)
+    conn = await asyncpg.connect(_dsn())
     try:
         total = int(await conn.fetchval("SELECT COUNT(*) FROM voc_records"))
         last_24h = int(await conn.fetchval(

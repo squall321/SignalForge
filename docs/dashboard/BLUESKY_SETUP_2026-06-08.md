@@ -13,11 +13,11 @@
 grep -E '^BLUESKY_' /home/koopark/claude/SignalForge/.env
 
 # 플랫폼 활성 여부 (true 가 정상)
-PGPASSWORD=signalforge_pass psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge -At \
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge -At \
   -c "SELECT code, is_active FROM platforms WHERE code='bluesky';"
 
 # 현재 수집량 (0 이어야 정상)
-PGPASSWORD=signalforge_pass psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge -At \
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge -At \
   -c "SELECT COUNT(*) FROM voc_records WHERE platform_id=(SELECT id FROM platforms WHERE code='bluesky');"
 ```
 
@@ -95,7 +95,7 @@ python -m scripts.test_bluesky
 `test_bluesky.py` 는 RawVOC 객체만 출력하고 **DB 에 적재하지 않는다**. 실제 적재는 worker 가 다음 cycle (`crawl-bluesky-2h`) 에 수행한다. cycle 직후 다음 SQL 로 확인:
 
 ```bash
-PGPASSWORD=signalforge_pass psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge -At \
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge -At \
   -c "SELECT COUNT(*), MAX(published_at) FROM voc_records
       WHERE platform_id=(SELECT id FROM platforms WHERE code='bluesky');"
 ```

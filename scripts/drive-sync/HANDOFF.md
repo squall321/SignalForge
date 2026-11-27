@@ -90,7 +90,7 @@ PROJ_HEALTH_URL=                                          # SF backend health en
 
 키트가 SF `.env` 에서 직접 읽는 값들 (확인됨):
 - `POSTGRES_USER=signalforge`
-- `POSTGRES_PASSWORD=signalforge_pass`
+- `POSTGRES_PASSWORD=<.env 의 값 — 공개 기본값을 쓰지 않는다>`
 - `POSTGRES_DB=signalforge`
 - `POSTGRES_PORT=5434`
 - `POSTGRES_HOST=127.0.0.1`
@@ -140,7 +140,7 @@ bash backup-to-drive.sh
 bash sync-from-drive.sh
 
 # row count 비교
-PGPASSWORD=signalforge_pass psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge \
   -c "SELECT count(*) FROM voc_records;"
 ```
 
@@ -150,7 +150,7 @@ PGPASSWORD=signalforge_pass psql -h 127.0.0.1 -p 5434 -U signalforge -d signalfo
 
 ```bash
 # SF stack 가동 중 상태에서
-PGPASSWORD=signalforge_pass psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge <<'EOF'
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p 5434 -U signalforge -d signalforge <<'EOF'
 \dx        -- extensions: pgvector, postgis 등 있나?
 \dn        -- schemas: public 외 다른 schema 있나?
 \dt        -- tables 전체 목록

@@ -72,7 +72,7 @@ cd /home/koopark/claude/SignalForge/backend
 # 1. HN 전기간 backfill (페이지 수는 환경변수로 조절)
 cd /home/koopark/claude/SignalForge/crawler
 BACKFILL_MAX_PAGES=3 BACKFILL_HITS_PER_PAGE=1000 BACKFILL_SLEEP=1.0 \
-  DATABASE_URL='postgresql+asyncpg://signalforge:signalforge_pass@127.0.0.1:5434/signalforge' \
+  DATABASE_URL="postgresql+asyncpg://signalforge:$POSTGRES_PASSWORD@127.0.0.1:5434/signalforge" \
   /home/koopark/claude/SignalForge/.venv/bin/python -m scripts.hn_backfill_alltime
 
 # 2. product_id NULL re-link (옛 모델 매칭)

@@ -19,7 +19,9 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
-db_url = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+db_url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+if not db_url:
+    raise RuntimeError("DATABASE_URL 이 환경에 없다 — up.sh 는 .env 로 넘긴다(손으로 돌리면 .env 를 읽고)")
 config.set_main_option("sqlalchemy.url", db_url)
 
 # 모델 메타데이터 등록 (자동 마이그레이션을 위해)
