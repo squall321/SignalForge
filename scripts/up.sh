@@ -49,6 +49,8 @@ pg_instance_start() {
 
   require_port_free "$POSTGRES_PORT" "POSTGRES"
   echo "→ start $INST_POSTGRES"
+  # POSTGRES_INITDB_ARGS 는 새 pgdata 에만 든다 — 소켓 · 루프백도 비밀번호(initdb 기본은 trust 라 이 서버의 다른
+  # 사용자가 비밀번호 없이 슈퍼유저로 붙었다, 2026-11-27). 엔트리포인트가 초기화 중 psql 에 PGPASSWORD 를 준다
   apptainer instance start \
     --bind "$DATA_DIR/postgres:/var/lib/postgresql/data" \
     --bind "$DATA_DIR/postgres-run:/var/run/postgresql" \
@@ -58,6 +60,7 @@ pg_instance_start() {
     --env "PGPORT=${POSTGRES_PORT}" \
     --env "PGDATA=/var/lib/postgresql/data/pgdata" \
     --env "LANG=C.UTF-8" --env "LC_ALL=C.UTF-8" \
+    --env "POSTGRES_INITDB_ARGS=--auth-local=scram-sha-256 --auth-host=scram-sha-256" \
     "$SIF_DIR/postgres.sif" "$INST_POSTGRES" \
     > "$LOG_DIR/postgres-start.log" 2>&1
 }
