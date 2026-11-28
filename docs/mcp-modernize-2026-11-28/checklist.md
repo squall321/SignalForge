@@ -46,4 +46,8 @@ SignalForge 몫은 signalforge-7f 에 갔지만 7f 가 보안 결정 여섯의 �
       'topic:battery' · Decimal 이 글자로 나가던 수(::float) · get_platform_breakdown 에 platform_code
 - [x] 시험 — 계약(설명 꼴 · enum · 경계 · outputSchema · 잘림 · 커서 · 입구) · 결함 글 단위 · compare_products null · 온톨로지 앞머리 ·
       dev DB 에서 도구 38개를 실제로 불러 결과 모델 검증(46번 호출 실패 0, 잘못된 인자 넷 거절)
-- [ ] MCP 시험 전부 · 커밋 · main · dev sf-mcp 다시 띄우기 · 살아 있는 서버 확인 · push · 포털에 항목별 답
+- [x] MCP 시험 전부(ollama 가 꺼져 나는 시맨틱 셋 · 혼자 돌리면 경로를 못 찾는 test_stats_tools 는 main 도 같다) · 커밋
+      1c7e960 · 3ce5622 · main 81aef78 · dev sf-mcp 다시 띄우기(이미지 그대로 — 코드 바인드) · 살아 있는 서버 확인 — 세션 헤더 0,
+      tools 38 · readOnlyHint 38 · 인자 설명 160/160 · enum 인자 41 · 정수 경계 50/51(나머지는 커서 since) · outputSchema 32 ·
+      설명 326 ~ 1,086자(중간 558), list_changes · corpus_overview guide · 목록 꼴 · 쪽 넘김 · 모르는 축 거절 · push · 포털에 항목별 답
+- 백엔드는 다시 띄우지 않았다 — shared/stats_sql 의 groups · truncated 칸은 REST 에 다음 기동부터 붙는다(수치는 같다)
