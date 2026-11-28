@@ -19,5 +19,6 @@ SignalForge 몫은 signalforge-7f 에 갔지만 7f 가 보안 결정 여섯의 �
 - [x] 2 — Args → Field(description) 헬퍼 · 설명에서 Args 절 빼기 · 공통 필터 설명표 · 아홉 도구 Args 보탬(인자 156/156)
 - [x] 3 — 기본 표지(readOnlyHint · openWorldHint) — 37/37
 - [x] 시험 — tools/list JSON(camelCase 열쇠 · 인자 설명 100% · 설명에 'Args:' 없음 · stateless 설정) · Args 파서
-- [ ] MCP 시험 · dev sf-mcp 다시 띄우기 · 살아 있는 서버 확인(stateless 라 세션 없이)
-- [ ] 커밋 · main · push · 포털에 항목별 한 줄과 판
+- [x] MCP 시험(계약 · 서버 기동 · 도구 설명) · dev sf-mcp 다시 띄우기 · 살아 있는 서버 확인 — 세션 헤더 0, tools/list 37 ·
+      readOnlyHint 37(camelCase) · 인자 설명 156/156, 세션 없이 도구 호출 정상
+- [x] 커밋 8ca86ed · main d274827 · push · 포털에 항목별 한 줄과 판
