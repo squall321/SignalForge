@@ -3,8 +3,12 @@ SignalForge MCP Server
 FastMCP 기반 — Claude가 VOC 데이터베이스와 직접 대화
 """
 from mcp.server.fastmcp import FastMCP
-from typing import Optional
+from mcp.types import ToolAnnotations
+from pydantic import Field
+from typing import Annotated, Optional
+import inspect
 import os, asyncio
+import re
 
 from tools.query import (query_voc_tool, get_top_issues_tool, search_voc_detail,
                          resolve_product_keyword_tool)
@@ -92,13 +96,82 @@ from tools.coverage import (
 from tools.pii import masked
 
 
+# MCP 공통 계약(포털 docs/mcp-modernize/contract.md) — 인자 설명은 산문 「Args:」 가 아니라 스키마에(C2), 모든 도구에 읽기 ·
+# 쓰기 표지(C6). 도구마다 고치지 않고 등록 길목에서 한 번에 옮긴다. Args 절 — 'Args:' 줄 아래 '<이름>: 설명', 더 들여 쓴 줄은
+# 앞 인자의 이어지는 설명, 들여 쓰지 않은 줄(Returns: 등)에서 끝난다.
+_ARGS_HEAD = re.compile(r"^Args:\s*$")
+_ARG_LINE = re.compile(r"^(\s+)([A-Za-z_]\w*)\s*(?:\([^)]*\))?\s*:\s*(.*)$")
+# 37개 모두 DB 조회뿐이다(INSERT · UPDATE · DELETE 없음). 쓰는 도구가 생기면 그 도구의 @mcp.tool(annotations=…) 에 따로 단다.
+# SDK 1.x 는 camelCase 칸 이름이다 — read_only_hint= 로 쓰면 모르는 칸으로 나가 클라이언트가 표지를 못 받는다
+_READ_ONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
+# 공통 필터 — 결함 · 통계 도구가 같은 뜻으로 받는다(tools/defects._FILTER_SPECS · shared/stats_sql._SLICE_SPECS). docstring 에
+# 설명이 없는 인자는 이 설명을 쓴다(Args 에 '나머지: 공통 필터' 로 줄여 쓴 도구들)
+_COMMON_ARGS = {
+    "product_code": "제품 코드(예: GZF8 · GS26U · AP16P) — 생략하면 전체. 코드는 resolve_product_keyword 로 찾는다",
+    "component": "부품 key — back_glass · battery · button · camera · charging_port · connectivity · device · display · "
+                 "fingerprint · frame · hinge · s_pen · sim · software · speaker · thermal (생략하면 전체)",
+    "symptom": "증상 key(32개 — get_ontology 의 symptoms, 예: overheat · drain · crease · burn_in) — 생략하면 전체",
+    "severity": "심각도 — safety | non_functional | degraded | cosmetic (생략하면 전체)",
+    "modality": "글의 양상 — firsthand(본인이 실제 겪은 고장) | worry | question | hearsay | review | other (생략하면 전체)",
+    "brand": "제품 브랜드(소문자, 예: samsung · apple · google · xiaomi) — 생략하면 전체",
+    "category": "제품의 기기 종류 — phone · watch · tablet · buds · laptop · band · headphone · ring · xr · glasses (생략하면 전체)",
+    "country": "글의 국가 코드(ISO 두 글자, 예: KR · US · IN) — 생략하면 전체",
+    "platform": "수집 플랫폼 코드(예: reddit · youtube · gsmarena — get_platform_breakdown 의 code) — 생략하면 전체",
+    "sentiment": "감성 — positive | negative | neutral (생략하면 전체)",
+}
+
+
+def _split_args(doc: Optional[str]) -> tuple[str, dict[str, str]]:
+    """docstring → (Args 절을 뺀 설명, {인자: 설명})."""
+    out, args, cur, base, in_args = [], {}, None, None, False
+    for line in inspect.cleandoc(doc or "").splitlines():
+        if not in_args and _ARGS_HEAD.match(line):
+            in_args = True
+            continue
+        if in_args:
+            if line.strip() and not line[:1].isspace():
+                in_args = False
+            else:
+                m = _ARG_LINE.match(line)
+                indent = len(line) - len(line.lstrip())
+                if m and (base is None or len(m.group(1)) <= base):
+                    base, cur = len(m.group(1)), m.group(2)
+                    args[cur] = m.group(3).strip()
+                elif line.strip() and base is not None and indent <= base:
+                    cur = None               # 인자 꼴이 아닌 같은 들여쓰기 줄('나머지: 공통 필터') — 앞 인자에 붙이지 않는다
+                elif cur and line.strip():
+                    args[cur] = f"{args[cur]} {line.strip()}".strip()
+                continue
+        out.append(line)
+    return "\n".join(out).strip(), args
+
+
+def _with_arg_docs(fn) -> tuple[str, inspect.Signature]:
+    """도구 함수 → (Args 절을 뺀 설명, 인자마다 Field(description=…) 를 붙인 서명). 타입 · 기본값은 그대로다."""
+    desc, docs = _split_args(fn.__doc__)
+    sig = inspect.signature(fn)       # docstring 에 없는 공통 필터는 _COMMON_ARGS 로
+    docs = {**{k: v for k, v in _COMMON_ARGS.items() if k in sig.parameters}, **docs}
+    params = [p.replace(annotation=Annotated[p.annotation, Field(description=docs[p.name])])
+              if p.name in docs and p.annotation is not inspect.Parameter.empty else p
+              for p in sig.parameters.values()]
+    return desc, sig.replace(parameters=params)
+
+
 class _MaskedFastMCP(FastMCP):
     """나가는 응답은 개인정보를 기본으로 가린다(SG-18 (가)) — 도구마다 잊지 않게 등록 길목에서 감싼다.
-    원문(작성자·연락처·계정)은 SignalForge 화면에서 본다. 가리는 범위는 tools/pii.py."""
+    원문(작성자·연락처·계정)은 SignalForge 화면에서 본다. 가리는 범위는 tools/pii.py.
+    같은 길목에서 docstring 의 Args 절을 인자 스키마 설명으로 옮기고 기본 표지(읽기 전용)를 단다 — 계약 C2 · C6."""
 
-    def tool(self, *args, **kwargs):
-        register = super().tool(*args, **kwargs)
-        return lambda fn: register(masked(fn))
+    def tool(self, name=None, title=None, description=None, annotations=None, **kwargs):
+        register = super().tool
+
+        def deco(fn):
+            desc, sig = _with_arg_docs(fn)
+            run = masked(fn)
+            run.__signature__ = sig          # FastMCP 는 인자 스키마를 서명에서 짓는다 — 설명을 붙인 서명을 쓴다
+            return register(name=name, title=title, description=description or desc,
+                            annotations=annotations or _READ_ONLY, **kwargs)(run)
+        return deco
 
 
 # @lat: mcp — [[mcp-server]] 참조. 7개 도구 정의.
@@ -106,6 +179,7 @@ mcp = _MaskedFastMCP(
     name="SignalForge VOC Intelligence",
     instructions="Samsung Galaxy 제품군 VOC 데이터베이스에 질문하는 MCP 서버",
     port=int(os.getenv("MCP_PORT", "8001")),
+    stateless_http=True,                 # 세션을 쥐지 않는다(계약 P1 · 1단계) — 도구는 DB 조회뿐이라 세션 상태가 없다
 )
 
 
@@ -511,6 +585,9 @@ async def chart_crisis_timeline(case_code: Optional[str] = None) -> dict:
 
     case_code 생략 시 5개 위기 사례 전체 raw + 첫 사례 차트.
     유효 code: GN7 / GZF1 / GS22U / GZFL3 / GS20.
+
+    Args:
+        case_code: 위기 사례 코드 — GN7 | GZF1 | GS22U | GZFL3 | GS20 (생략하면 5개 전체 raw + 첫 사례 차트)
     """
     return await chart_crisis_timeline_tool(case_code)
 
@@ -765,6 +842,8 @@ async def defect_breakdown(
     Args:
         by: platform | country | modality | severity | component | symptom |
             product | brand | category
+        period_days: 조회 기간(일, 기본 90)
+        limit: 축 값 상위 N개(기본 20)
         나머지: 공통 필터
     """
     return await defect_breakdown_tool(
@@ -788,6 +867,12 @@ async def defect_cooccurrence(
     예: battery/drain + battery/overheat, software/lag + thermal/overheat.
     단일 증상 집계로는 보이지 않는 연쇄를 드러냅니다.
     주의 — 동시 등장이지 인과가 아닙니다(한 글이 여러 불만을 나열했을 수 있음).
+
+    Args:
+        period_days: 조회 기간(일, 기본 180)
+        limit: 결함 쌍 상위 N개(기본 20)
+        min_docs: 쌍으로 세는 최소 글 수(기본 3) — 작은 우연을 걸러낸다
+        나머지: 공통 필터
     """
     return await defect_cooccurrence_tool(
         period_days=period_days, limit=limit, min_docs=min_docs,
@@ -808,6 +893,10 @@ async def defect_onset(
     median_days 가 작고 within_30d 비중이 높으면 초기불량,
     after_1y 가 크면 마모·열화 패턴입니다.
     주의 — 수집 시작(2026-05) 이전 출시 제품은 초기 구간이 비어 median 이 왜곡됩니다.
+
+    Args:
+        period_days: 조회 기간(일, 기본 730)
+        나머지: 공통 필터
     """
     return await defect_onset_tool(
         period_days=period_days, product_code=product_code, component=component,
@@ -832,6 +921,13 @@ async def defect_evidence(
     전언·기사·구매고민은 고장 서술이 아니므로 기본에서 제외합니다
     (modality=None 으로 전체를 볼 수 있습니다).
     source_url 기준 중복 제거로 같은 글의 페이지 분할을 한 건으로 셉니다.
+
+    Args:
+        period_days: 조회 기간(일, 기본 180)
+        limit: 원문 N건(기본 10)
+        modality: 글의 양상 — 기본 firsthand(본인이 실제 겪은 고장). worry | question | hearsay | review | other 도
+            고를 수 있고, None 이면 전체
+        나머지: 공통 필터
     """
     return await defect_evidence_tool(
         period_days=period_days, limit=limit, modality=modality,
@@ -873,6 +969,13 @@ async def keyword_stats(
     "발열 1,012건, 전기 대비 +561%, GZF8 이 32%, 부정 82%" 같은 답을 만들 수 있습니다.
     한국어 키워드도 그대로 넣으면 됩니다(재현율 100%).
 
+    Args:
+        keyword: 집계할 키워드(한국어 가능 — 부분일치)
+        days: 집계 기간 — 최근 N일(기본 90). 증감은 그 앞 N일과 견준다
+        interval: 시계열 버킷 — day | week | month (기본 week)
+        top_n: 제품 · 플랫폼 · 국가 상위 N개(기본 8)
+        나머지: 공통 필터
+
     반환: total(건수·고유URL·플랫폼·국가·감성), vs_previous_period(증감),
           series(시계열), top(제품·플랫폼·국가 상위와 비중)
     """
@@ -898,6 +1001,8 @@ async def period_compare(
 
     Args:
         by: product | brand | category | country | platform
+        days: 최근 N일 vs 그 앞 N일의 N(기본 30)
+        limit: 늘어난 · 줄어든 축 값 상위 N개(기본 15)
         keyword: 특정 키워드로 한정 — 선택 (한국어 가능)
     """
     return await period_compare_tool(
@@ -926,6 +1031,8 @@ async def voc_breakdown(
     Args:
         by: product | brand | category | country | platform | platform_kind |
             language | sentiment
+        days: 최근 N일(기본 30, None 이면 전체 기간)
+        limit: 축 값 상위 N개(기본 20)
         keyword: 키워드로 슬라이스 한정 — 선택 (한국어 가능)
         include_mentions: 비교글에서 **언급만 된 제품**까지 셉니다 (기본 False).
             기본값은 대표 제품 기준이라 "S26 vs iPhone 17" 같은 글에서 한쪽만
