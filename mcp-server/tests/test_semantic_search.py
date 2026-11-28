@@ -193,3 +193,14 @@ def test_model_code_dictionary_points_at_catalog_products():
     codes = {r[0].upper() for r in _sql_rows("SELECT code FROM products", {})}
     mapped = set(M.EXACT.values()) | {c for t in M.FAMILY.values() for c in t}
     assert not mapped - codes, sorted(mapped - codes)
+
+
+def test_ontology_type_prefix_reaches_the_topic():
+    """battery · camera · display · software · connectivity 는 부품이자 주제다 — 종류 없이는 부품, 'topic:battery' 는 주제.
+    예전에는 앞머리를 버려 늘 부품으로 답했다(주제 쪽 VOC 수를 볼 길이 없었다, 2026-11-28)."""
+    from tools.semantic import get_ontology_tool
+    plain = asyncio.run(get_ontology_tool("battery"))
+    topic = asyncio.run(get_ontology_tool("topic:battery"))
+    comp = asyncio.run(get_ontology_tool("component:battery"))
+    assert plain["type"] == comp["type"] == "component" and topic["type"] == "topic"
+    assert topic["annotated_voc"] > 0
