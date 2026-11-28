@@ -25,13 +25,19 @@ class _Out(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-class _Page(_Out):
+class _Result(_Out):
+    """도구 결과의 맨 위 — 행 모델과 달리 받고 버린 인자를 함께 싣는다."""
+    ignored_args: Optional[list[str]] = Field(
+        None, description="받았지만 이 도구에 없어 쓰지 않은 인자 이름(오타 의심 — 기본값으로 돌았다). 없으면 null")
+
+
+class _Page(_Result):
     """목록을 자를 수 있는 결과의 공통 칸(계약 C8)."""
     total: Optional[int] = Field(None, description="조건에 맞는 전체 수 — 자른 목록이면 results 보다 크다(모르면 null)")
     truncated: bool = Field(False, description="results 를 한도에서 잘랐는가")
 
 
-class _Pipe(_Out):
+class _Pipe(_Result):
     pipeline_status: Optional[str] = Field(None, description="ok | not_run(결함 추출 · 제품 링크가 이 서버에 없다 — 빈 결과는 '없음' 이 아니라 '측정 안 함')")
     pipeline_note: Optional[str] = None
 
@@ -60,7 +66,7 @@ class _StalePlatform(_Out):
     hours_since: Optional[float] = None
 
 
-class AlertCheckOut(_Out):
+class AlertCheckOut(_Result):
     thresholds: dict[str, float] = Field(default_factory=dict, description="neg_ratio · min_volume · neg_surge_ratio · stale_hours")
     high_negative_ratio: list[_HighNegative] = Field(default_factory=list)
     high_negative_ratio_total: Optional[int] = None
@@ -93,7 +99,7 @@ class _PlatformHealth(_Out):
     status: Optional[str] = Field(None, description="healthy | stale | no_data_ever")
 
 
-class SiteHealthOut(_Out):
+class SiteHealthOut(_Result):
     stale_hours: Optional[float] = None
     worker: Optional[_Worker] = None
     summary: Optional[str] = None
@@ -105,7 +111,7 @@ class _KeywordCount(_Out):
     count: Optional[int] = None
 
 
-class EmergingKeywordsOut(_Out):
+class EmergingKeywordsOut(_Result):
     period_days: Optional[int] = None
     product_code: Optional[str] = None
     sampled_records: Optional[int] = None
@@ -118,7 +124,7 @@ class EmergingKeywordsOut(_Out):
     top_english: list[_KeywordCount] = Field(default_factory=list)
 
 
-class ChartOut(_Out):
+class ChartOut(_Result):
     chart_type: Optional[str] = Field(None, description="line | bar | graph …")
     raw: Any = Field(None, description="차트의 원자료 — 도구마다 꼴이 다르다(설명 참조)")
     echarts_option: dict[str, Any] = Field(default_factory=dict, description="ECharts option — 그대로 렌더한다")
@@ -180,7 +186,7 @@ class _Candidate(_Out):
     exact: Optional[bool] = None
 
 
-class ResolveOut(_Out):
+class ResolveOut(_Result):
     keyword: Optional[str] = None
     match_mode: Optional[str] = None
     keyword_hits: Optional[int] = Field(None, description="낱말 검색 건수 — 시간 상한을 넘기면 어림(keyword_hits_exact=false) 또는 null")
@@ -215,7 +221,7 @@ class _TrendRange(_Out):
     period_days: Optional[int] = None
 
 
-class SentimentTrendOut(_Out):
+class SentimentTrendOut(_Result):
     product_code: Optional[str] = None
     granularity: Optional[str] = None
     range: Optional[_TrendRange] = None
@@ -271,7 +277,7 @@ class _Month(_Out):
     neg_rate: Optional[float] = Field(None, description="부정 비율(0 ~ 1)")
 
 
-class ProductTimelineOut(_Out):
+class ProductTimelineOut(_Result):
     product_code: Optional[str] = None
     name_ko: Optional[str] = None
     series: Optional[str] = None
@@ -317,7 +323,7 @@ class _UnmappedSample(_Out):
     snippet: Optional[str] = None
 
 
-class UnmappedVocOut(_Out):
+class UnmappedVocOut(_Result):
     coverage: Optional[_TagCoverage] = None
     untagged_total: Optional[int] = None
     breakdown: list[_ReasonCount] = Field(default_factory=list)
@@ -370,7 +376,7 @@ class _Guide(_Out):
     rules: list[str] = Field(default_factory=list)
 
 
-class CorpusOverviewOut(_Out):
+class CorpusOverviewOut(_Result):
     period_days: Optional[int] = None
     scale: Optional[_Scale] = None
     coverage: Optional[_OverviewCoverage] = None
@@ -414,7 +420,7 @@ class _KeywordTops(_Out):
     country: list[_Share] = Field(default_factory=list)
 
 
-class KeywordStatsOut(_Out):
+class KeywordStatsOut(_Result):
     keyword: Optional[str] = None
     days: Optional[int] = None
     match: Optional[str] = None
@@ -434,7 +440,7 @@ class _Delta(_Out):
     delta_pct: Optional[float] = None
 
 
-class PeriodCompareOut(_Out):
+class PeriodCompareOut(_Result):
     by: Optional[str] = None
     days: Optional[int] = None
     keyword: Optional[str] = None
@@ -457,7 +463,7 @@ class _BreakdownRow(_Out):
     share_pct: Optional[float] = None
 
 
-class VocBreakdownOut(_Out):
+class VocBreakdownOut(_Result):
     by: Optional[str] = None
     days: Optional[int] = None
     keyword: Optional[str] = None

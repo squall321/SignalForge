@@ -214,3 +214,41 @@ def test_entry_tool_is_corpus_overview_with_guide(server, tools):
     for wf in server._GUIDE["workflows"]:
         assert wf["entry"] in tools and wf["entry"] == wf["steps"][0], wf
         assert set(wf["steps"]) <= set(tools), wf
+
+
+def _call(server, name, args):
+    """FastMCP 1.x 의 call_tool — 결과 모델이 있으면 (글, 구조), 없으면 글뿐."""
+    r = asyncio.run(server.mcp.call_tool(name, args))
+    return r if isinstance(r, tuple) else (r, None)
+
+
+def test_unknown_arguments_are_reported_not_dropped_silently(server, monkeypatch, caplog):
+    """SDK 1.x 는 도구에 없는 인자를 오류 없이 버린다 — 리스크 앱이 get_top_issues 에 window_days=90 을 넘겨 기본 30일로 돌았다.
+    거절하지 않고 결과의 ignored_args 와 서버 경고 로그로 드러낸다(포털 71 11-28 — 거절은 부르는 쪽이 고친 뒤에 다시 정한다)."""
+    import json
+    import logging
+
+    async def top(product_code, period_days, top_n):
+        return [{"category": "camera", "total_count": 3, "negative_rate": 10.0, "total_rows": 1}]
+    monkeypatch.setattr(server, "get_top_issues_tool", top)
+    with caplog.at_level(logging.WARNING, logger="signalforge.mcp"):
+        content, structured = _call(server, "get_top_issues", {"product_code": "GS25U", "window_days": 90})
+    assert structured["ignored_args"] == ["window_days"] and structured["period_days"] == 30
+    assert json.loads(content[0].text)["ignored_args"] == ["window_days"]
+    warned = [r.getMessage() for r in caplog.records if r.name == "signalforge.mcp"]
+    assert warned and "get_top_issues" in warned[0] and "window_days" in warned[0] and "90" not in warned[0]
+
+    content, structured = _call(server, "get_top_issues", {"product_code": "GS25U"})
+    assert "ignored_args" not in json.loads(content[0].text) and structured["ignored_args"] is None
+
+    async def summary(product_code, period_days):
+        return "요약"
+    monkeypatch.setattr(server, "get_voc_summary_tool", summary)
+    content, _ = _call(server, "get_voc_summary", {"product_code": "GS25U", "days": 3})
+    assert content[0].text.startswith("요약") and content[0].text.rstrip().endswith("days)")
+
+    async def compare(codes, category):
+        return {"GS25U": {"battery": 0.1}}
+    monkeypatch.setattr(server, "compare_products_tool", compare)
+    content, _ = _call(server, "compare_products", {"product_codes": ["GS25U"], "period_days": 7})
+    assert json.loads(content[0].text) == {"GS25U": {"battery": 0.1}}, "열쇠가 제품 코드인 결과에는 칸을 섞지 않는다"

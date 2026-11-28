@@ -6,7 +6,10 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from pydantic import Field
 from typing import Annotated, Literal, Optional
+import contextvars
+import functools
 import inspect
+import logging
 import os, asyncio
 import re
 
@@ -198,21 +201,59 @@ def _with_arg_docs(fn) -> tuple[str, inspect.Signature]:
     return desc, sig.replace(parameters=params)
 
 
+# 받고 버린 인자 — SDK 1.x 는 도구에 없는 인자를 오류 없이 버려, 오타(window_days ↔ period_days)가 기본값으로 조용히 돈다.
+# 거절하지 않고 드러낸다(포털 71 11-28 — 거절은 부르는 쪽이 이 칸을 보고 고친 뒤에 다시 정한다). call_tool 길목에서 원래 인자로
+# 이름을 잡아 같은 태스크의 도구 결과에 싣는다 — 객체는 ignored_args 칸, 글은 끝에 한 줄. 로그에는 이름만 남긴다(값은 검색어 등)
+_log = logging.getLogger("signalforge.mcp")
+_IGNORED: contextvars.ContextVar = contextvars.ContextVar("sf_ignored_args", default=())
+# 열쇠가 동적인 결과(제품 코드 → …)에는 칸을 섞지 않는다 — 소비처가 열쇠를 제품으로 돈다. 로그에만 남긴다
+_NO_IGNORED_KEY = {"compare_products"}
+
+
+def _with_ignored(run, keyed: bool = True):
+    @functools.wraps(run)
+    async def wrapper(*args, **kwargs):
+        out = await run(*args, **kwargs)
+        ignored = list(_IGNORED.get())
+        if not ignored:
+            return out
+        if isinstance(out, dict) and keyed:
+            return {**out, "ignored_args": ignored}
+        if isinstance(out, str):
+            return f"{out}\n\n(이 도구에 없는 인자라 쓰지 않았다: {', '.join(ignored)})"
+        return out
+    return wrapper
+
+
 class _MaskedFastMCP(FastMCP):
     """나가는 응답은 개인정보를 기본으로 가린다(SG-18 (가)) — 도구마다 잊지 않게 등록 길목에서 감싼다.
     원문(작성자·연락처·계정)은 SignalForge 화면에서 본다. 가리는 범위는 tools/pii.py.
-    같은 길목에서 docstring 의 Args 절을 인자 스키마 설명으로 옮기고 기본 표지(읽기 전용)를 단다 — 계약 C2 · C6."""
+    같은 길목에서 docstring 의 Args 절을 인자 스키마 설명으로 옮기고 기본 표지(읽기 전용)를 단다 — 계약 C2 · C6.
+    받고 버린 인자는 결과의 ignored_args 와 경고 로그로 드러낸다(_with_ignored · call_tool)."""
 
     def tool(self, name=None, title=None, description=None, annotations=None, **kwargs):
         register = super().tool
 
         def deco(fn):
             desc, sig = _with_arg_docs(fn)
-            run = masked(fn)
+            run = _with_ignored(masked(fn), keyed=fn.__name__ not in _NO_IGNORED_KEY)
             run.__signature__ = sig          # FastMCP 는 인자 스키마를 서명에서 짓는다 — 설명을 붙인 서명을 쓴다
             return register(name=name, title=title, description=description or desc,
                             annotations=annotations or _READ_ONLY, **kwargs)(run)
         return deco
+
+    async def call_tool(self, name, arguments):
+        tool = self._tool_manager.get_tool(name)
+        known = set(((tool.parameters or {}).get("properties") or {}) if tool else ())
+        ignored = tuple(sorted(set(arguments or {}) - known)) if tool else ()
+        if ignored:
+            _log.warning("[args] %s — 이 도구에 없는 인자를 버렸다: %s (받는 인자: %s)",
+                         name, ", ".join(ignored), ", ".join(sorted(known)) or "없음")
+        token = _IGNORED.set(ignored)
+        try:
+            return await super().call_tool(name, arguments)
+        finally:
+            _IGNORED.reset(token)
 
 
 def _listed(rows: list, limit: int) -> dict:
@@ -251,6 +292,7 @@ _GUIDE = {
         "0건은 'VOC 없음' 이 아니다 — 결과의 reason · notes · status · pipeline_status 가 까닭을 준다",
         "잘린 목록은 truncated 로 안다 — 전체 수를 말할 때는 total · groups 를 인용한다",
         "category 는 도구마다 뜻이 다르다 — query_voc · compare_products 는 VOC 주제, 통계 · 결함 도구는 기기 종류",
+        "결과에 ignored_args 가 있으면 그 도구에 없는 인자를 넘긴 것이다(쓰지 않고 기본값으로 돌았다) — 인자 이름을 고쳐 다시 부른다",
     ],
 }
 
