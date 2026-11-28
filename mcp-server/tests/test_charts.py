@@ -59,13 +59,15 @@ async def _run_async_checks():
 
     # ② 국가 분포
     r = await chart_country_distribution_tool(top_n=10)
-    assert set(r.keys()) == STD_KEYS and r["chart_type"] == "bar"
+    # 잘랐으면 잘랐다고 — 국가 수(total)와 잘렸는지(truncated)를 함께 준다(MCP 계약 C8)
+    assert set(r.keys()) == STD_KEYS | {"total", "truncated"} and r["chart_type"] == "bar"
     assert len(r["raw"]) <= 10 and r["raw"][0]["voc_count"] > 0
+    assert r["total"] >= len(r["raw"]) and r["truncated"] == (r["total"] > len(r["raw"]))
 
     # ② 카테고리 분포
     r = await chart_category_distribution_tool(top_n=10)
     # 메타 태그(comparison·model_mention)는 막대에서 빠져 meta_tags 로 따로 온다(SG-10)
-    assert set(r.keys()) == STD_KEYS | {"meta_tags", "meta_note"}
+    assert set(r.keys()) == STD_KEYS | {"meta_tags", "meta_note", "total", "truncated"}
     assert not {d["category"] for d in r["raw"]} & {"comparison", "model_mention"}
     json.dumps(r["echarts_option"])
 

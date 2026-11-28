@@ -122,3 +122,14 @@ def test_resolve_uses_the_tagging_alias_dictionary_and_flags_untagged(monkeypatc
     out = asyncio.run(Q.resolve_product_keyword_tool("폴드8"))
     assert out["resolved_code"] == "GZF8" and out["resolved_via"] == "alias"
     assert out["status"] == "no_tagged_records" and "1,202" in out["note"]
+
+
+def test_compare_products_keeps_topics_without_scores(monkeypatch):
+    """감성 점수가 빈 글만 있는 주제는 평균이 NULL 이다 — float(None) 으로 도구 전체가 죽었다. null 로 둔다."""
+    from tools import analytics as A
+    db = FakeDB([("unnest(v.categories)", _Res(rows=[{"cat": "battery", "avg_score": -0.2},
+                                                     {"cat": "review", "avg_score": None}]))])
+    monkeypatch.setattr(A, "get_db_session", _session(db))
+    out = asyncio.run(A.compare_products_tool(["GS25U"], "battery"))
+    assert out == {"GS25U": {"battery": -0.2, "review": None}}
+    assert "AND cat = :category" in db.seen[0], "주제를 주면 그 주제만 센다"

@@ -15,17 +15,20 @@ async def get_platform_breakdown_tool(
     top_n = max(1, min(top_n, 100))
     pfilt = "AND p.code = :code" if product_code else ""
     dfilt = "AND v.collected_at >= NOW() - make_interval(days => :days)" if period_days else ""
+    # platform_code 는 다른 도구의 platform 인자(pl.code)에 그대로 쓰인다 — 예전에는 표시 이름만 줬다
     stmt = text(f"""
-        SELECT COALESCE(pl.name, 'unknown') AS platform,
+        SELECT COALESCE(pl.code, 'unknown') AS platform_code,
+               COALESCE(pl.name, 'unknown') AS platform,
                COUNT(*) AS voc_count,
-               ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score,
+               ROUND(AVG(v.sentiment_score)::numeric, 3)::float AS avg_score,
                ROUND(SUM(CASE WHEN v.sentiment_label='negative' THEN 1 ELSE 0 END)::numeric
-                     / NULLIF(COUNT(*),0) * 100, 1) AS negative_rate
+                     / NULLIF(COUNT(*),0) * 100, 1)::float AS negative_rate,
+               count(*) OVER ()::int AS total_rows
         FROM voc_active v
         LEFT JOIN platforms pl ON pl.id = v.platform_id
         {"JOIN products p ON p.id = v.product_id" if product_code else ""}
         WHERE TRUE {pfilt} {dfilt}
-        GROUP BY platform ORDER BY voc_count DESC LIMIT :top_n
+        GROUP BY 1, 2 ORDER BY voc_count DESC LIMIT :top_n
     """)
     params: dict = {"top_n": top_n}
     if product_code:
@@ -43,8 +46,8 @@ async def get_engagement_leaders_tool(
     """engagement_score(좋아요/댓글/공유 기반) 상위 VOC — 바이럴·고영향 게시물 발굴.
 
     likes/comments/shares 가 있는 행만 의미가 있으므로 engagement_score>0 으로 한정.
+    한도는 MCP 스키마가 막는다(1 ~ 100) — 서버가 잘렸는지 알려고 한 건 더 읽는다.
     """
-    limit = max(1, min(limit, 100))
     pfilt = "AND p.code = :code" if product_code else ""
     dfilt = "AND v.collected_at >= NOW() - make_interval(days => :days)" if period_days else ""
     stmt = text(f"""
@@ -52,7 +55,7 @@ async def get_engagement_leaders_tool(
                COALESCE(pl.name, 'unknown') AS platform_name,
                v.country_code, v.sentiment_label,
                v.likes_count, v.comments_count, v.shares_count,
-               ROUND(v.engagement_score::numeric, 2) AS engagement_score,
+               ROUND(v.engagement_score::numeric, 2)::float AS engagement_score,
                LEFT(COALESCE(v.content_translated, v.content_original), 200) AS snippet,
                v.published_at
         FROM voc_active v
@@ -81,7 +84,8 @@ async def get_language_breakdown_tool(
     stmt = text(f"""
         SELECT language_detected AS language,
                COUNT(*) AS voc_count,
-               ROUND(AVG(sentiment_score)::numeric, 3) AS avg_score
+               ROUND(AVG(sentiment_score)::numeric, 3)::float AS avg_score,
+               count(*) OVER ()::int AS total_rows
         FROM voc_active
         WHERE language_detected IS NOT NULL {dfilt}
         GROUP BY language_detected ORDER BY voc_count DESC LIMIT :top_n
