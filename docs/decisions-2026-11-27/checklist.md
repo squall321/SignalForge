@@ -20,11 +20,13 @@ cae00 이 따라올 몫은 적용 문서 · 포털 알림으로 넘긴다.
 ## 체크리스트
 
 - [x] 4 — 11-14 백업 지우기(셋)
-- [ ] 1 — dev pg_hba 백업 · scram · 다시 읽기 · 확인 — 한 번 켰다가 옛 비밀번호 자리 때문에 되돌림, 코드 배포 뒤 다시
+- [x] 1 — dev pg_hba 백업 · scram · 다시 읽기 · 확인 — 한 번 켰다가 옛 비밀번호 자리 때문에 되돌림, 코드 배포 뒤 23:48 다시 켬
+      (비밀번호 없이 TCP · 소켓 거절, 백엔드 200 · MCP DB 호출 정상, 16분 동안 인증 실패 0)
 - [x] 1 — 새 박스 initdb 인자(up.sh)
 - [x] 2 — backend.def API_HOST · 이미지 다시 짓기(새 파일로) · 바꿔 끼우기 · dev .env · 확인(127.0.0.1 만 · 포털 길)
 - [x] 3 — 옛 DSN 기본값 60곳 · `.env.example` · up.sh 빈 값 멈춤 · 시험 · CI(남은 옛 값 0)
 - [x] 5 — 서브레딧 → 브랜드 · 기기 표 · 검색 범위 · 시험
-- [ ] 시험(crawler · MCP · 고친 곳의 backend) · 커밋 · main · push
-- [ ] Drive 새 backend 이미지(막히면 사용자에게 한 줄 명령)
+- [x] 시험 · 커밋 · main `b466eaa` · push — crawler 는 DB 환경을 넘기면 통과(시간 단언 둘 · 알려진 넷 제외), MCP 는 부하로
+      DB 시험 일부가 시간 상한에 걸려 겨냥 확인(conftest · db.py SELECT 1 · 서브레딧 SQL EXPLAIN)으로 대신, alembic 확인
+- [x] Drive 새 backend 이미지 — `SignalForge/sif/latest/` 의 backend.sif 만 바뀜(나머지 해시 같음)
 - [ ] 6 — cae00 적용 문서 · 포털 알림(Q1 결과 · 11-14 4절 · 새 문서 · 해시 · Drive · SIF · 손일 · DB 이관)
