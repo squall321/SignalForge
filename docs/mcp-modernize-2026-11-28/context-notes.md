@@ -48,6 +48,10 @@
 - **목록 도구 7개는 객체로** — {total, truncated, results}. 집계는 SQL 창 함수(count(*) OVER ())로 센 전체 수, 행 도구
   (query_voc · get_engagement_leaders)는 한 건 더 읽어 잘렸는지만 알고 total 은 다 실었을 때만 준다(잘린 쪽은 null — 전체
   건수를 세면 질의가 두 배가 된다). 포털 · 게이트웨이에는 이 꼴을 읽는 코드가 없다(이름 참조뿐 — 확인함).
+  ⚠ 그 밖에 읽는 곳이 둘 있었다(포털 71 이 알려 옴) — HWAXRisk(브리프 E10 VOC 근거 — get_top_issues)와
+  HWAXAgentServer(심의 환기 — get_top_issues · query_voc). 옛 배열 꼴만 읽어 근거가 소리 없이 비었고, 포털이 둘 다 results
+  를 받게 고쳤다(에이전트 서버 1038241). 결과 꼴을 바꿀 때는 이 둘까지 도구 이름으로 grep 한다. 같이 찾은 것 — HWAXRisk 는
+  get_top_issues 에 없는 인자 window_days 를 넘겨 SDK 1.x 가 조용히 버리고 기본 30일로 돈다(포털에 알림).
 - **query_voc 쪽 넘김** — cursor 는 앞 쪽의 next_cursor(오프셋, 6자리까지). 같은 발행일의 순서가 쪽마다 흔들리지 않게 id 로
   동률을 깬다.
 - **경계를 넘는 인자는 거절** — 예전에는 함수 안에서 min(limit, 100) 으로 조용히 잘랐다. 계약 C4 대로 스키마가 막고 상한을
