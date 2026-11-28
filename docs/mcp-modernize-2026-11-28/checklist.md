@@ -63,4 +63,5 @@ SignalForge 몫은 signalforge-7f 에 갔지만 7f 가 보안 결정 여섯의 �
 - [x] guide 규칙 · workflows.md 에 한 줄
 - [x] 시험 — window_days 가 ignored_args 와 경고로 나오고 기간은 기본 30, 맞는 호출엔 칸이 없다(글) · null(구조), 글 결과 끝줄,
       compare_products 는 칸 없음. dev DB 46번 호출 다시 실패 0
-- [ ] 커밋 · main · dev sf-mcp · 살아 있는 서버 확인 · push · 포털에 알림
+- [x] 커밋 d485817 · main 183fa00 · dev sf-mcp 다시 띄움 · 살아 있는 서버 — window_days 로 부르면 ignored_args ['window_days'] ·
+      기간 30, period_days 90 · top_n 3 으로 부르면 칸 없음 · 기간 90 · 3행, sf-mcp 로그에 경고 한 줄(이름만) · push · 포털에 알림
