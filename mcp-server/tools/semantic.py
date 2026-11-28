@@ -787,22 +787,27 @@ async def get_ontology_tool(concept: Optional[str] = None) -> Dict:
             d["model_codes"] = {"exact": len(_MC.EXACT), "family": len(_MC.FAMILY)}
             d["plm"] = _plm_status()
             return d
-        key = concept.split(":", 1)[-1].strip()
+        # 'topic:battery' 처럼 종류를 앞에 붙이면 그 종류만 본다 — battery · camera · display · software · connectivity 는
+        # 부품이자 주제라, 종류 없이는 부품이 먼저 걸려 주제 쪽 수를 볼 길이 없었다
+        prefix, sep, rest = concept.partition(":")
+        kind = prefix.strip().lower() if sep else ""
+        kind = kind if kind in ("symptom", "component", "topic", "product") else ""
+        key = (rest if sep else concept).strip()
         low, up = key.lower(), key.upper()
-        if low in O.SYMPTOM_LABELS:
+        if kind in ("", "symptom") and low in O.SYMPTOM_LABELS:
             n = (await db.execute(text(
                 "SELECT count(DISTINCT voc_id) FROM voc_defects WHERE symptom = :k"), {"k": low})).scalar_one()
             return {"type": "symptom", "key": low, **O.describe()["symptoms"][low], "annotated_voc": int(n)}
-        if low in O.COMPONENT_LABELS and low != "device":
+        if kind in ("", "component") and low in O.COMPONENT_LABELS and low != "device":
             n = (await db.execute(text(
                 "SELECT count(DISTINCT voc_id) FROM voc_defects WHERE component = :k"), {"k": low})).scalar_one()
             return {"type": "component", "key": low, **O.describe()["components"][low], "annotated_voc": int(n)}
-        if low in O.TOPIC_LABELS:
+        if kind in ("", "topic") and low in O.TOPIC_LABELS:
             n = (await db.execute(text(
                 "SELECT count(*) FROM voc_active WHERE categories && CAST(:k AS varchar[])"),
                 {"k": [low]})).scalar_one()
             return {"type": "topic", "key": low, "label": O.label("topic", low), "annotated_voc": int(n)}
-        if up in cat["by_code"]:
+        if kind in ("", "product") and up in cat["by_code"]:
             p = cat["by_code"][up]
             fk = O.family_key(up)
             fam = sorted(c for c in cat["by_code"] if O.family_key(c) == fk)

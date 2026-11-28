@@ -13,6 +13,8 @@ from typing import Optional
 from db import get_db_session
 from sqlalchemy import text
 
+from tools.outputs import split_total
+
 
 # ── 파이프라인 상태 ──────────────────────────────────────────────────────
 # voc_defects 가 비면 모든 결함 도구가 빈 배열을 줬다 — '결함 급등 없음' 이 측정값처럼 읽혔다
@@ -124,7 +126,8 @@ async def defect_profile_tool(
                sum(pc)::int AS count,
                count(*)::int AS platforms,
                round((NULLIF(power(sum(pc),2),0) / NULLIF(sum(pc*pc),0))::numeric, 2)::float
-                   AS effective_platforms
+                   AS effective_platforms,
+               count(*) OVER ()::int AS total_rows
         FROM base
         GROUP BY 1,2,3,4
         ORDER BY count DESC
@@ -133,6 +136,7 @@ async def defect_profile_tool(
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
         pipe = await pipeline_status(db)
+    defects, total = split_total([dict(r) for r in rows])
     return {
         **pipe,
         "period_days": period_days,
@@ -140,8 +144,10 @@ async def defect_profile_tool(
                     "severity": severity, "symptom": symptom, "modality": modality,
                     "brand": brand, "category": category, "country": country,
                     "platform": platform},
-        "defects": [dict(r) for r in rows],
-        "note": "effective_platforms 가 2 미만이면 단일 커뮤니티 쏠림 — 신뢰도 낮음",
+        "defects": defects,
+        "total": total, "truncated": total > len(defects),
+        "note": ("effective_platforms(1/HHI)는 글이 플랫폼에 고루 퍼진 정도다 — 2 미만이면 한 커뮤니티 쏠림이지만, "
+                 "크다고 독립 제보가 많은 것은 아니다(기사 퍼나르기도 넓게 퍼진다)"),
     }
 
 
@@ -153,7 +159,7 @@ async def defect_anomalies_tool(limit: int = 20, severity: Optional[str] = None)
         conds.append("severity = :severity")
         params["severity"] = severity
     stmt = text(f"""
-        SELECT fired_at, severity,
+        SELECT id, fired_at, severity,
                payload->>'product_code'  AS product_code,
                payload->>'component'     AS component,
                payload->>'symptom'       AS symptom,
@@ -161,9 +167,11 @@ async def defect_anomalies_tool(limit: int = 20, severity: Optional[str] = None)
                (payload->>'recent_count')::int    AS recent_count,
                (payload->>'ratio')::float         AS ratio,
                (payload->>'z')::float             AS z,
+               (payload->>'indep_sources')::int   AS indep_sources,
                (payload->>'eff_platforms')::float AS effective_platforms,
                payload->>'baseline_mode' AS baseline_mode,
-               payload->>'reason'        AS reason
+               payload->>'reason'        AS reason,
+               count(*) OVER ()::int AS total_rows
         FROM alert_events
         WHERE {" AND ".join(conds)}
         ORDER BY fired_at DESC
@@ -172,9 +180,11 @@ async def defect_anomalies_tool(limit: int = 20, severity: Optional[str] = None)
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
         pipe = await pipeline_status(db)
+    anomalies, total = split_total([dict(r) for r in rows])
     return {
         **pipe,
-        "anomalies": [dict(r) for r in rows],
+        "anomalies": anomalies,
+        "total": total, "truncated": total > len(anomalies),
         "note": ("baseline_mode=lifecycle 은 이전 세대의 동일 출시후 구간과 비교한 것 "
                  "— 출시 효과를 제거한 값이다"),
     }
@@ -195,9 +205,9 @@ async def lifecycle_compare_tool(
         ),
         agg AS (
             SELECT lc.product_code, lc.lifecycle_week AS week,
-                   count(*)::int AS total,
-                   count(*) FILTER (WHERE lc.sentiment_label = 'negative')::int AS negative,
-                   count(*) FILTER (WHERE d.voc_id IS NOT NULL)::int AS with_defect
+                   count(DISTINCT lc.voc_id)::int AS total,
+                   count(DISTINCT lc.voc_id) FILTER (WHERE lc.sentiment_label = 'negative')::int AS negative,
+                   count(DISTINCT d.voc_id)::int AS with_defect
             FROM v_voc_lifecycle lc
             LEFT JOIN voc_defects d ON d.voc_id = lc.voc_id
             WHERE lc.product_code IN (SELECT cur_code FROM pair
@@ -208,8 +218,8 @@ async def lifecycle_compare_tool(
         SELECT (SELECT cur_code FROM pair) AS product_code,
                (SELECT prev_code FROM pair) AS predecessor_code,
                a.product_code AS series, a.week, a.total, a.negative, a.with_defect,
-               round(100.0 * a.negative / NULLIF(a.total,0), 1) AS negative_pct,
-               round(100.0 * a.with_defect / NULLIF(a.total,0), 1) AS defect_pct
+               round(100.0 * a.negative / NULLIF(a.total,0), 1)::float AS negative_pct,
+               round(100.0 * a.with_defect / NULLIF(a.total,0), 1)::float AS defect_pct
         FROM agg a ORDER BY a.week, a.product_code
     """)
     async with get_db_session() as db:
@@ -255,7 +265,7 @@ async def defect_timeline_tool(
                count(DISTINCT d.voc_id)::int AS docs,
                count(DISTINCT split_part(v.source_url, '?', 1))::int AS uniq_urls,
                count(DISTINCT pl.code)::int AS platforms,
-               count(*) FILTER (WHERE d.modality = 'firsthand')::int AS firsthand
+               count(DISTINCT d.voc_id) FILTER (WHERE d.modality = 'firsthand')::int AS firsthand
         {_BASE_JOINS}
         WHERE {" AND ".join(conds)}
         GROUP BY 1 ORDER BY 1
@@ -300,9 +310,10 @@ async def defect_breakdown_tool(
     stmt = text(f"""
         SELECT {expr} AS key,
                count(DISTINCT d.voc_id)::int AS docs,
-               count(*) FILTER (WHERE d.modality = 'firsthand')::int AS firsthand,
-               round(100.0 * count(*) FILTER (WHERE d.modality='firsthand')
-                     / NULLIF(count(*),0), 1)::float AS firsthand_pct
+               count(DISTINCT d.voc_id) FILTER (WHERE d.modality = 'firsthand')::int AS firsthand,
+               round(100.0 * count(DISTINCT d.voc_id) FILTER (WHERE d.modality='firsthand')
+                     / NULLIF(count(DISTINCT d.voc_id),0), 1)::float AS firsthand_pct,
+               count(*) OVER ()::int AS total_rows
         {_BASE_JOINS}
         WHERE {" AND ".join(conds)}
         GROUP BY 1 ORDER BY docs DESC LIMIT :limit
@@ -310,8 +321,9 @@ async def defect_breakdown_tool(
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
         pipe = await pipeline_status(db)
+    data, total = split_total([dict(r) for r in rows])
     return {**pipe, "by": label, "period_days": period_days, "filters": filters,
-            "rows": [dict(r) for r in rows]}
+            "total": total, "truncated": total > len(data), "rows": data}
 
 
 async def defect_cooccurrence_tool(
@@ -319,7 +331,7 @@ async def defect_cooccurrence_tool(
 ) -> dict:
     """같은 글에서 함께 나타나는 결함 쌍 — 복합 고장 모드 발굴.
 
-    'hinge/dust_ingress 와 display/line 이 같이 나온다'처럼 단일 증상 집계로는
+    'hinge/dust_ingress 와 display/green_line 이 같이 나온다'처럼 단일 증상 집계로는
     보이지 않는 연쇄를 드러낸다.
     """
     conds, params = _build_filters(period_days, **filters)
@@ -332,7 +344,8 @@ async def defect_cooccurrence_tool(
         )
         SELECT a.component || '/' || a.symptom AS defect_a,
                b.component || '/' || b.symptom AS defect_b,
-               count(DISTINCT a.voc_id)::int AS co_docs
+               count(DISTINCT a.voc_id)::int AS co_docs,
+               count(*) OVER ()::int AS total_rows
         FROM scoped a JOIN scoped b
           ON a.voc_id = b.voc_id
          AND (a.component, a.symptom) < (b.component, b.symptom)
@@ -343,8 +356,9 @@ async def defect_cooccurrence_tool(
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
         pipe = await pipeline_status(db)
+    pairs, total = split_total([dict(r) for r in rows])
     return {**pipe, "period_days": period_days, "filters": filters,
-            "pairs": [dict(r) for r in rows],
+            "total": total, "truncated": total > len(pairs), "pairs": pairs,
             "note": "동시 등장이지 인과가 아니다. 한 글이 여러 불만을 나열한 것일 수 있다."}
 
 
@@ -358,7 +372,7 @@ async def defect_onset_tool(period_days: int = 730, **filters) -> dict:
     conds.append("v.published_at >= p.released_at")
     stmt = text(f"""
         WITH d0 AS (
-            SELECT p.code AS product_code,
+            SELECT DISTINCT p.code AS product_code,
                    (v.published_at::date - p.released_at) AS days_since,
                    d.voc_id
             {_BASE_JOINS}
@@ -399,20 +413,25 @@ async def defect_evidence_tool(
     conds, params = _build_filters(period_days, **filters)
     params["limit"] = limit
     stmt = text(f"""
-        SELECT DISTINCT ON (split_part(v.source_url, '?', 1))
-               v.id, v.source_url, v.published_at, v.country_code,
-               COALESCE(pl.code, 'unknown') AS platform,
-               p.code AS product_code, d.component, d.symptom, d.severity, d.modality,
-               v.sentiment_label,
-               LEFT(COALESCE(v.content_translated, v.content_original), 400) AS snippet
-        {_BASE_JOINS}
-        WHERE {" AND ".join(conds)}
-        ORDER BY split_part(v.source_url, '?', 1), v.published_at DESC
+        SELECT s.*, count(*) OVER ()::int AS total_rows
+        FROM (
+            SELECT DISTINCT ON (split_part(v.source_url, '?', 1))
+                   v.id, v.source_url, v.published_at, v.country_code,
+                   COALESCE(pl.code, 'unknown') AS platform,
+                   p.code AS product_code, d.component, d.symptom, d.severity, d.modality,
+                   v.sentiment_label,
+                   LEFT(COALESCE(v.content_translated, v.content_original), 400) AS snippet
+            {_BASE_JOINS}
+            WHERE {" AND ".join(conds)}
+            ORDER BY split_part(v.source_url, '?', 1), v.published_at DESC
+        ) s
+        ORDER BY s.published_at DESC NULLS LAST, s.id DESC
         LIMIT :limit
     """)
     async with get_db_session() as db:
         rows = (await db.execute(stmt, params)).mappings().all()
         pipe = await pipeline_status(db)
+    samples, total = split_total([dict(r) for r in rows])
     return {**pipe, "period_days": period_days, "filters": filters,
-            "samples": [dict(r) for r in rows],
+            "total": total, "truncated": total > len(samples), "samples": samples,
             "note": "source_url 기준 중복 제거 — 같은 글의 페이지 분할을 한 건으로 센다."}

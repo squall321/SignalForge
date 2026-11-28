@@ -5,7 +5,7 @@ FastMCP 기반 — Claude가 VOC 데이터베이스와 직접 대화
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from pydantic import Field
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 import inspect
 import os, asyncio
 import re
@@ -93,6 +93,14 @@ from tools.coverage import (
     get_kg_relations_tool,
     get_unmapped_voc_tool,
 )
+from tools.changes import EVENT_NAMES, RULE_EVENT, list_changes_tool
+from tools.outputs import (
+    AlertCheckOut, ChangesOut, ChartOut, CorpusOverviewOut, CountryBreakdownOut, DefectAnomaliesOut,
+    DefectBreakdownOut, DefectCooccurrenceOut, DefectOnsetOut, DefectProfileOut, DefectTimelineOut,
+    EmergingKeywordsOut, EngagementLeadersOut, KeywordStatsOut, KgRelationsOut, LanguageBreakdownOut,
+    LifecycleCompareOut, PeriodCompareOut, PlatformBreakdownOut, ProductTimelineOut, ResolveOut,
+    SentimentTrendOut, SiteHealthOut, TopIssuesOut, UnmappedVocOut, VocBreakdownOut, split_total,
+)
 from tools.pii import masked
 
 
@@ -101,22 +109,55 @@ from tools.pii import masked
 # 앞 인자의 이어지는 설명, 들여 쓰지 않은 줄(Returns: 등)에서 끝난다.
 _ARGS_HEAD = re.compile(r"^Args:\s*$")
 _ARG_LINE = re.compile(r"^(\s+)([A-Za-z_]\w*)\s*(?:\([^)]*\))?\s*:\s*(.*)$")
-# 37개 모두 DB 조회뿐이다(INSERT · UPDATE · DELETE 없음). 쓰는 도구가 생기면 그 도구의 @mcp.tool(annotations=…) 에 따로 단다.
+# 도구는 모두 DB 조회뿐이다(INSERT · UPDATE · DELETE 없음). 쓰는 도구가 생기면 그 도구의 @mcp.tool(annotations=…) 에 따로 단다.
 # SDK 1.x 는 camelCase 칸 이름이다 — read_only_hint= 로 쓰면 모르는 칸으로 나가 클라이언트가 표지를 못 받는다
 _READ_ONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
+# 닫힌 어휘(계약 C3) — 정해진 낱말 집합은 enum 으로 낸다. 부품 · 증상 · 주제는 온톨로지가 정본이라 거기서 짓는다(못 읽으면 글자).
+# 플랫폼 · 국가 · 브랜드는 열린 집합이라 글자 그대로 두고 설명에 찾는 도구를 적는다.
+Severity = Literal["safety", "non_functional", "degraded", "cosmetic"]
+AlertSeverity = Literal["critical", "warning"]
+Modality = Literal["firsthand", "worry", "question", "hearsay", "review", "other"]
+Interval = Literal["day", "week", "month"]
+Sentiment = Literal["positive", "negative", "neutral"]
+DeviceCategory = Literal["phone", "watch", "tablet", "buds", "laptop", "band", "headphone", "ring", "xr", "glasses"]
+SearchOrder = Literal["relevance", "recent", "engagement"]
+MatchMode = Literal["auto", "phrase", "fts", "substring"]
+CoreType = Literal["plm_project", "plm_task", "plm_model"]
+CrisisCase = Literal["GN7", "GZF1", "GS22U", "GZFL3", "GS20"]
+KgEdgeType = Literal["product_category", "product_country", "product_platform"]
+UnmappedReason = Literal["no_model_mention", "non_galaxy", "too_short", "noise"]
+VocAxis = Literal["product", "brand", "category", "country", "platform", "platform_kind", "language", "sentiment"]
+CompareAxis = Literal["product", "brand", "category", "country", "platform"]
+DefectAxis = Literal["platform", "country", "modality", "severity", "component", "symptom", "product", "brand",
+                     "category"]
+EventName = Literal[tuple(EVENT_NAMES.values()) + (RULE_EVENT,)]
+# VOC 주제 — 수집기 분류기(crawler/nlp/categorizer.py)의 열세 주제 + 성격 표지(model_mention · others · non_target)
+_TOPIC_MARKS = ("model_mention", "others", "non_target")
+try:
+    import ontology as _O
+    Component = Literal[tuple(sorted(_O.COMPONENT_LABELS))]
+    Symptom = Literal[tuple(sorted(_O.SYMPTOM_LABELS))]
+    Topic = Literal[tuple(sorted(set(_O.TOPIC_LABELS) | set(_TOPIC_MARKS)))]
+except Exception:  # noqa: BLE001 — 시맨틱이 꺼진 서버(온톨로지 import 실패)도 뜬다
+    Component = Symptom = Topic = str
+# 숫자 경계(계약 C4) — 함수 안에서 조용히 자르지 않고 스키마가 막는다. 상한은 인자 설명에도 적는다
+IsoDate = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}")]
+AnyDays = Annotated[int, Field(ge=0, le=3650)]          # 0 = 전 기간
+Days = Annotated[int, Field(ge=1, le=3650)]
+
 # 공통 필터 — 결함 · 통계 도구가 같은 뜻으로 받는다(tools/defects._FILTER_SPECS · shared/stats_sql._SLICE_SPECS). docstring 에
-# 설명이 없는 인자는 이 설명을 쓴다(Args 에 '나머지: 공통 필터' 로 줄여 쓴 도구들)
+# 설명이 없는 인자는 이 설명을 쓴다(Args 에 적지 않은 공통 필터)
 _COMMON_ARGS = {
     "product_code": "제품 코드(예: GZF8 · GS26U · AP16P) — 생략하면 전체. 코드는 resolve_product_keyword 로 찾는다",
-    "component": "부품 key — back_glass · battery · button · camera · charging_port · connectivity · device · display · "
-                 "fingerprint · frame · hinge · s_pen · sim · software · speaker · thermal (생략하면 전체)",
-    "symptom": "증상 key(32개 — get_ontology 의 symptoms, 예: overheat · drain · crease · burn_in) — 생략하면 전체",
-    "severity": "심각도 — safety | non_functional | degraded | cosmetic (생략하면 전체)",
+    "component": "부품 key(get_ontology 의 components — device 는 부품을 못 정한 기기 전반) — 생략하면 전체",
+    "symptom": "증상 key(get_ontology 의 symptoms, 예: overheat · drain · crease · burn_in) — 생략하면 전체",
+    "severity": "결함 심각도 — safety(안전) | non_functional(기능 상실) | degraded(성능 저하) | cosmetic(외관) (생략하면 전체)",
     "modality": "글의 양상 — firsthand(본인이 실제 겪은 고장) | worry | question | hearsay | review | other (생략하면 전체)",
-    "brand": "제품 브랜드(소문자, 예: samsung · apple · google · xiaomi) — 생략하면 전체",
+    "brand": "제품 브랜드(소문자, 예: samsung · apple · google · xiaomi — 목록은 voc_breakdown(by=\"brand\")) — 생략하면 전체",
     "category": "제품의 기기 종류 — phone · watch · tablet · buds · laptop · band · headphone · ring · xr · glasses (생략하면 전체)",
-    "country": "글의 국가 코드(ISO 두 글자, 예: KR · US · IN) — 생략하면 전체",
-    "platform": "수집 플랫폼 코드(예: reddit · youtube · gsmarena — get_platform_breakdown 의 code) — 생략하면 전체",
+    "country": "글의 나라 코드(ISO 두 글자 대문자, 예: KR · US · IN) — 생략하면 전체",
+    "platform": ("수집 플랫폼 코드(예: reddit · youtube · gsmarena — 목록은 voc_breakdown(by=\"platform\") 의 key 나 "
+                 "get_platform_breakdown 의 platform_code) — 생략하면 전체"),
     "sentiment": "감성 — positive | negative | neutral (생략하면 전체)",
 }
 
@@ -174,10 +215,51 @@ class _MaskedFastMCP(FastMCP):
         return deco
 
 
-# @lat: mcp — [[mcp-server]] 참조. 7개 도구 정의.
+def _listed(rows: list, limit: int) -> dict:
+    """목록을 돌려주는 도구의 정직한 한도(계약 C8) — {total, truncated, results}.
+
+    집계 도구는 SQL 창 함수로 센 전체 수(total_rows)를 행에 싣는다. 행 도구는 한 건 더 읽어(limit + 1) 잘렸는지만 안다 —
+    그때 total 은 다 실었을 때만 준다(잘렸으면 null)."""
+    rows, total = split_total(rows)
+    results = rows[:limit]
+    if total is None:
+        truncated = len(rows) > limit
+        total = None if truncated else len(results)
+    else:
+        truncated = total > len(results)
+    return {"total": total, "truncated": truncated, "results": results}
+
+
+# 앱 입구(계약 R3) — corpus_overview 가 말뭉치 개요와 함께 대표 업무의 차례를 준다(계약 R2 — 같은 글이
+# docs/mcp-modernize-2026-11-28/workflows.md 에 있다). 도구 이름만 적는다 — 인자는 각 도구 설명에 있다
+_GUIDE = {
+    "workflows": [
+        {"purpose": "한 제품의 결함 양상과 근거", "entry": "resolve_product_keyword",
+         "steps": ["resolve_product_keyword", "defect_profile", "defect_timeline", "defect_breakdown",
+                   "defect_evidence"]},
+        {"purpose": "증상 · 주제로 VOC 찾기와 규모", "entry": "search_voc",
+         "steps": ["search_voc", "keyword_stats", "voc_breakdown"]},
+        {"purpose": "급등 · 위기 감시", "entry": "list_changes",
+         "steps": ["list_changes", "defect_anomalies", "lifecycle_compare", "alert_check", "period_compare"]},
+        {"purpose": "경쟁 제품 비교", "entry": "resolve_product_keyword",
+         "steps": ["resolve_product_keyword", "compare_products", "voc_breakdown", "period_compare"]},
+        {"purpose": "PLM 프로젝트 · 과제 · 개발모델로 VOC 찾기", "entry": "get_ontology",
+         "steps": ["get_ontology", "resolve_product_keyword", "search_voc"]},
+    ],
+    "rules": [
+        "제품 코드는 짐작하지 않는다 — resolve_product_keyword 로 확정해 product_code 로 넘긴다",
+        "0건은 'VOC 없음' 이 아니다 — 결과의 reason · notes · status · pipeline_status 가 까닭을 준다",
+        "잘린 목록은 truncated 로 안다 — 전체 수를 말할 때는 total · groups 를 인용한다",
+        "category 는 도구마다 뜻이 다르다 — query_voc · compare_products 는 VOC 주제, 통계 · 결함 도구는 기기 종류",
+    ],
+}
+
+
+# @lat: mcp — [[mcp-server]] 참조. 도구 정의.
 mcp = _MaskedFastMCP(
     name="SignalForge VOC Intelligence",
-    instructions="Samsung Galaxy 제품군 VOC 데이터베이스에 질문하는 MCP 서버",
+    instructions=("Samsung Galaxy 제품군과 경쟁 제품의 VOC 데이터베이스에 질문하는 MCP 서버 — 처음에는 corpus_overview 를 "
+                  "부른다(말뭉치 개요와 업무별로 다음에 부를 도구)"),
     port=int(os.getenv("MCP_PORT", "8001")),
     stateless_http=True,                 # 세션을 쥐지 않는다(계약 P1 · 1단계) — 도구는 DB 조회뿐이라 세션 상태가 없다
 )
@@ -189,51 +271,74 @@ mcp = _MaskedFastMCP(
 async def query_voc(
     product_code: Optional[str] = None,
     country: Optional[str] = None,
-    category: Optional[str] = None,
-    sentiment: Optional[str] = None,
+    category: Optional[Topic] = None,
+    sentiment: Optional[Sentiment] = None,
     platform: Optional[str] = None,
     keyword: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    limit: int = 20,
-) -> list:
-    """
-    VOC를 조건별로 자유 조회합니다. 모든 필터가 선택이며 조합 가능합니다.
-    product_code 를 생략하면 전체 제품(미태깅 포함)을 횡단 조회합니다.
-    결과의 product_code 가 비어 있으면 본문에 특정 모델명이 없는 글입니다(일반 토론·짧은
-    댓글·브랜드만 언급) — 처리 실패가 아닙니다. 현재 태깅률은 get_unmapped_voc 의 coverage.
+    start_date: Optional[IsoDate] = None,
+    end_date: Optional[IsoDate] = None,
+    limit: Annotated[int, Field(ge=1, le=100)] = 20,
+    cursor: Optional[Annotated[str, Field(pattern=r"^\d{1,6}$")]] = None,
+) -> dict:
+    """조건(제품 · 나라 · 주제 · 감성 · 플랫폼 · 낱말 · 발행일 구간)을 조합해 VOC 원문 행을 발행일 최신순으로 돌려줍니다.
+
+    필터가 정해진 원문 목록이 필요할 때 씁니다. 뜻으로 찾으려면(표기 · 언어가 달라도) search_voc, 건수 · 비중 · 추세는
+    keyword_stats · voc_breakdown, 결함 부품 × 증상의 1인칭 원문은 defect_evidence, 많이 퍼진 글은 get_engagement_leaders
+    를 씁니다. keyword 는 글자 그대로 맞춥니다(한국어는 원문 부분일치, 영어는 번역문 전문검색) — 동의어로 넓히지 않습니다.
+    product_code 를 생략하면 제품이 안 붙은 글까지 봅니다. 행의 product_code 가 비면 본문에 특정 모델명이 없는 글입니다
+    (처리 실패가 아님).
+
+    돌려주는 꼴 — {total, truncated, next_cursor, results}. 행은 본문 원문 · 번역문 전체와 감성 · 주제 · 참여도 · 플랫폼 ·
+    제품입니다. 한 쪽은 최대 100행이고, 더 있으면 truncated 가 참이며 next_cursor 를 cursor 로 넘기면 다음 쪽입니다.
+    total 은 마지막 쪽에서만 셉니다(잘린 쪽은 null — 전체 건수는 keyword_stats). 작성자 · 계정 · 연락처 꼴은 가려서 나갑니다.
 
     Args:
-        product_code: 제품 코드 (예: GS25U, GZF7) — 생략 시 전체
-        country: 국가 코드 (예: KR, US, DE) — 선택
-        category: 카테고리 코드 (battery, camera, display, performance, software, build_quality, price, design, connectivity, ai_features, accessories, comparison) — 선택
-        sentiment: 감성 필터 (positive, negative, neutral) — 선택
-        platform: 플랫폼 코드 (예: reddit, youtube, gsmarena) — 선택
-        keyword: 본문 전문검색 키워드 (영어 권장) — 선택
-        start_date: 시작일 YYYY-MM-DD (published_at >=) — 선택
-        end_date: 종료일 YYYY-MM-DD (published_at <, 반열림) — 선택
-        limit: 반환 건수 (기본 20, 최대 100)
+        product_code: 제품 코드(예: GS25U · GZF7) — 생략하면 제품이 안 붙은 글까지 전체. 코드는 resolve_product_keyword 로 찾는다
+        country: 글의 나라 코드(ISO 두 글자, 예: KR · US · DE) — 선택
+        category: VOC 주제 — battery · camera · display · performance · software · build_quality · price · design ·
+            connectivity · ai_features · accessories · review · comparison(경쟁 비교) · model_mention(모델 언급) ·
+            others(사전 밖 주제) · non_target(대상 밖 글 표지). 기기 종류(phone · watch …)가 아니다 — 선택
+        sentiment: 감성 — positive | negative | neutral (생략하면 전체)
+        platform: 수집 플랫폼 코드(예: reddit · youtube · gsmarena — 목록은 voc_breakdown(by="platform")) — 선택
+        keyword: 본문 낱말(글자 그대로 — 한국어는 원문 부분일치, 영어는 번역문 전문검색) — 선택
+        start_date: 발행일 시작 YYYY-MM-DD(이 날 포함) — 선택
+        end_date: 발행일 끝 YYYY-MM-DD(이 날 제외) — 선택
+        limit: 한 쪽의 행 수(1 ~ 100, 기본 20)
+        cursor: 앞 호출의 next_cursor — 다음 쪽(생략하면 처음부터)
     """
-    return await query_voc_tool(
-        product_code, country, category, sentiment, platform,
-        keyword, start_date, end_date, min(limit, 100))
+    offset = int(cursor or 0)
+    rows = await query_voc_tool(product_code, country, category, sentiment, platform,
+                                keyword, start_date, end_date, limit + 1, offset)
+    out = _listed(rows, limit)
+    if not out["truncated"]:
+        out["total"] = offset + len(out["results"])
+    out["next_cursor"] = str(offset + limit) if out["truncated"] else None
+    return out
 
 
 @mcp.tool()
 async def get_top_issues(
     product_code: str,
-    period_days: int = 30,
-    top_n: int = 10,
-) -> list:
-    """
-    지난 N일간 특정 제품에서 가장 많이 언급된 이슈 TOP N을 반환합니다.
+    period_days: Days = 30,
+    top_n: Annotated[int, Field(ge=1, le=20)] = 10,
+) -> TopIssuesOut:
+    """한 제품의 최근 N일 VOC 를 주제(배터리 · 카메라 · 화면 …)별로 세어 많이 말해진 순서와 부정 비율을 돌려줍니다.
+
+    한 제품에서 무엇이 화제인지 볼 때 씁니다. 그림 · 나라 드릴다운 · 전 기간은 chart_category_distribution, 부품 × 증상
+    결함은 defect_profile, 제품끼리 견주기는 compare_products, 글 요약은 get_voc_summary 를 씁니다. 제품이 대표로 붙은 글만
+    세고 기간은 수집 시각 기준입니다. comparison · model_mention(글의 성격 표지)은 뺍니다. 한 글에 주제가 여럿이면 각각 세어
+    합이 글 수보다 큽니다.
+
+    돌려주는 꼴 — {product_code, period_days, total(주제 수), truncated, results[{category, total_count, negative_rate(%)}]}.
+    모르는 제품이거나 기간에 글이 없으면 results 가 빕니다.
 
     Args:
-        product_code: 제품 코드 (예: GS25U)
-        period_days: 분석 기간 (일, 기본 30)
-        top_n: 상위 몇 개 이슈 (기본 10, 최대 20)
+        product_code: 제품 코드(예: GS25U) — resolve_product_keyword 로 찾는다
+        period_days: 기간 — 최근 N일(수집 시각 기준, 1 ~ 3650, 기본 30)
+        top_n: 주제 수(1 ~ 20, 기본 10)
     """
-    return await get_top_issues_tool(product_code, period_days, min(top_n, 20))
+    rows = await get_top_issues_tool(product_code, period_days, top_n)
+    return {"product_code": product_code.upper(), "period_days": period_days, **_listed(rows, top_n)}
 
 
 # 시맨틱 검색이 싣는 푼 길 · 일부러 찾지 않은 0건의 까닭(SFO-1 · 3) — search_voc 응답에 그대로 옮긴다
@@ -244,77 +349,56 @@ _ROUTE_KEYS = ("reason", "core_key", "matched_by", "via", "resolutions", "core_u
 async def search_voc(
     keyword: str,
     product_code: Optional[str] = None,
-    limit: int = 30,
-    days: Optional[int] = None,
-    order: str = "relevance",
-    match: str = "auto",
+    limit: Annotated[int, Field(ge=1, le=100)] = 30,
+    days: Optional[AnyDays] = None,
+    order: SearchOrder = "relevance",
+    match: MatchMode = "auto",
     semantic: bool = True,
     strict: bool = False,
-    core_type: Optional[str] = None,
+    core_type: Optional[CoreType] = None,
     core_key: Optional[str] = None,
 ) -> dict:
-    """
-    VOC 를 **뜻으로** 검색합니다. 한국어·영어·섞어 써도 됩니다 — 온톨로지가 자동 해석합니다.
+    """VOC 를 뜻으로 찾습니다 — 한국어 · 영어 · 섞어 쓴 자연어를 개념(제품 · 세대 · 부품 · 증상 · 주제 · 시장 · 채널)으로 풀어 찾습니다.
 
-    검색어를 개념(제품·세대·브랜드·기기 / 부품·증상 / 주제 / 시장·채널)으로 바꿔
-    말뭉치의 개념 주석(제품 링크·결함 부품×증상·주제)과 다국어 동의어로 찾습니다.
-    그래서 표기·언어가 달라도 뜻이 같으면 결과가 같습니다 —
-      'S25 울트라 발열' = 'Galaxy S25 Ultra overheating' = 's25u 발열 문제'
-      '폴드7 힌지 먼지' · '노트9 배터리' · 'S25 시리즈 배터리 광탈'(세대 전 모델) ·
-      '레딧에서 픽셀 10 발열'(채널) · '인도 S25 불만'(시장) · 'S25 vs 아이폰 16 배터리'(둘 다 언급한 글)
-    모델코드(SM-S938B · sm-s938n · SM-S9380)는 그 제품으로 봅니다 — 'SM-S938B 발열' = 'S25 울트라 발열'.
-    출시 전 세대의 코드(SM-S958U)는 모델을 못 정해 그 세대 전부를 범위로 씁니다.
-    PLM 과제(SP 허브)가 연결된 서버에서는 프로젝트 key · 과제코드 · 과제명(개발명) · 개발모델명으로도 찾습니다 —
-    'TK-001 발열' · '<개발명> 배터리' · '<프로젝트 key> 발열' → 프로젝트 → 과제 → 개발모델 → 제품.
-    어떻게 풀었는지는 응답의 core_key{type_slug,key} · matched_by · via(그 말에서 제품까지의 길) · resolutions(범위로 푼
-    말마다)와 notes 에 있습니다 — matched_by 는 project · task_code · task_name · model_code · dev_model(PLM) ·
-    marketing_name(별칭 사전) · model_code(모델코드 사전). 마케팅명이 코어 프로젝트의 별칭이면 core_key 가 그 프로젝트,
-    코어 객체가 없으면 core_key 는 null 입니다.
-    알아들었지만 이 서버의 제품에 잇지 못한 프로젝트는 넓히지 않고 0건 + reason(in_core_no_local_data)입니다.
-    제품에 못 이은 과제는 낱말 검색으로 물러나고 notes 에 한 줄을 적습니다 — strict=True 면 그때도 0건 + reason.
-    연결 여부는 get_ontology 의 plm.
-    사전에 없는 표현도 찾습니다 — 은유·완곡 표현은 로컬 LLM 이 증상 개념으로 옮기고
-    ('폰이 손난로 같아요' → 발열), 비슷한 문장은 임베딩(bge-m3)으로 찾습니다
-    ('S25 울트라 하루를 못 버텨요' → 배터리 광탈 글). 사전이 질의를 다 설명하면 임베딩은 쓰지
-    않습니다(표기가 달라도 결과가 같게).
-    각 결과의 matched 에 왜 걸렸는지(결함 주석·본문 동의어·의미 유사·대표 제품 …)가 있습니다.
-    해석 내용(무엇을 무엇으로 봤는지)은 semantic_search 로 확인하십시오.
+    표기 · 언어가 달라도 뜻이 같으면 결과가 같습니다('S25 울트라 발열' = 'Galaxy S25 Ultra overheating'). 세대('S25 시리즈'),
+    비교('S25 vs 아이폰 16 배터리' — 둘 다 언급한 글), 시장('인도'), 채널('레딧에서'), 모델코드(SM-S938B), 은유('폰이 손난로
+    같아요' → 발열)도 풉니다. PLM 거울이 연결된 서버는 프로젝트 key · 과제코드 · 과제명 · 개발모델명으로도 찾습니다(연결
+    여부는 get_ontology 의 plm). 무엇으로 풀었는지 보려면 semantic_search, 글자 그대로의 필터 목록은 query_voc, 건수 ·
+    추세는 keyword_stats, 제품 코드 확정은 resolve_product_keyword 를 씁니다.
 
-    결과의 product_name 이 비어 있으면 본문에 특정 모델명이 없는 글입니다(일반 토론·짧은
-    댓글·브랜드만 언급) — 처리 실패가 아닙니다. 현재 태깅률은 get_unmapped_voc 의 coverage.
-
-    반환은 늘 객체입니다 — {total, results, strategy, match_mode, notes}. results 가 비었으면
-    notes 에 까닭(시도한 경로·범위·기간)이 있습니다 — 0건을 "VOC 가 없다" 로 단정하지 마십시오.
-    reason 이 있으면 범위를 못 걸어 일부러 찾지 않은 0건입니다(in_core_no_local_data · product_not_in_catalog).
-    strategy 가 'keyword' 면 시맨틱이 꺼졌거나 개념을 못 찾은 것이니 notes 를 함께 전하십시오.
-    작성자 이름·계정·메일·전화·IMEI·일련번호 꼴은 가려서 나갑니다(개인정보 기본 가림, 모든 도구 공통).
+    돌려주는 꼴 — {total, truncated, results, strategy, match_mode, notes}, 범위로 푼 말이 있으면 core_key{type_slug, key} ·
+    matched_by · via · resolutions · core_unresolved. total 은 같은 본문을 접기 전 전체 건수, results 는 관련도 순 상위
+    limit 건이고 행마다 matched(왜 걸렸나)가 있습니다. 0건이면 notes 에 까닭이 있고, reason 이 있으면 범위를 못 걸어 일부러
+    찾지 않은 것입니다(in_core_no_local_data · product_not_in_catalog · not_in_core_mirror · no_core_mirror ·
+    unsupported_core_type · bad_arguments · semantic_unavailable) — 0건을 'VOC 없음' 으로 단정하지 않습니다. strategy 가
+    keyword 면 개념을 못 찾아 낱말 검색으로 간 것이니 notes 를 함께 전합니다. product_name 이 비면 본문에 모델명이 없는
+    글입니다. 작성자 · 계정 · 연락처 꼴은 가려서 나갑니다.
 
     Args:
-        keyword: 검색어. 자연어 그대로 ('S25 울트라 발열 불만', '최근 폴드 주름')
-        product_code: 특정 제품으로 범위 한정 — 선택 (해석된 제품보다 우선)
-        limit: 반환 건수 (기본 30, 최대 100)
-        days: 최근 N일(발행일 기준) — 선택. 검색어에 '최근'·'요즘' 이 있으면 90일로 본다
-        order: 'relevance'(기본, 관련도→최신) | 'recent'(최신순) | 'engagement'(참여도순)
-        match: 키워드 검색으로 갈 때의 경로 — 'auto' | 'phrase' | 'fts' | 'substring'
-        semantic: False 면 온톨로지 없이 예전 키워드 검색만 씁니다
+        keyword: 검색어(자연어 그대로, 예: 'S25 울트라 발열 불만' · '최근 폴드 주름'). core_type 을 주면 나머지 조건만(빈 글자도 된다)
+        product_code: 제품 범위 강제(해석한 제품보다 우선) — 선택
+        limit: 결과 수(1 ~ 100, 기본 30)
+        days: 최근 N일(발행일 기준, 최대 3650) — 생략하거나 0 이면 전 기간. semantic=True 면 검색어의 '최근 · 요즘'(90일) ·
+            '이번 주'(7일) · '이번 달'(30일) · '2025년' 도 기간으로 본다
+        order: relevance(관련도 → 최신, 기본) | recent(최신순) | engagement(참여도순)
+        match: 낱말 검색으로 갈 때의 경로 — auto(기본) | phrase(구절) | fts(영어 번역문 전문검색) | substring(부분일치)
+        semantic: False 면 온톨로지 없이 낱말 검색만 한다(core_type 을 주면 무시)
         strict: True 면 알아들은 범위 말(PLM 과제 · 제품)을 못 걸 때 낱말 검색으로 넓히지 않고 0건 + reason
-        core_type: 코어 key 로 범위 걸기 — 'plm_project' · 'plm_task' · 'plm_model' (core_key 와 함께). 운영 박스
-            ontology_lookup 이 푼 코어 key 를 그대로 넘기는 길이다. keyword 는 증상 등 나머지 조건(빈 글자도 된다).
-            못 풀면 다른 범위가 있어도 0건 + reason(not_in_core_mirror · in_core_no_local_data · no_core_mirror ·
-            unsupported_core_type). 시맨틱 검색으로만 찾는다(semantic=False 여도)
-        core_key: 그 코어 객체의 key (옛 key 도 받는다)
+        core_type: 코어 객체로 범위 걸기 — plm_project | plm_task | plm_model (core_key 와 함께). 못 풀면 다른 조건이 있어도
+            0건 + reason. 시맨틱 검색으로만 찾는다(semantic=False 여도)
+        core_key: 그 코어 객체의 key(옛 key 도 받는다)
     """
     if bool(core_type) != bool(core_key):
-        return {"total": 0, "results": [], "strategy": "semantic", "match_mode": "none", "reason": "bad_arguments",
-                "notes": ["core_type 과 core_key 는 함께 준다"]}
+        return {"total": 0, "truncated": False, "results": [], "strategy": "semantic", "match_mode": "none",
+                "reason": "bad_arguments", "notes": ["core_type 과 core_key 는 함께 준다"]}
     if not semantic and not core_type:
-        d = await search_voc_detail(keyword, product_code, min(limit, 100), days,
+        d = await search_voc_detail(keyword, product_code, limit, days,
                                     "recent" if order == "relevance" else order, match)
         return {"total": d["total"], "truncated": d["truncated"], "results": d["results"], "strategy": "keyword",
                 "match_mode": d["match_mode"], "notes": d["notes"]}
     r = await semantic_search_tool(keyword, product_code, limit, days, order, match, strict, core_type, core_key)
-    return {"total": r["total"], "results": r["results"], "strategy": r["strategy"],
-            "match_mode": r.get("match_mode") or r["strategy"],
+    return {"total": r["total"], "truncated": r["total"] > len(r["results"]), "results": r["results"],
+            "strategy": r["strategy"], "match_mode": r.get("match_mode") or r["strategy"],
             "notes": (r.get("interpretation") or {}).get("notes", []),
             **{k: r[k] for k in _ROUTE_KEYS if k in r}}
 
@@ -323,76 +407,74 @@ async def search_voc(
 async def semantic_search(
     query: str,
     product_code: Optional[str] = None,
-    limit: int = 30,
-    days: Optional[int] = None,
-    order: str = "relevance",
+    limit: Annotated[int, Field(ge=1, le=100)] = 30,
+    days: Optional[AnyDays] = None,
+    order: SearchOrder = "relevance",
     strict: bool = False,
 ) -> dict:
-    """search_voc 와 같은 시맨틱 검색에 **해석 내용**을 함께 돌려줍니다.
+    """search_voc 와 같은 뜻 검색을 하고, 검색어를 무엇으로 풀었는지(해석)를 함께 돌려줍니다.
 
-    interpretation —
-      concepts  인식한 개념 [{type, key, label, via(근거 표현), role}]
-                role: scope(범위) · match(후보) · boost(가산) · derived(관계로 추가)
-      scope     실제로 건 제품 범위 (세대 확장·비교 의도면 '모두 언급' 포함)
-      expansion 증상·부품별로 본문에서 찾은 다국어 동의어
-      notes     판단 근거 ('S25' 는 기본 모델로 봤다 — 전 세대는 'S25 시리즈' 등)
-      llm_symptoms  사전에 없는 표현에서 LLM 이 추론한 증상 키 (role='inferred', 사전 증상의 절반으로 친다)
-      vector    임베딩 사용 여부·후보 수 (사전이 다 설명하면 쓰지 않는다)
-    strategy — semantic(개념) · vector(개념 없이 임베딩·낱말) · keyword(둘 다 없을 때 예전 검색)
-    total 은 조건을 만족한 전체 건수, results 는 관련도 순 상위 limit 건(같은 본문은 접는다).
-    범위로 푼 말이 있으면 core_key · matched_by · via · resolutions, 못 이은 PLM key 는 core_unresolved,
-    범위를 못 걸어 찾지 않은 0건이면 reason — search_voc 와 같다.
+    'S25' 를 기본 모델로 봤는지 세대 전체로 봤는지, 어떤 동의어로 넓혔는지 확인하거나 사용자에게 설명할 때 씁니다. 결과만
+    필요하면 search_voc(match · semantic · core_type 인자도 있다), 개념 사전은 get_ontology 를 씁니다.
+
+    돌려주는 꼴 — {query, strategy, total, truncated, results, interpretation, elapsed_ms} 와 search_voc 의 범위 칸(core_key ·
+    matched_by · via · resolutions · core_unresolved · reason). interpretation 은 concepts[{type, key, label, via, role}] (role —
+    scope 범위 · match 후보 · boost 가산 · derived 관계로 추가 · inferred 추론), scope(건 제품 범위), expansion(증상 · 부품별
+    다국어 동의어), notes(판단 근거), llm_symptoms(사전에 없는 표현에서 추론한 증상 — 사전 증상의 절반으로 친다), vector(임베딩
+    사용 여부 · 후보 수 — 사전이 질의를 다 설명하면 쓰지 않는다)입니다. strategy 는 semantic(개념) · vector(개념 없이 임베딩 ·
+    낱말) · keyword(낱말 검색). total 은 같은 본문을 접기 전 전체 건수, results 는 관련도 순 상위 limit 건입니다.
 
     Args:
-        query: 검색어 (자연어)
+        query: 검색어(자연어)
         product_code: 제품 범위 강제 — 선택
-        limit: 반환 건수 (기본 30, 최대 100)
-        days: 최근 N일 — 선택
-        order: 'relevance' | 'recent' | 'engagement'
+        limit: 결과 수(1 ~ 100, 기본 30)
+        days: 최근 N일(발행일 기준, 최대 3650) — 생략하거나 0 이면 전 기간(검색어의 '최근' 등은 기간으로 본다)
+        order: relevance(관련도 → 최신, 기본) | recent(최신순) | engagement(참여도순)
         strict: True 면 알아들은 범위 말을 못 걸 때 넓히지 않고 0건 + reason
     """
-    return await semantic_search_tool(query, product_code, limit, days, order, strict=strict)
+    r = await semantic_search_tool(query, product_code, limit, days, order, strict=strict)
+    return {**r, "truncated": r.get("total", 0) > len(r.get("results") or [])}
 
 
 @mcp.tool()
 async def get_ontology(concept: Optional[str] = None) -> dict:
-    """VOC 온톨로지(개념 그래프)를 둘러봅니다.
+    """VOC 온톨로지(개념 사전과 관계)를 둘러봅니다 — 전체 구조나 개념 하나의 정의 · 관계 · 말뭉치 규모.
 
-    concept 없이 부르면 전체 구조 — 개념 종류(제품·세대·시리즈·폼팩터·기기·브랜드·
-    부품 16·증상 32·주제 13·시장), 증상→함의 부품·심각도·주제 관계, 개념별 본문 검색어,
-    말뭉치에서 그 개념으로 주석된 VOC 수.
-    concept 를 주면 그 개념 하나 — 'overheat' · 'symptom:burn_in' · 'hinge' · 'battery'(주제) ·
-    'GS25U'(제품: 세대·같은 세대 모델·링크된 VOC 수). 키가 아니면 질의로 해석해 보여줍니다.
-    전체 구조에는 model_codes(모델코드 사전 크기)와 plm(PLM 과제 거울 — 켜졌나 · 과제·개발모델 수 ·
-    마지막으로 받은 시각 · 마지막 받기 결과 last_result ok/check/error 와 확인 필요 사유 problems)이 함께 나옵니다.
-    plm.active 가 false 면 과제코드·과제명 검색이 꺼져 있습니다.
+    검색 · 결함 도구에 넣을 key(부품 · 증상 · 주제 · 제품 코드)를 찾거나 PLM 거울이 켜졌는지 볼 때 씁니다. 질의 하나가 어떻게
+    풀리는지는 semantic_search, 부품 × 증상의 실제 건수는 defect_profile, 제품명 → 코드는 resolve_product_keyword 를 씁니다.
+
+    concept 없이 부르면 전체 구조 — 개념 종류, symptoms(증상마다 함의 부품 · 심각도 · 주제 · 본문 검색어 · 주석된 VOC 수),
+    components, topics, relations, catalog(제품 · 플랫폼 수), model_codes(모델코드 사전 크기), plm(PLM 거울 — active · 과제 ·
+    개발모델 수 · 마지막으로 받은 시각 · last_result ok | check | error · problems). plm.active 가 false 면 과제코드 · 과제명
+    검색이 꺼져 있습니다.
+    concept 를 주면 그 개념 하나(type symptom · component · topic · product)의 정의와 VOC 수입니다. 같은 낱말이 부품이자
+    주제면(battery · camera · display · software · connectivity) 부품으로 보니, 주제는 'topic:battery' 처럼 종류를 앞에
+    붙입니다. key 가 아니면 질의로 풀어 해석을 돌려줍니다(type query).
 
     Args:
-        concept: 개념 키 또는 자연어 — 선택
+        concept: 개념 key(예: overheat · hinge · GS25U · 'topic:battery' · 'symptom:burn_in') 또는 자연어 — 생략하면 전체 구조
     """
     return await get_ontology_tool(concept)
 
 
 @mcp.tool()
-async def resolve_product_keyword(keyword: str) -> dict:
-    """제품명/별칭을 **제품 코드로 확정**하고, 키워드 검색과의 차이를 알려줍니다.
+async def resolve_product_keyword(keyword: Annotated[str, Field(min_length=1)]) -> ResolveOut:
+    """제품명 · 별칭 · 모델코드를 카탈로그의 제품 코드로 확정하고, 같은 말의 낱말 검색 건수와 태깅 건수를 견줘 줍니다.
 
-    제품을 묻는 질문에서 자유 텍스트 검색은 표기에 따라 결과가 크게 흔들립니다
-    (2026-10-15 실측) — 'S25 Ultra' 9,680 · 'Galaxy S25 Ultra' 2,296 ·
-    'S25Ultra' 315 · '갤럭시 S25 울트라' 88. 제품 태깅 기준은 GS25U 9,502 입니다.
-    이 도구로 코드를 먼저 확정한 뒤 product_code 로 조회하면 흔들리지 않습니다.
-    카탈로그 이름 · 별칭 사전에 없으면 PLM 거울(연결된 서버)로 풉니다 — 프로젝트 key · 옛 key · 이름, 과제코드 · 과제명,
-    개발모델명 → 개발모델 → 모델코드 → 제품(resolved_via 'plm', 제품 여럿이면 resolved_codes). 어떻게 풀었는지는
-    core_key{type_slug,key} · matched_by · via · resolutions — 카탈로그 이름 · 별칭으로 푼 것도 싣습니다(matched_by
-    marketing_name · model_code · product_code, 마케팅명이 코어 프로젝트의 별칭이면 core_key 가 그 프로젝트, 아니면 null).
-    PLM 이 알아들었지만 이 서버의 제품에 못 이으면 reason 'in_core_no_local_data' 와 core_unresolved(까닭)입니다.
+    제품을 묻는 질문은 먼저 이 도구로 코드를 정한 뒤 다른 도구의 product_code 로 넘깁니다 — 자유 텍스트 낱말 검색은
+    표기('S25 Ultra' · 'S25Ultra' · '갤럭시 S25 울트라')에 따라 건수가 크게 흔들립니다. 세대 · 형제 모델은
+    get_ontology('<코드>'), 출시 후 추이는 get_product_timeline · lifecycle_compare 를 씁니다.
+
+    찾는 차례 — 카탈로그 이름 · 코드 → 태깅과 같은 별칭 사전 → PLM 거울(연결된 서버 — 프로젝트 key · 옛 key · 이름, 과제코드 ·
+    과제명, 개발모델명 → 모델코드 → 제품).
+    돌려주는 꼴 — resolved_code · resolved_via(catalog_name | alias | plm) · tagged_count(대표 제품으로 붙은 글 수) ·
+    keyword_hits(낱말 검색 건수 — 시간 상한을 넘기면 표본 어림이고 keyword_hits_exact 가 false) · candidates(최대 5) ·
+    status(resolved | no_catalog_match | no_tagged_records) · note, 푼 길 core_key{type_slug, key} · matched_by · via ·
+    resolutions. PLM 으로 풀면 resolved_codes(제품 전부), PLM 이 알아들었지만 이 서버의 제품에 못 이으면 reason
+    in_core_no_local_data 와 core_unresolved 입니다.
 
     Args:
-        keyword: 제품명·별칭·코드 중 아무 것 ('S25 울트라', 'Galaxy Z Fold8', 'GZF8')
-
-    Returns:
-        resolved_code, resolved_via, tagged_count, keyword_hits, candidates(최대 5), note
-        core_key · matched_by · via · resolutions (+ PLM 으로 풀면 resolved_codes, 못 이으면 reason · core_unresolved)
+        keyword: 제품명 · 별칭 · 코드 · 모델코드 중 아무것(예: 'S25 울트라' · 'Galaxy Z Fold8' · 'GZF8' · 'SM-S938B')
     """
     return await resolve_product_keyword_tool(keyword)
 
@@ -402,22 +484,27 @@ async def resolve_product_keyword(keyword: str) -> dict:
 @mcp.tool()
 async def analyze_sentiment_trend(
     product_code: str,
-    period_days: int = 90,
-    granularity: str = "week",
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-) -> dict:
-    """
-    제품의 감성 점수 시계열 트렌드를 분석합니다.
-    start_date/end_date 로 임의 구간을 지정할 수 있고(예: 특정 분기·연도),
-    지정하지 않으면 최근 period_days 일을 봅니다.
+    period_days: Days = 90,
+    granularity: Interval = "week",
+    start_date: Optional[IsoDate] = None,
+    end_date: Optional[IsoDate] = None,
+) -> SentimentTrendOut:
+    """한 제품의 감성(긍정 · 부정 · 중립 건수와 평균 점수)을 일 · 주 · 월 구간별 시계열로 돌려줍니다.
+
+    한 제품의 여론이 언제 나빠지고 좋아졌는지 볼 때 씁니다. start_date · end_date 로 분기 · 연도 같은 임의 구간을, 생략하면
+    최근 period_days 일을 봅니다(발행일 기준). 여러 제품의 건수 선은 chart_sentiment_timeseries, 달력 월별 생애 곡선은
+    get_product_timeline, 직전 세대와 같은 출시 후 주차 비교는 lifecycle_compare, 낱말 · 결함의 추이는 keyword_stats ·
+    defect_timeline 을 씁니다. 제품이 대표로 붙은 글만 셉니다.
+
+    돌려주는 꼴 — {product_code, granularity, range{start_date, end_date, period_days}, data[{period(구간 시작일), positive,
+    negative, neutral, avg_score(-1 ~ 1)}]}. 구간을 자르지 않고, 글이 없는 구간은 빠집니다. 모르는 제품이면 data 가 빕니다.
 
     Args:
-        product_code: 제품 코드
-        period_days: 분석 기간 (일, 기본 90) — start/end 미지정 시 적용
-        granularity: 집계 단위 (day, week, month — 기본 week)
-        start_date: 시작일 YYYY-MM-DD (published_at >=) — 선택
-        end_date: 종료일 YYYY-MM-DD (published_at <, 반열림) — 선택
+        product_code: 제품 코드(예: GS25U)
+        period_days: 기간 — 최근 N일(1 ~ 3650, 기본 90). start_date · end_date 를 주면 쓰지 않는다
+        granularity: 구간 — day | week | month (기본 week)
+        start_date: 발행일 시작 YYYY-MM-DD(이 날 포함) — 선택
+        end_date: 발행일 끝 YYYY-MM-DD(이 날 제외) — 선택
     """
     return await analyze_sentiment_trend_tool(
         product_code, period_days, granularity, start_date, end_date)
@@ -425,15 +512,21 @@ async def analyze_sentiment_trend(
 
 @mcp.tool()
 async def compare_products(
-    product_codes: list[str],
-    category: Optional[str] = None,
+    product_codes: Annotated[list[str], Field(min_length=1, max_length=10)],
+    category: Optional[Topic] = None,
 ) -> dict:
-    """
-    여러 제품 간 VOC를 비교합니다.
+    """제품 여럿의 최근 30일 VOC 평균 감성을 주제(배터리 · 카메라 …)별로 나란히 돌려줍니다.
+
+    제품끼리 어느 주제에서 평이 갈리는지 견줄 때 씁니다. 건수 · 부정 비율 · 비교글까지 세려면 voc_breakdown(by="product",
+    include_mentions=True), 추세는 chart_sentiment_timeseries, 늘고 준 것은 period_compare(by="product"), 같은 출시 후
+    주차 비교는 lifecycle_compare 를 씁니다. 기간은 수집 시각 기준 최근 30일로 정해져 있고 제품이 대표로 붙은 글만 셉니다.
+
+    돌려주는 꼴 — {제품 코드: {주제: 평균 감성(-1 ~ 1)}} — 감성 높은 주제부터, 감성 점수가 없는 주제는 null. category 를 주면
+    그 주제만 담습니다. 글이 없는 제품은 빈 객체입니다. 건수는 주지 않습니다.
 
     Args:
-        product_codes: 비교할 제품 코드 리스트 (예: ["GS25U", "GZF7"])
-        category: 특정 카테고리로 범위 한정 — 선택
+        product_codes: 비교할 제품 코드(1 ~ 10개, 예: ["GS25U", "GZF7"]) — resolve_product_keyword 로 찾는다
+        category: VOC 주제 하나로 좁히기(query_voc 의 category 와 같다 — 기기 종류가 아니다) — 선택
     """
     return await compare_products_tool(product_codes, category)
 
@@ -441,29 +534,43 @@ async def compare_products(
 @mcp.tool()
 async def get_country_breakdown(
     product_code: str,
-    period_days: int = 30,
-) -> list:
-    """
-    제품의 국가별 VOC 건수 및 감성 분포를 조회합니다.
+    period_days: Days = 30,
+) -> CountryBreakdownOut:
+    """한 제품의 VOC 를 나라별로 세어 건수 · 평균 감성 · 긍정 비율을 돌려줍니다(최대 30개국).
+
+    한 제품이 어느 시장에서 많이 말해지고 평이 어떤지 볼 때 씁니다. 비중 · 부정 비율 · 필터 조합은
+    voc_breakdown(by="country", product_code=…), 그림 · 전체 제품은 chart_country_distribution, 결함만은
+    defect_breakdown(by="country"), 전 기간 제품 ↔ 나라 관계는 get_kg_relations 를 씁니다. 기간은 수집 시각 기준이고
+    제품이 대표로 붙은 글만, 나라 코드가 없는 글은 빼고 셉니다.
+
+    돌려주는 꼴 — {product_code, period_days, total(나라 수), truncated, results[{country_code, voc_count, avg_score(-1 ~ 1),
+    positive_rate(%)}]} — 많은 나라부터 30개까지.
 
     Args:
-        product_code: 제품 코드
-        period_days: 분석 기간 (일)
+        product_code: 제품 코드(예: GS25U)
+        period_days: 기간 — 최근 N일(수집 시각 기준, 1 ~ 3650, 기본 30)
     """
-    return await get_country_breakdown_tool(product_code, period_days)
+    rows = await get_country_breakdown_tool(product_code, period_days)
+    return {"product_code": product_code.upper(), "period_days": period_days, **_listed(rows, 30)}
 
 
 @mcp.tool()
 async def get_voc_summary(
     product_code: str,
-    period_days: int = 7,
+    period_days: Days = 7,
 ) -> str:
-    """
-    제품의 최근 VOC 요약 텍스트를 생성합니다.
+    """한 제품의 최근 N일 VOC 를 세 줄 글로 요약합니다 — 총 건수 · 긍정과 부정 비율 · 평균 감성 · 주요 주제 다섯.
+
+    사람에게 바로 보여 줄 짧은 요약이 필요할 때 씁니다. 수치를 다시 쓸 거면 get_top_issues · analyze_sentiment_trend, 전체
+    제품의 하루 요약은 daily_briefing, 결함은 defect_profile 을 씁니다. 기간은 수집 시각 기준이고 제품이 대표로 붙은 글만
+    셉니다.
+
+    돌려주는 꼴 — 글 한 덩어리. 0건이면 까닭(unknown_product | no_tagged_records | none_in_period | no_records)을 한 줄로
+    말합니다.
 
     Args:
-        product_code: 제품 코드
-        period_days: 요약 기간 (일, 기본 7)
+        product_code: 제품 코드(예: GS25U)
+        period_days: 기간 — 최근 N일(수집 시각 기준, 1 ~ 3650, 기본 7)
     """
     return await get_voc_summary_tool(product_code, period_days)
 
@@ -471,228 +578,362 @@ async def get_voc_summary(
 # ── 인사이트 / 운영 도구 ──────────────────────────────────────────
 
 @mcp.tool()
-async def daily_briefing(date: Optional[str] = None) -> str:
-    """
-    지정 날짜(KST)의 VOC 일일 브리핑을 자연어로 생성합니다.
+async def daily_briefing(
+    date: Optional[Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")]] = None,
+) -> str:
+    """하루(KST 달력일)에 수집된 VOC 를 한 문서로 요약한 글을 돌려줍니다.
 
-    전체 수집량, 감성 분포, 언급 TOP 제품, 핫 카테고리, 부정 다발 제품을
-    한 문서로 요약합니다.
+    전체 제품을 한눈에 볼 때 씁니다. 한 제품이면 get_voc_summary, 수치를 다시 쓸 거면 corpus_overview,
+    지금 걸린 경보는 alert_check, 전기 대비 변화는 period_compare 를 씁니다. 날짜는 수집 시각 기준입니다(발행일이 아님).
+
+    돌려주는 글 — 전체 요약(신규 건수 · 활성 플랫폼 · 언급 제품 · 감성 분포), 언급량 상위 5 제품, 핫 카테고리 상위 5,
+    부정 의견이 많은 제품 상위 3(없으면 그 절이 빠진다). 제품 절은 제품이 붙은 글만 셉니다.
 
     Args:
-        date: YYYY-MM-DD (예: '2026-06-01'). 생략 시 오늘(KST).
+        date: 날짜 YYYY-MM-DD(KST) — 생략하면 오늘
     """
     return await daily_briefing_tool(date)
 
 
 @mcp.tool()
-async def alert_check() -> dict:
-    """
-    현재 임계치 상태를 점검합니다.
+async def alert_check() -> AlertCheckOut:
+    """지금 걸린 경보 세 가지를 한 번에 돌려줍니다 — 부정 비율이 높은 제품, 부정이 급증한 제품, 수집이 멈춘 플랫폼.
 
-    - 부정 비율 ≥40% & 24h 30건 이상인 제품
-    - 24h 부정 건수가 직전 24h 대비 2배 이상 급증한 제품
-    - 12시간 이상 신규 수집이 없는 플랫폼
+    임계치(부정 비율 · 최소 건수 · 급증 배수 · 정체 시간)는 결과의 thresholds 에 있고, 창은 지금부터 거꾸로 24시간과 그 앞
+    24시간입니다(수집 시각 기준). 급증은 24h 부정이 최소 건수 이상이면서 직전 24h 의 배수 이상이거나 직전이 0 일 때입니다.
+    제품 결함의 수명 기준 급등은 defect_anomalies, 새로 생긴 경보만 이어 받기는 list_changes, 수집 운영 전체는 site_health,
+    기간 대비 늘고 준 것은 period_compare 를 씁니다.
 
-    임계치와 함께 매칭된 항목 리스트를 반환합니다.
+    돌려주는 꼴 — 목록은 제품 10개 · 플랫폼 15개까지이고 *_total 이 전체 수입니다(요약도 전체 수로 말합니다).
     """
     return await alert_check_tool()
 
 
 @mcp.tool()
-async def site_health() -> dict:
-    """
-    플랫폼(사이트)별 수집 현황과 수집 워커 생존을 반환합니다.
+async def site_health() -> SiteHealthOut:
+    """플랫폼(사이트)별 수집 상태와 수집 워커가 살아 있는지를 돌려줍니다.
 
-    반환 — {stale_hours, worker, summary, platforms}. platforms 는 각 플랫폼의 24h 수집량·부정 건수·
-    평균 감성, **전 기간** 마지막 수집 시각, 상태(healthy / stale / no_data_ever)입니다. 정체(stale)는
-    alert_check 와 같은 기준(마지막 수집이 12시간 넘음)입니다. worker.status 가 never_ran 이면 이 서버는
-    수집하지 않고 덤프로만 받는 서버라 마지막 수집 시각은 원천 서버의 것입니다.
+    수집이 멈췄는지, 어느 사이트가 정체인지 볼 때 씁니다. 경보만 보면 alert_check, 채널별 말의 양 · 감성은
+    get_platform_breakdown 이나 voc_breakdown(by="platform") 을 씁니다.
+
+    돌려주는 꼴 — platforms 는 플랫폼 전부(자르지 않음)이고 각 행에 24h 수집량 · 부정 건수 · 평균 감성 · 전 기간 마지막 수집
+    시각 · 상태(healthy | stale | no_data_ever)가 있습니다. stale 은 마지막 수집이 stale_hours 를 넘은 것으로 alert_check 와
+    같은 기준이며 비활성 플랫폼도 셉니다. worker.status 는 alive | stalled(마지막 작업이 3시간 넘음) | never_ran(이 서버는
+    수집하지 않고 덤프로만 받는다 — 마지막 수집 시각은 원천 서버의 것)입니다.
     """
     return await site_health_tool()
 
 
 @mcp.tool()
 async def top_emerging_keywords(
-    period_days: int = 7,
+    period_days: Annotated[int, Field(ge=1, le=365)] = 7,
     product_code: Optional[str] = None,
-    top_n: int = 20,
-) -> dict:
-    """
-    최근 N일간 VOC 본문을 토큰화하여 한국어/영어 키워드 빈도 TOP N 을 반환합니다.
+    top_n: Annotated[int, Field(ge=1, le=50)] = 20,
+) -> EmergingKeywordsOut:
+    """최근 N일에 수집된 VOC 본문에서 한국어 · 영어 낱말을 세어 빈도 상위 N개를 돌려줍니다.
+
+    무엇이 많이 말해지는지 훑을 때 씁니다 — 이름과 달리 전기와 견주지 않습니다. 한 낱말이 정말 느는지는 keyword_stats,
+    늘고 준 제품 · 채널은 period_compare, 낱말 사이 관계는 chart_keyword_network, 구조화된 결함은 defect_profile, 원문은
+    search_voc 를 씁니다. 제품이 붙은 글만 셉니다.
+
+    돌려주는 꼴 — 표본은 최신 글부터 row_limit 건까지라 sample_capped 가 참이면 기간 전체가 아니라 최근 쪽만 본 것입니다.
+    영어는 원문과 번역문을 함께 셉니다. distinct_* 는 자르기 전 낱말 수이고 truncated 가 잘렸는지입니다.
 
     Args:
-        period_days: 분석 기간 (일, 기본 7)
-        product_code: 특정 제품으로 범위 한정 — 선택
-        top_n: 언어별 반환 키워드 수 (기본 20, 최대 50)
+        period_days: 기간 — 최근 N일(수집 시각 기준, 1 ~ 365, 기본 7)
+        product_code: 제품 코드로 범위 한정 — 선택
+        top_n: 언어별 낱말 수(1 ~ 50, 기본 20)
     """
-    return await top_emerging_keywords_tool(period_days, product_code, min(top_n, 50))
+    return await top_emerging_keywords_tool(period_days, product_code, top_n)
 
 
-# ── 그래프 규격 도구 (r6+ 2026-06-12) — voc_active 기반, echarts_option 반환 ──
+@mcp.tool()
+async def list_changes(
+    since: Optional[Annotated[int, Field(ge=0)]] = None,
+    limit: Annotated[int, Field(ge=1, le=200)] = 50,
+    events: Optional[list[EventName]] = None,
+) -> ChangesOut:
+    """SignalForge 에 새로 생긴 일(결함 급등 · 사이트 수집 이상 · 운영 지표 경보 · 백업 검증 실패 · 지표 규칙 경보)을 id 커서로 이어 읽게 돌려줍니다.
+
+    '지난번 뒤로 바뀐 것' 만 받을 때 씁니다 — 게이트웨이가 주기적으로 물어 이벤트로 다시 냅니다. since 를 주면 그 id 뒤의 일을
+    오래된 것부터, 생략하면 가장 최근 limit 건을 줍니다. 받은 next_cursor 를 다음 since 로 넘기면 빠짐 · 겹침 없이 이어집니다.
+    결함 급등의 자세한 값은 defect_anomalies, 지금 걸린 감성 경보는 alert_check, 수집 상태 전체는 site_health 를 씁니다.
+
+    이벤트 이름(signalforge.<대상>.<일>) — signalforge.defect.spiked(결함 급등) · signalforge.collection.degraded(사이트 수집
+    이상) · signalforge.operations.alerted(운영 지표 경보) · signalforge.ops_status.violated(운영 상태 위반) ·
+    signalforge.backup.failed(백업 검증 실패) · signalforge.alert.fired(지표 규칙 경보).
+    돌려주는 꼴 — {total(since 뒤 전체 수), truncated, next_cursor, events[{id, event, rule, severity, at, value, threshold, summary,
+    detail}]}. since 를 주면 truncated 는 뒤에 더 있다는 뜻이고(next_cursor 로 다시 부른다), 생략하면 그보다 오래된 일이 더
+    있다는 뜻입니다. at 은 일이 난 시각이고 id 는 이 서버에 기록된 차례라, 덤프로 받는 서버에서는 at 순서와 다를 수 있습니다 —
+    커서는 늘 id 입니다. 이 서버가 화면에서 숨긴 규칙(ALERT_HIDDEN_RULES)은 내지 않습니다.
+
+    Args:
+        since: 앞 호출의 next_cursor(이벤트 id) — 이 id 뒤의 일만. 생략하면 가장 최근 limit 건
+        limit: 건수(1 ~ 200, 기본 50)
+        events: 이벤트 이름으로 한정(여럿 가능) — 생략하면 전부
+    """
+    return await list_changes_tool(since, limit, events)
+
+
+# ── 그래프 규격 도구 — echarts_option 반환 ──
 # 모든 도구가 {chart_type, raw, echarts_option, summary} 반환.
 # LLM 은 echarts_option 을 그대로 렌더하거나 raw 로 다른 라이브러리에 매핑.
 @mcp.tool()
 async def chart_sentiment_timeseries(
-    product_codes: list, days: int = 90, granularity: str = "week"
-) -> dict:
-    """제품별 VOC sentiment 시계열을 라인 차트 규격(ECharts option)으로 반환.
+    product_codes: Annotated[list[str], Field(min_length=1, max_length=8)],
+    days: AnyDays = 90,
+    granularity: Interval = "week",
+) -> ChartOut:
+    """제품 여럿의 VOC 건수 추이를 라인 차트 규격(ECharts option)으로 돌려줍니다 — 감성이 아니라 건수 선입니다.
+
+    제품끼리 말의 양이 언제 늘고 줄었는지 견줄 때 씁니다. 감성 비율의 추이는 analyze_sentiment_trend(제품 하나), 출시 뒤
+    수명 곡선은 get_product_timeline · lifecycle_compare, 낱말 · 결함의 추이는 keyword_stats · defect_timeline 을 씁니다.
+    날짜는 발행일 기준입니다.
+
+    돌려주는 꼴 — raw 는 {per_product{코드: [{period, count, avg_score}]}, periods}. 빈 구간은 0 으로 채우고, 모르는 코드는
+    0 선이 됩니다.
 
     Args:
-        product_codes: 제품 코드 목록 (예: ["GS25","GZF8"]). 다제품 동시 비교.
-        days: 조회 기간 (일, 기본 90)
-        granularity: day / week / month (기본 week)
-    Returns: {chart_type:"line", raw:{per_product,periods}, echarts_option, summary}
+        product_codes: 제품 코드 목록(1 ~ 8개, 예: ["GS25", "GZF8"])
+        days: 기간 — 최근 N일(0 이면 전 기간, 최대 3650, 기본 90)
+        granularity: 구간 — day | week | month (기본 week)
     """
     return await chart_sentiment_timeseries_tool(product_codes, days, granularity)
 
 
 @mcp.tool()
 async def chart_country_distribution(
-    product_code: Optional[str] = None, top_n: int = 15, days: int = 0
-) -> dict:
-    """국가별 VOC 분포를 가로 막대 차트 규격으로 반환. product_code 생략 시 전체.
+    product_code: Optional[str] = None,
+    top_n: Annotated[int, Field(ge=1, le=50)] = 15,
+    days: AnyDays = 0,
+) -> ChartOut:
+    """국가별 VOC 건수를 가로 막대 차트 규격으로 돌려줍니다(제품 하나 또는 전체).
+
+    어느 나라에서 말이 많은지 그림으로 볼 때 씁니다. 인용할 수치(비중 · 부정 비율 · 전체 수)는 voc_breakdown(by="country"),
+    한 제품의 국가별 긍정 비율은 get_country_breakdown, 언어별은 get_language_breakdown 을 씁니다. 국가 코드가 없는 글은
+    뺍니다. 날짜는 발행일 기준입니다.
+
+    돌려주는 꼴 — raw 는 [{country_code, voc_count, avg_score}] 상위 top_n 개국이고 total 이 국가 수, truncated 가 잘렸는지입니다.
 
     Args:
-        product_code: 제품 한정 — 선택
-        top_n: 상위 국가 수 (기본 15, 최대 50)
-        days: 0 이면 전기간, >0 이면 최근 N일(published_at 기준)
+        product_code: 제품 코드로 한정 — 선택(생략하면 제품이 안 붙은 글까지 전체)
+        top_n: 상위 국가 수(1 ~ 50, 기본 15)
+        days: 기간 — 최근 N일(0 이면 전 기간, 최대 3650, 기본 0)
     """
     return await chart_country_distribution_tool(product_code, top_n, days)
 
 
 @mcp.tool()
 async def chart_category_distribution(
-    product_code: Optional[str] = None, top_n: int = 15,
-    days: int = 0, country: Optional[str] = None,
-) -> dict:
-    """카테고리별 VOC 분포를 가로 막대 차트 규격으로 반환. product_code 생략 시 전체.
+    product_code: Optional[str] = None,
+    top_n: Annotated[int, Field(ge=1, le=50)] = 15,
+    days: AnyDays = 0,
+    country: Optional[str] = None,
+) -> ChartOut:
+    """이슈 카테고리별 VOC 건수를 가로 막대 차트 규격으로 돌려줍니다(제품 · 나라로 좁힐 수 있음).
 
-    막대는 이슈 카테고리만입니다. comparison(경쟁사 비교)·model_mention(모델 언급)은 글의 성격 표지라
-    meta_tags 로 따로 줍니다 — 모델 이름만 나와도 붙어 '최대 이슈' 로 읽으면 틀립니다.
+    무슨 이야기(배터리 · 카메라 · 화면 …)가 많은지 그림으로 볼 때 씁니다. 한 제품의 이슈 순위와 부정 비율은 get_top_issues,
+    제품끼리 카테고리별 감성은 compare_products, 부품 × 증상 결함은 defect_profile · defect_breakdown 을 씁니다.
+    voc_breakdown(by="category") 의 category 는 기기 종류(phone · watch …)라 이것과 다릅니다.
+
+    막대는 이슈 카테고리만입니다. comparison(경쟁사 비교) · model_mention(모델 언급)은 글의 성격 표지라 meta_tags 로 따로
+    줍니다 — 모델 이름만 나와도 붙어 '최대 이슈' 로 읽으면 틀립니다. 한 글에 태그가 여럿이면 각각 세어 막대 합이 글 수보다
+    큽니다.
+
+    돌려주는 꼴 — raw 는 [{category, voc_count, avg_score}] 상위 top_n 개, total 이 이슈 카테고리 수, truncated 가 잘렸는지,
+    meta_tags · meta_note 가 성격 표지입니다.
 
     Args:
-        product_code: 제품 한정 — 선택
-        top_n: 상위 카테고리 수 (기본 15, 최대 50)
-        days: 0 이면 전기간, >0 이면 최근 N일
-        country: 국가코드(예 'US') 지정 시 해당국으로 드릴다운 — 선택
+        product_code: 제품 코드로 한정 — 선택
+        top_n: 상위 카테고리 수(1 ~ 50, 기본 15)
+        days: 기간 — 최근 N일(0 이면 전 기간, 최대 3650, 기본 0)
+        country: 국가 코드(ISO 두 글자, 예: US)로 드릴다운 — 선택
     """
     return await chart_category_distribution_tool(product_code, top_n, days, country)
 
 
 @mcp.tool()
-async def chart_crisis_timeline(case_code: Optional[str] = None) -> dict:
-    """위기 사례 일별 timeline 을 line+area 차트 규격으로 반환 (peak marker 포함).
+async def chart_crisis_timeline(case_code: Optional[CrisisCase] = None) -> ChartOut:
+    """과거 위기 사례 다섯의 일별 VOC 건수를 line + area 차트 규격(최고점 표시)으로 돌려줍니다.
 
-    case_code 생략 시 5개 위기 사례 전체 raw + 첫 사례 차트.
-    유효 code: GN7 / GZF1 / GS22U / GZFL3 / GS20.
+    목록에 있는 사례의 정해진 기간을 볼 때 씁니다. 다른 제품 · 기간의 추이는 analyze_sentiment_trend(start_date · end_date),
+    결함 추이는 defect_timeline 을 씁니다.
+
+    돌려주는 꼴 — case_code 를 주면 raw 는 {code, title, total_voc, neg_rate(0~1), timeline[{day, count}]} 하나, 생략하면 그
+    목록(최대 5)이고 차트는 첫 사례입니다. 글이 없는 날은 timeline 에 없습니다.
 
     Args:
-        case_code: 위기 사례 코드 — GN7 | GZF1 | GS22U | GZFL3 | GS20 (생략하면 5개 전체 raw + 첫 사례 차트)
+        case_code: 위기 사례 — GN7 | GZF1 | GS22U | GZFL3 | GS20 (생략하면 다섯 전부)
     """
     return await chart_crisis_timeline_tool(case_code)
 
 
 @mcp.tool()
 async def chart_keyword_network(
-    product_code: Optional[str] = None, days: int = 30,
-    min_cooccur: int = 3, max_nodes: int = 40,
-) -> dict:
-    """키워드 동시출현 네트워크를 force-graph 차트 규격으로 반환 (union-find 군집).
+    product_code: Optional[str] = None,
+    days: Annotated[int, Field(ge=1, le=365)] = 30,
+    min_cooccur: Annotated[int, Field(ge=2, le=50)] = 3,
+    max_nodes: Annotated[int, Field(ge=5, le=80)] = 40,
+) -> ChartOut:
+    """같은 글에 함께 나온 키워드 쌍으로 지은 관계망을 force-graph 차트 규격으로 돌려줍니다.
+
+    낱말끼리 어떤 무리로 묶여 말해지는지 볼 때 씁니다. 결함끼리의 동시 발생은 defect_cooccurrence, 제품 ↔ 카테고리 · 나라 ·
+    플랫폼 관계는 get_kg_relations, 낱말 빈도는 top_emerging_keywords 를 씁니다. 무리는 이어진 성분입니다.
+
+    돌려주는 꼴 — raw 는 {nodes[{id, name, value, category, lang}], edges[{source, target, value}], meta}. 노드는 가중 차수
+    상위 max_nodes 개만 남기고 그 사이 엣지만 싣습니다 — meta 의 total_nodes · total_edges · truncated 가 자르기 전 수와
+    잘렸는지, min_cooccur · max_nodes 가 실제로 쓴 값입니다.
 
     Args:
-        product_code: 제품 한정 — 선택 (없으면 전체)
-        days: 조회 기간 (일, 기본 30)
-        min_cooccur: 엣지 최소 동시출현 횟수 (기본 3, 노이즈 컷)
-        max_nodes: 최대 노드 수 (기본 40, degree 상위)
-    Returns: {chart_type:"graph", raw:{nodes,edges,meta}, echarts_option, summary}
+        product_code: 제품 코드로 한정 — 선택
+        days: 기간 — 최근 N일(발행일 기준, 1 ~ 365, 기본 30)
+        min_cooccur: 엣지로 칠 최소 동시 출현 수(2 ~ 50, 기본 3)
+        max_nodes: 노드 수 상한(5 ~ 80, 기본 40)
     """
     return await chart_keyword_network_tool(product_code, days, min_cooccur, max_nodes)
 
 
-# ── 차원 분해 도구 (보강 2026-06-25) — 미노출 데이터 차원 커버 ──
+# ── 차원 분해 도구 — 플랫폼 · 참여도 · 언어 ──
 @mcp.tool()
 async def get_platform_breakdown(
-    product_code: Optional[str] = None, period_days: int = 30, top_n: int = 20
-) -> list:
-    """플랫폼(커뮤니티/사이트)별 VOC 건수·평균감성·부정비율을 반환합니다.
+    product_code: Optional[str] = None,
+    period_days: AnyDays = 30,
+    top_n: Annotated[int, Field(ge=1, le=100)] = 20,
+) -> PlatformBreakdownOut:
+    """플랫폼(커뮤니티 · 사이트)별 VOC 건수 · 평균 감성 · 부정 비율을 돌려줍니다(제품 하나 또는 전체).
 
-    platform_id 는 전 레코드에 채워져 있어 전수 커버됩니다. 어느 채널에서
-    말이 많고 감성이 나쁜지 파악할 때 사용합니다.
+    어느 채널에서 말이 많고 평이 나쁜지 볼 때 씁니다. 비중 · 필터 조합 · 플랫폼 종류별은 voc_breakdown(by="platform" ·
+    "platform_kind"), 결함만은 defect_breakdown(by="platform"), 수집이 멈췄는지는 site_health, 기간 대비 증감은
+    period_compare(by="platform") 를 씁니다. 기간은 수집 시각 기준이라 옛 글을 최근에 모은 것도 들어갑니다.
+
+    돌려주는 꼴 — {total(플랫폼 수), truncated, results[{platform_code, platform(표시 이름), voc_count, avg_score(-1 ~ 1),
+    negative_rate(%)}]} — 많은 플랫폼부터. platform_code 는 다른 도구의 platform 인자에 그대로 씁니다.
 
     Args:
-        product_code: 제품 한정 — 선택 (없으면 전체 VOC)
-        period_days: 분석 기간 (일, 기본 30). 0 이면 전기간.
-        top_n: 상위 플랫폼 수 (기본 20, 최대 100)
+        product_code: 제품으로 한정 — 생략하면 제품이 안 붙은 글까지 전체
+        period_days: 기간 — 최근 N일(수집 시각 기준, 0 이면 전 기간, 최대 3650, 기본 30)
+        top_n: 플랫폼 수(1 ~ 100, 기본 20)
     """
-    return await get_platform_breakdown_tool(product_code, period_days, top_n)
+    return _listed(await get_platform_breakdown_tool(product_code, period_days, top_n), top_n)
 
 
 @mcp.tool()
 async def get_engagement_leaders(
-    product_code: Optional[str] = None, period_days: int = 30, limit: int = 20
-) -> list:
-    """engagement_score(좋아요/댓글/공유 기반) 상위 VOC를 반환합니다 — 바이럴·고영향 게시물.
+    product_code: Optional[str] = None,
+    period_days: AnyDays = 30,
+    limit: Annotated[int, Field(ge=1, le=100)] = 20,
+) -> EngagementLeadersOut:
+    """참여도(좋아요 · 댓글 · 공유) 점수가 가장 높은 VOC 글을 돌려줍니다 — 많이 퍼진 · 영향 큰 글.
+
+    바이럴 글이나 여론을 이끈 글을 찾을 때 씁니다. 주제로 좁혀 참여도순으로 보려면 search_voc(order="engagement"), 필터
+    목록은 query_voc, 결함 1인칭 원문은 defect_evidence 를 씁니다. 참여 수치가 있는 글만(점수 > 0) 보고, 기간은 수집 시각
+    기준이라 옛 글이 섞일 수 있습니다(행의 published_at 을 봅니다).
+
+    돌려주는 꼴 — {total, truncated, results[{id, source_url, author_name, platform_name, country_code, sentiment_label,
+    likes_count, comments_count, shares_count, engagement_score(0 ~ 100, 로그 눈금), snippet(200자), published_at}]} — 점수
+    높은 순 limit 건. 더 있으면 truncated 가 참이고 total 은 null 입니다. 작성자 · 계정은 가려서 나갑니다.
 
     Args:
-        product_code: 제품 한정 — 선택 (없으면 전체)
-        period_days: 분석 기간 (일, 기본 30). 0 이면 전기간.
-        limit: 반환 건수 (기본 20, 최대 100)
+        product_code: 제품으로 한정 — 선택(생략하면 전체)
+        period_days: 기간 — 최근 N일(수집 시각 기준, 0 이면 전 기간, 최대 3650, 기본 30)
+        limit: 글 수(1 ~ 100, 기본 20)
     """
-    return await get_engagement_leaders_tool(product_code, period_days, limit)
+    return _listed(await get_engagement_leaders_tool(product_code, period_days, limit + 1), limit)
 
 
 @mcp.tool()
-async def get_language_breakdown(period_days: int = 0, top_n: int = 25) -> list:
-    """언어(language_detected)별 VOC 건수·평균감성을 반환합니다 — 글로벌 커버리지 가시화.
+async def get_language_breakdown(
+    period_days: AnyDays = 0,
+    top_n: Annotated[int, Field(ge=1, le=60)] = 25,
+) -> LanguageBreakdownOut:
+    """감지한 언어별 VOC 건수와 평균 감성을 돌려줍니다 — 말뭉치가 어느 언어권을 덮는지.
+
+    언어 분포를 볼 때 씁니다. 필터(제품 · 나라 · 낱말)를 걸거나 비중 · 부정 비율이 필요하면 voc_breakdown(by="language"),
+    나라별은 get_country_breakdown · chart_country_distribution 을 씁니다. 언어는 ISO 639-1 두 글자(ko · en · de …)이고,
+    10자 미만이거나 감지에 실패한 글은 en 으로 들어가 en 이 실제보다 큽니다. 언어가 비어 있는 글은 빼고, 기간은 수집 시각
+    기준입니다.
+
+    돌려주는 꼴 — {total(언어 수), truncated, results[{language, voc_count, avg_score(-1 ~ 1)}]} — 많은 언어부터.
 
     Args:
-        period_days: 분석 기간 (일). 기본 0 = 전기간.
-        top_n: 상위 언어 수 (기본 25, 최대 60)
+        period_days: 기간 — 최근 N일(수집 시각 기준, 0 이면 전 기간, 최대 3650, 기본 0)
+        top_n: 언어 수(1 ~ 60, 기본 25)
     """
-    return await get_language_breakdown_tool(period_days, top_n)
+    return _listed(await get_language_breakdown_tool(period_days, top_n), top_n)
 
 
-# ── 보강 R2 (2026-06-26) — matview 생애주기/지식그래프 + 미태깅 점검 ──
+# ── 생애주기 · 지식그래프 · 태깅 점검 ──
 @mcp.tool()
-async def get_product_timeline(product_code: str, recent_months: int = 0) -> dict:
-    """제품의 월별 VOC 생애주기를 반환합니다 (출시일 기준 건수/감성/부정율 추이).
+async def get_product_timeline(
+    product_code: str,
+    recent_months: Annotated[int, Field(ge=0, le=240)] = 0,
+) -> ProductTimelineOut:
+    """한 제품의 VOC 를 달력 월별로 세어 건수 · 평균 감성 · 부정 비율의 생애 추이를 돌려줍니다.
 
-    galaxy_master_timeline matview 기반. 제품 출시 후 VOC 가 어떻게 변해왔는지 본다.
+    제품이 나온 뒤 말의 양과 평이 달마다 어떻게 변했는지 볼 때 씁니다. 직전 세대와 같은 출시 후 주차로 견주려면
+    lifecycle_compare, 임의 구간 · 일과 주 단위는 analyze_sentiment_trend, 여러 제품은 chart_sentiment_timeseries 를 씁니다.
+    달은 발행일의 달력 월이고(출시 후 경과 월이 아님) released_at 은 참고용 출시일입니다. 미리 계산한 집계라 최근 글은 한
+    시간쯤 늦게 반영됩니다.
+
+    돌려주는 꼴 — {product_code, name_ko, series, released_at, months(글이 있는 달 수), timeline[{month(YYYY-MM-01), voc_count,
+    sent_avg(-1 ~ 1), neg_rate(0 ~ 1)}]} — 오래된 달부터, 글이 없는 달은 빠집니다. 모르는 코드이거나 글이 없으면 timeline 이
+    비고 note 가, 집계가 아직 없으면 status aggregating 이 붙습니다.
 
     Args:
-        product_code: 제품 코드 (예 'GS25')
-        recent_months: 최근 N개월만 — 0 이면 전체 (기본 0)
+        product_code: 제품 코드(예: GS25)
+        recent_months: 최근 N개월만(이번 달 포함, 최대 240) — 0 이면 전체(기본 0)
     """
     return await get_product_timeline_tool(product_code, recent_months)
 
 
 @mcp.tool()
 async def get_kg_relations(
-    node: Optional[str] = None, edge_type: Optional[str] = None, top_n: int = 30
-) -> list:
-    """지식그래프 관계를 반환합니다 — 제품↔카테고리/국가/플랫폼 연관 (가중치·감성).
+    node: Optional[str] = None,
+    edge_type: Optional[KgEdgeType] = None,
+    top_n: Annotated[int, Field(ge=1, le=100)] = 30,
+) -> KgRelationsOut:
+    """제품과 주제 · 나라 · 플랫폼 사이의 관계(잇는 VOC 수와 평균 감성)를 전 기간으로 모아 무게 순서로 돌려줍니다.
 
-    kg_edges_daily matview 기반. 특정 노드의 연관 관계나 특정 관계유형을 가중치 순으로.
+    '어느 나라 · 플랫폼 · 주제가 이 제품과 가장 많이 묶이나', 거꾸로 '인도와 묶인 제품은'(node='country:IN') 같은 전 기간 관계를
+    볼 때 씁니다. 기간을 정한 분포는 voc_breakdown(product_code=…, by="country" · "platform"), 주제 순위는 get_top_issues ·
+    chart_category_distribution, 낱말 관계망은 chart_keyword_network, 개념 사전은 get_ontology 를 씁니다. 미리 계산한
+    집계라 최근 글은 반 시간쯤 늦게 들어오고, 제품이 붙은 글만 셉니다.
+
+    node 꼴 — 'product:<코드>' · 'category:<주제>' · 'country:<ISO 두 글자 대문자>' · 'platform:<플랫폼 코드>'. 글자 그대로
+    맞춥니다(대소문자 구분).
+    돌려주는 꼴 — {total(관계 수), truncated, results[{edge_type, source, target, weight(잇는 VOC 수), sent_avg(-1 ~ 1)}]} —
+    무게 순 top_n 개. 집계가 아직 없으면 results 가 비고 status aggregating · note 가 붙습니다.
 
     Args:
-        node: 'product:GS25' / 'category:battery' / 'country:US' 등 — source/target 매칭 (선택)
-        edge_type: product_category / product_country / product_platform 중 — 선택
-        top_n: 가중치 합 상위 N (기본 30, 최대 100)
+        node: 관계의 한쪽 끝(source 또는 target, 예: 'product:GS25' · 'country:US') — 선택
+        edge_type: 관계 종류 — product_category | product_country | product_platform — 선택
+        top_n: 관계 수(1 ~ 100, 기본 30)
     """
-    return await get_kg_relations_tool(node, edge_type, top_n)
+    rows = await get_kg_relations_tool(node, edge_type, top_n)
+    if rows and rows[0].get("status") == "aggregating":
+        return {"total": 0, "truncated": False, "results": [], **rows[0]}
+    return _listed(rows, top_n)
 
 
 @mcp.tool()
-async def get_unmapped_voc(reason: Optional[str] = None, limit: int = 20) -> dict:
-    """미태깅(제품 미매핑) VOC를 점검합니다 — 현재 태깅률(coverage)과 미태깅분 진단.
+async def get_unmapped_voc(
+    reason: Optional[UnmappedReason] = None,
+    limit: Annotated[int, Field(ge=1, le=100)] = 20,
+) -> UnmappedVocOut:
+    """제품이 안 붙은 VOC 를 점검합니다 — 지금의 제품 태깅 비율과, 안 붙은 글의 사유별 수와 표본.
 
-    coverage 에 실측 태깅률을, breakdown·samples 에 unmapped_reason 분포와 샘플을 담습니다.
-    태깅률을 말해야 할 때는 이 도구의 coverage 를 인용하십시오(설명문에 숫자를 두지 않습니다).
-    미태깅의 대부분은 처리 실패가 아니라 본문에 특정 모델명이 없는 글입니다(note 참조).
+    태깅 비율을 말해야 하거나 '왜 이 글에 제품이 없나' 를 볼 때 씁니다(숫자는 도구 설명이 아니라 이 결과의 coverage 를
+    인용합니다). 기간을 정한 태깅 비율은 corpus_overview(days=…), 제품명을 코드로 바꾸려면 resolve_product_keyword 를 씁니다.
+    제품이 안 붙은 글의 대부분은 처리 실패가 아니라 본문에 특정 모델명이 없는 글입니다.
+
+    돌려주는 꼴 — {coverage{active_total, tagged, untagged, tagged_pct}(전 기간), untagged_total, breakdown[{reason, count}]
+    (사유 전부 — 사유가 비어 있는 글은 '(unclassified)'), samples[{id, platform_name, country_code, unmapped_reason,
+    sentiment_label, snippet(160자)}](참여도 높은 순 limit 건), note}.
 
     Args:
-        reason: no_model_mention / non_galaxy / too_short / noise 중 — 샘플 한정 (선택)
-        limit: 샘플 건수 (기본 20, 최대 100)
+        reason: 표본을 이 사유로 한정 — no_model_mention(모델명 없음) | non_galaxy(갤럭시 아님) | too_short(너무 짧음) |
+            noise(잡음) — 선택
+        limit: 표본 수(1 ~ 100, 기본 20)
     """
     return await get_unmapped_voc_tool(reason, limit)
 
@@ -720,63 +961,75 @@ class _BearerGate:
 @mcp.tool()
 async def defect_profile(
     product_code: Optional[str] = None,
-    component: Optional[str] = None,
-    severity: Optional[str] = None,
-    period_days: int = 90,
-    limit: int = 20,
-) -> dict:
-    """
-    제품·부품·증상별 **구조화 결함 프로파일**을 반환합니다.
+    component: Optional[Component] = None,
+    severity: Optional[Severity] = None,
+    period_days: AnyDays = 90,
+    limit: Annotated[int, Field(ge=1, le=100)] = 20,
+) -> DefectProfileOut:
+    """결함을 (제품, 부품, 증상, 심각도) 조합으로 묶어 글 수가 많은 순서로 돌려줍니다 — 무엇이 고장나는가.
 
-    단순 키워드 카운트가 아니라 (부품, 증상, 심각도) 삼중항 집계입니다.
-    예: 갤럭시 Z 폴드8 → display/crease, hinge/dust_ingress, battery/drain.
+    결함 조사의 첫 단계로 씁니다. 이어서 언제부터 · 가속 중인지는 defect_timeline, 누가 어디서 말하는지는 defect_breakdown,
+    출시 후 며칠에 터지는지는 defect_onset, 함께 터지는 결함은 defect_cooccurrence, 원문 근거는 defect_evidence 를 씁니다.
+    부품 · 증상 key 는 get_ontology 에 있고, 사전 밖 낱말은 keyword_stats 로 셉니다. 제품은 비교글에서 언급된 제품까지
+    셉니다. 기간은 발행일 기준입니다.
+
+    돌려주는 꼴 — {pipeline_status, period_days, filters, total(조합 수), truncated, defects[{product_code, component, symptom,
+    severity, count(글 수), platforms, effective_platforms}], note}. effective_platforms(1/HHI)는 글이 플랫폼에 고루 퍼진
+    정도입니다 — 2 미만이면 한 커뮤니티에 몰린 것이지만, 크다고 독립 제보가 많은 것은 아닙니다(기사 퍼나르기도 퍼진다).
+    pipeline_status 가 not_run 이면 빈 결과는 '결함 없음' 이 아니라 '측정 안 함' 입니다.
 
     Args:
-        product_code: 제품 코드 (예: GZF8, GS26U, AP16P). 생략 시 전체.
-        component: 부품 필터 (hinge, display, battery, camera, charging_port,
-                   speaker, button, back_glass, frame, fingerprint, software,
-                   connectivity, sim, thermal, s_pen)
-        severity: safety | non_functional | degraded | cosmetic
-        period_days: 조회 기간 (기본 90일)
-        limit: 상위 N개
-
-    반환에 effective_platforms(유효 플랫폼 수 = 1/HHI)가 포함됩니다.
-    2 미만이면 한 커뮤니티의 반향이라 신뢰도가 낮습니다.
+        period_days: 기간 — 최근 N일(발행일 기준, 0 이면 전 기간, 최대 3650, 기본 90)
+        limit: 조합 수(1 ~ 100, 기본 20)
     """
     return await defect_profile_tool(product_code, component, severity,
                                      period_days, limit)
 
 
 @mcp.tool()
-async def defect_anomalies(limit: int = 20, severity: Optional[str] = None) -> dict:
-    """
-    최근 탐지된 **결함 급등**(제품×부품×증상) 목록을 반환합니다.
+async def defect_anomalies(
+    limit: Annotated[int, Field(ge=1, le=100)] = 20,
+    severity: Optional[AlertSeverity] = None,
+) -> DefectAnomaliesOut:
+    """결함 급등 탐지기가 기록한 급등(제품 × 부품 × 증상)을 최근에 울린 것부터 돌려줍니다.
 
-    신제품은 이전 세대의 동일 출시후 구간과 비교(baseline_mode=lifecycle)해
-    출시 효과를 제거한 값입니다. 단일 커뮤니티 쏠림은 탐지 단계에서 배제됩니다.
+    '지금 새로 터지는 결함이 있나' 를 볼 때 씁니다. 탐지기는 최근 구간의 1인칭 제보 비중을 기준(직전 세대의 같은 출시 후
+    구간, 없으면 자기 과거)과 견주고, 독립 출처가 셋 이상일 때만 기록합니다(한 커뮤니티 쏠림은 거른다). 새로 생긴 것만 이어
+    받으려면 list_changes, 직접 세대를 견주려면 lifecycle_compare, 급등의 추이 확인은 defect_timeline, 기준 없는 증감은
+    period_compare, 지난 24시간 감성 경보는 alert_check 를 씁니다.
+
+    돌려주는 꼴 — {pipeline_status, total(기록된 급등 수), truncated, anomalies[{id, fired_at, severity, product_code, component,
+    symptom, defect_severity, recent_count, ratio(기준 대비 배수), z, indep_sources(독립 출처 수), effective_platforms(옛 탐지기
+    값 — 새 기록은 null), baseline_mode(lifecycle | history), reason}], note} — 최근 것부터 limit 건. 같은 급등은 하루에 한
+    번까지 다시 기록됩니다.
 
     Args:
-        limit: 상위 N개
-        severity: critical | warning 필터
+        limit: 건수(1 ~ 100, 기본 20)
+        severity: 경보 심각도 — critical(safety · non_functional 결함) | warning (생략하면 전체). 결함 심각도(defect_severity)와 다르다
     """
     return await defect_anomalies_tool(limit, severity)
 
 
 @mcp.tool()
 async def lifecycle_compare(
-    product_code: str, max_week: int = 12, defect_only: bool = False,
-) -> dict:
-    """
-    제품을 **직전 세대와 동일 라이프사이클 주차로 비교**합니다.
+    product_code: str,
+    max_week: Annotated[int, Field(ge=0, le=104)] = 12,
+    defect_only: bool = False,
+) -> LifecycleCompareOut:
+    """제품과 직전 세대를 출시 후 같은 주차(0 주차 = 출시 첫 7일)로 맞춰 주마다 글 수 · 부정 비율 · 결함 비율을 나란히 돌려줍니다.
 
-    신제품은 출시 직후 원래 부정 언급이 급증하므로, 자기 과거가 아니라 이전 세대의
-    같은 주차와 비교해야 진짜 이상인지 알 수 있습니다.
-    예: GZF8(폴드8) vs GZF7(폴드7) 출시 0~12주차 부정률·결함률.
+    신제품의 급등이 진짜 이상인지, 원래 출시 직후 그런 것(출시 효과)인지 가를 때 씁니다. 직전 세대는 카탈로그의 predecessor
+    입니다(없으면 그 제품의 주차만 나온다). 달력 월별 추이는 get_product_timeline, 출시 후 며칠에 결함이 터지는지는
+    defect_onset, 자동 탐지는 defect_anomalies 를 씁니다. 출시 전 글은 뺍니다.
+
+    돌려주는 꼴 — {pipeline_status, product_code, predecessor_code, weeks[{series(어느 제품의 행), week, total, negative,
+    with_defect, negative_pct, defect_pct}], note} — 주차 · 제품 순. 수는 글 단위, 비율은 그 주 글 수 대비(%)이고, 결함
+    추출이 안 돈 서버는 with_defect · defect_pct 가 null 입니다. 모르는 코드면 weeks 가 빕니다.
 
     Args:
-        product_code: 제품 코드 (예: GZF8, GS26U)
-        max_week: 비교할 최대 주차 (기본 12)
-        defect_only: True 면 결함이 있는 주차만
+        product_code: 제품 코드(예: GS26U)
+        max_week: 견줄 마지막 주차(0 ~ 104, 기본 12)
+        defect_only: True 면 결함 글이 있는 주차만
     """
     return await lifecycle_compare_tool(product_code, max_week, defect_only)
 
@@ -794,26 +1047,31 @@ async def lifecycle_compare(
 #            brand · category · country · platform
 @mcp.tool()
 async def defect_timeline(
-    interval: str = "week",
-    period_days: int = 180,
+    interval: Interval = "week",
+    period_days: AnyDays = 180,
     product_code: Optional[str] = None,
-    component: Optional[str] = None,
-    symptom: Optional[str] = None,
-    severity: Optional[str] = None,
-    modality: Optional[str] = None,
+    component: Optional[Component] = None,
+    symptom: Optional[Symptom] = None,
+    severity: Optional[Severity] = None,
+    modality: Optional[Modality] = None,
     brand: Optional[str] = None,
     country: Optional[str] = None,
     platform: Optional[str] = None,
-) -> dict:
-    """결함 슬라이스의 **시계열** — 언제 시작됐고 가속 중인지.
+) -> DefectTimelineOut:
+    """결함 슬라이스(부품 · 증상 · 제품 · 나라 …)의 글 수를 일 · 주 · 월 구간별 시계열로 돌려줍니다 — 언제 시작됐고 가속 중인가.
 
-    단일 카운트로는 '원래 그런 것'과 '새로 터진 것'을 가를 수 없습니다.
-    first_seen 과 버킷별 추이를 함께 반환합니다.
+    숫자 하나로는 '원래 그런 것' 과 '새로 터진 것' 을 가를 수 없을 때 씁니다. 무엇이 문제인지는 defect_profile, 직전 세대와의
+    비교는 lifecycle_compare, 부품 · 증상으로 정해지지 않는 낱말의 추이는 keyword_stats, 지난 위기 사례는
+    chart_crisis_timeline 을 씁니다. 주는 월요일에 시작하고 기간은 발행일 기준입니다.
+
+    돌려주는 꼴 — {pipeline_status, interval, period_days, filters, first_seen(기간 안의 첫 구간 — 진짜 첫 등장이 아닐 수 있다),
+    series[{bucket(구간 시작일), docs, uniq_urls, platforms, firsthand}], note} — 오래된 구간부터, 글이 없는 구간은 빠집니다.
+    uniq_urls 가 docs 보다 크게 작으면 같은 글의 페이지 분할이고, firsthand(1인칭 제보 글 수)의 비중이 낮으면 전언 · 기사
+    반향입니다.
 
     Args:
-        interval: day | week | month (기본 week)
-        period_days: 조회 기간 (기본 180일)
-        나머지: 공통 필터 — 생략 시 전체
+        interval: 구간 — day | week | month (기본 week)
+        period_days: 기간 — 최근 N일(발행일 기준, 0 이면 전 기간, 최대 3650, 기본 180). day 구간은 365 이하가 알맞다
     """
     return await defect_timeline_tool(
         interval=interval, period_days=period_days, product_code=product_code,
@@ -823,28 +1081,31 @@ async def defect_timeline(
 
 @mcp.tool()
 async def defect_breakdown(
-    by: str = "platform",
-    period_days: int = 90,
-    limit: int = 20,
+    by: DefectAxis = "platform",
+    period_days: AnyDays = 90,
+    limit: Annotated[int, Field(ge=1, le=100)] = 20,
     product_code: Optional[str] = None,
-    component: Optional[str] = None,
-    symptom: Optional[str] = None,
-    severity: Optional[str] = None,
-    modality: Optional[str] = None,
+    component: Optional[Component] = None,
+    symptom: Optional[Symptom] = None,
+    severity: Optional[Severity] = None,
+    modality: Optional[Modality] = None,
     brand: Optional[str] = None,
     country: Optional[str] = None,
     platform: Optional[str] = None,
-) -> dict:
-    """결함 슬라이스를 **임의 축으로 분해** — 누가 어디서 말하는가.
+) -> DefectBreakdownOut:
+    """결함 슬라이스를 한 축(플랫폼 · 나라 · 양상 · 심각도 · 부품 · 증상 · 제품 · 브랜드 · 기기 종류)으로 나눠 값마다 글 수와 1인칭 제보 비율을 돌려줍니다 — 누가 어디서 말하는가.
 
-    firsthand_pct 를 함께 줍니다. 낮으면 전언·기사 반향이라 실제 고장률이 아닙니다.
+    결함이 어느 채널 · 시장에 몰렸는지, 실제 고장 제보인지(firsthand_pct) 볼 때 씁니다. 결함이 아닌 VOC 전체의 분해는
+    voc_breakdown, 조합 순위는 defect_profile 을 씁니다. firsthand_pct 가 낮으면 전언 · 기사 반향이라 실제 고장률로 읽으면
+    안 됩니다. 기간은 발행일 기준입니다.
+
+    돌려주는 꼴 — {pipeline_status, by, period_days, filters, total(축 값 수), truncated, rows[{key, docs, firsthand(1인칭 제보 글
+    수), firsthand_pct}]} — 글이 많은 값부터 limit 개. 값이 비면 key 는 unknown(플랫폼 · 양상) · ??(나라)입니다.
 
     Args:
-        by: platform | country | modality | severity | component | symptom |
-            product | brand | category
-        period_days: 조회 기간(일, 기본 90)
-        limit: 축 값 상위 N개(기본 20)
-        나머지: 공통 필터
+        by: 축 — platform | country | modality | severity | component | symptom | product | brand | category(기기 종류) (기본 platform)
+        period_days: 기간 — 최근 N일(발행일 기준, 0 이면 전 기간, 최대 3650, 기본 90)
+        limit: 축 값 수(1 ~ 100, 기본 20)
     """
     return await defect_breakdown_tool(
         by=by, period_days=period_days, limit=limit, product_code=product_code,
@@ -854,25 +1115,27 @@ async def defect_breakdown(
 
 @mcp.tool()
 async def defect_cooccurrence(
-    period_days: int = 180,
-    limit: int = 20,
-    min_docs: int = 3,
+    period_days: AnyDays = 180,
+    limit: Annotated[int, Field(ge=1, le=100)] = 20,
+    min_docs: Annotated[int, Field(ge=2, le=1000)] = 3,
     product_code: Optional[str] = None,
-    component: Optional[str] = None,
+    component: Optional[Component] = None,
     brand: Optional[str] = None,
     country: Optional[str] = None,
-) -> dict:
-    """같은 글에서 **함께 나타나는 결함 쌍** — 복합 고장 모드 발굴.
+) -> DefectCooccurrenceOut:
+    """같은 글에 함께 나온 결함 쌍(부품/증상 + 부품/증상)을 함께 나온 글 수 순서로 돌려줍니다 — 복합 고장 모드 찾기.
 
-    예: battery/drain + battery/overheat, software/lag + thermal/overheat.
-    단일 증상 집계로는 보이지 않는 연쇄를 드러냅니다.
-    주의 — 동시 등장이지 인과가 아닙니다(한 글이 여러 불만을 나열했을 수 있음).
+    '배터리 광탈과 발열이 같이 나오나' 처럼 단일 증상 집계로는 안 보이는 묶음을 볼 때 씁니다. 동시 등장이지 인과가 아닙니다
+    (한 글이 불만을 여럿 늘어놓았을 수 있음). 낱말끼리의 관계망은 chart_keyword_network, 결함 순위는 defect_profile 을
+    씁니다. component 를 주면 쌍의 양쪽이 모두 그 부품인 것만 남습니다(그 부품이 낀 쌍이 아님). 모든 양상을 셉니다.
+
+    돌려주는 꼴 — {pipeline_status, period_days, filters, total(min_docs 를 넘은 쌍 수), truncated, pairs[{defect_a, defect_b,
+    co_docs}], note} — defect_a 가 사전순 앞입니다.
 
     Args:
-        period_days: 조회 기간(일, 기본 180)
-        limit: 결함 쌍 상위 N개(기본 20)
-        min_docs: 쌍으로 세는 최소 글 수(기본 3) — 작은 우연을 걸러낸다
-        나머지: 공통 필터
+        period_days: 기간 — 최근 N일(발행일 기준, 0 이면 전 기간, 최대 3650, 기본 180)
+        limit: 쌍 수(1 ~ 100, 기본 20)
+        min_docs: 쌍으로 칠 최소 글 수(2 ~ 1000, 기본 3) — 작은 우연을 거른다
     """
     return await defect_cooccurrence_tool(
         period_days=period_days, limit=limit, min_docs=min_docs,
@@ -881,22 +1144,24 @@ async def defect_cooccurrence(
 
 @mcp.tool()
 async def defect_onset(
-    period_days: int = 730,
+    period_days: AnyDays = 730,
     product_code: Optional[str] = None,
-    component: Optional[str] = None,
-    symptom: Optional[str] = None,
-    severity: Optional[str] = None,
+    component: Optional[Component] = None,
+    symptom: Optional[Symptom] = None,
+    severity: Optional[Severity] = None,
     brand: Optional[str] = None,
-) -> dict:
-    """**출시 후 며칠에 보고되는가** — 초기불량과 마모고장을 가릅니다.
+) -> DefectOnsetOut:
+    """결함 제보가 출시 후 며칠에 나오는지의 분포(평균 · 사분위 · 30일 안 · 1년 뒤)를 돌려줍니다 — 초기 불량과 마모 고장 가르기.
 
-    median_days 가 작고 within_30d 비중이 높으면 초기불량,
-    after_1y 가 크면 마모·열화 패턴입니다.
-    주의 — 수집 시작(2026-05) 이전 출시 제품은 초기 구간이 비어 median 이 왜곡됩니다.
+    median_days 가 작고 within_30d 가 크면 초기 불량, after_1y 가 크면 마모 · 열화 패턴입니다. 출시일이 있는 제품과 출시 뒤
+    글만 셉니다. 제품을 생략하면 제품마다 자기 출시일에서 잰 값을 모읍니다. 출시 후 주차별 비교는 lifecycle_compare, 달력
+    시간 추이는 defect_timeline 을 씁니다. 수집을 시작하기 전에 나온 제품은 초기 구간이 비어 median 이 실제보다 큽니다.
+
+    돌려주는 꼴 — {pipeline_status, docs, avg_days, p25_days, median_days, p75_days, within_30d, after_1y, period_days, filters,
+    note} — 한 행. 단위는 (글, 제품) 쌍이라 비교글은 제품마다 셉니다. 글이 없으면 docs 0 과 null 입니다.
 
     Args:
-        period_days: 조회 기간(일, 기본 730)
-        나머지: 공통 필터
+        period_days: 기간 — 최근 N일(발행일 기준 — 출시 후 경과일이 아님, 0 이면 전 기간, 최대 3650, 기본 730)
     """
     return await defect_onset_tool(
         period_days=period_days, product_code=product_code, component=component,
@@ -905,29 +1170,30 @@ async def defect_onset(
 
 @mcp.tool()
 async def defect_evidence(
-    period_days: int = 180,
-    limit: int = 10,
-    modality: Optional[str] = "firsthand",
+    period_days: AnyDays = 180,
+    limit: Annotated[int, Field(ge=1, le=50)] = 10,
+    modality: Optional[Modality] = "firsthand",
     product_code: Optional[str] = None,
-    component: Optional[str] = None,
-    symptom: Optional[str] = None,
-    severity: Optional[str] = None,
+    component: Optional[Component] = None,
+    symptom: Optional[Symptom] = None,
+    severity: Optional[Severity] = None,
     country: Optional[str] = None,
     platform: Optional[str] = None,
 ) -> dict:
-    """결함 슬라이스의 **실제 사용자 발언** — 시나리오를 구체화하는 원문 근거.
+    """결함 슬라이스의 실제 사용자 발언(원문 400자)을 최근 글부터 돌려줍니다 — 시나리오를 뒷받침하는 원문 근거.
 
-    기본은 modality='firsthand'(자기 기기에서 실제로 겪은 증상)입니다.
-    전언·기사·구매고민은 고장 서술이 아니므로 기본에서 제외합니다
-    (modality=None 으로 전체를 볼 수 있습니다).
-    source_url 기준 중복 제거로 같은 글의 페이지 분할을 한 건으로 셉니다.
+    부품 · 증상 · 양상이 정해진 결함의 인용이 필요할 때 씁니다. 기본은 1인칭 제보(firsthand — 자기 기기에서 겪은 고장)만
+    봅니다. 관련도나 참여도 순서, 결함으로 정해지지 않는 주제는 search_voc, 필터 목록은 query_voc 를 씁니다. 같은 글의
+    페이지 분할은 URL(쿼리 뺀 것)로 한 건으로 접습니다.
+
+    돌려주는 꼴 — {pipeline_status, period_days, filters, total(접은 글 수), truncated, samples[{id, source_url, published_at,
+    country_code, platform, product_code, component, symptom, severity, modality, sentiment_label, snippet}], note} — 최근 글부터
+    limit 건. 한 글에 결함 · 제품이 여럿이면 그중 하나를 보입니다. 작성자 · 계정은 가려서 나갑니다.
 
     Args:
-        period_days: 조회 기간(일, 기본 180)
-        limit: 원문 N건(기본 10)
-        modality: 글의 양상 — 기본 firsthand(본인이 실제 겪은 고장). worry | question | hearsay | review | other 도
-            고를 수 있고, None 이면 전체
-        나머지: 공통 필터
+        period_days: 기간 — 최근 N일(발행일 기준, 0 이면 전 기간, 최대 3650, 기본 180)
+        limit: 글 수(1 ~ 50, 기본 10)
+        modality: 글의 양상 — firsthand(기본, 본인이 실제 겪은 고장) | worry | question | hearsay | review | other, null 이면 전체
     """
     return await defect_evidence_tool(
         period_days=period_days, limit=limit, modality=modality,
@@ -935,49 +1201,58 @@ async def defect_evidence(
         severity=severity, country=country, platform=platform)
 
 
-# ── 전체 통계 (포털 LLM 이 '감질맛나는' 답을 하지 않도록) ──────────────────
-# 문제는 도구가 **행을 주고 통계를 안 준 것**이었다. search_voc 는 30행을 돌려줄 뿐
-# "총 몇 건인지, 전기 대비 얼마나 늘었는지, 어느 제품에 몰렸는지"를 말해주지 못한다.
-# 아래 4종은 답변의 **전제**를 만들어준다. 전부 1초대에 나온다.
+# ── 전체 통계 ──────────────────────────────────────────────────────────────
+# 행만 주는 도구로는 "총 몇 건인지, 전기 대비 얼마나 늘었는지, 어느 제품에 몰렸는지" 를 말할 수 없다.
+# 아래 넷은 답변의 전제(규모 · 증감 · 분포)를 만든다 — SQL 은 shared/stats_sql.py(REST 와 같은 것).
 @mcp.tool()
-async def corpus_overview(days: Optional[int] = None) -> dict:
-    """코퍼스 **전체 현황** — 규모·기간·커버리지·품질·결함률을 한 번에.
+async def corpus_overview(days: Optional[AnyDays] = None) -> CorpusOverviewOut:
+    """SignalForge 를 처음 부를 때 쓰는 입구 — 말뭉치 전체 현황(규모 · 기간 · 플랫폼 · 나라 · 언어 · 제품 태깅 · 품질 · 결함률)과 대표 업무의 길 안내를 한 번에 돌려줍니다.
 
-    "우리가 뭘 갖고 있나"에 답합니다. 어떤 분석이든 앞에 놓을 전제가 됩니다.
+    어떤 분석이든 답의 전제(무엇을 얼마나 갖고 있나)를 먼저 세울 때 씁니다. 결과의 guide 가 업무별로 다음에 부를 도구의
+    차례를 줍니다 — 제품 결함 조사 · 증상 찾기 · 급등 감시 · 경쟁 비교 · PLM 과제로 찾기. 제품이 안 붙은 글의 사유는
+    get_unmapped_voc, 수집 신선도는 site_health, 하루치 글 요약은 daily_briefing, 분포는 voc_breakdown 을 씁니다.
+
+    돌려주는 꼴 — {period_days, scale{voc_total, oldest(1퍼센타일 발행일), oldest_raw, newest, platforms, countries, languages},
+    coverage{tagged, tagged_pct, products_seen, catalog_products, catalog_active, catalog_by_category}, quality{categorized_pct,
+    negative_pct}, defects{pipeline_status, docs, records, firsthand, defect_rate_pct}, note, guide{workflows[{purpose, entry,
+    steps}], rules}}. 기간은 발행일 기준이고 카탈로그 수는 기간과 무관합니다. 결함 추출이 안 돈 서버는 defect_rate_pct 가
+    0 이 아니라 null 입니다.
 
     Args:
-        days: 최근 N일로 한정 — 생략 시 전 기간
+        days: 최근 N일(발행일 기준, 최대 3650)로 한정 — 생략하거나 0 이면 전 기간
     """
-    return await corpus_overview_tool(days)
+    return {**await corpus_overview_tool(days), "guide": _GUIDE}
 
 
 @mcp.tool()
 async def keyword_stats(
     keyword: str,
-    days: int = 90,
-    interval: str = "week",
-    top_n: int = 8,
+    days: Days = 90,
+    interval: Interval = "week",
+    top_n: Annotated[int, Field(ge=1, le=50)] = 8,
     product_code: Optional[str] = None,
     brand: Optional[str] = None,
-    category: Optional[str] = None,
+    category: Optional[DeviceCategory] = None,
     country: Optional[str] = None,
     platform: Optional[str] = None,
-) -> dict:
-    """키워드의 **통계 프로파일** — search_voc 의 통계판.
+) -> KeywordStatsOut:
+    """낱말 하나의 통계 — 최근 N일 건수 · 고유 URL · 플랫폼 · 나라 수 · 부정 비율 · 직전 N일 대비 증감 · 구간별 추이 · 제품 · 플랫폼 · 나라별 상위와 비중을 한 번에 돌려줍니다.
 
-    search_voc 가 개별 글을 준다면 이건 총량·추세·분포·감성을 줍니다.
-    "발열 1,012건, 전기 대비 +561%, GZF8 이 32%, 부정 82%" 같은 답을 만들 수 있습니다.
-    한국어 키워드도 그대로 넣으면 됩니다(재현율 100%).
+    '발열 얘기가 얼마나 되고 늘고 있나, 어디에 몰렸나' 처럼 낱말의 규모 · 변화를 말할 때 씁니다(search_voc 가 글을 준다면
+    이것은 통계를 줍니다). 낱말은 글자 그대로 맞춥니다 — 한국어는 원문 부분일치, 영어 한 낱말은 번역문 전문검색(어간), 여러
+    낱말은 구절. 동의어로 넓히지 않으니 뜻 검색 건수(search_voc 의 total)와 다를 수 있습니다. 부품 · 증상으로 정해지는 결함은
+    defect_timeline · defect_profile, 축별 증감은 period_compare(keyword=…), 축 분해는 voc_breakdown(keyword=…)을 씁니다.
+
+    돌려주는 꼴 — {keyword, days, match(substring | phrase | fts), filters, total{docs, uniq_urls, platforms, countries, negative,
+    negative_pct, avg_sentiment, first_seen, last_seen}, vs_previous_period{prev_docs, delta_pct(직전이 0 이면 null)},
+    series[{bucket, docs}](글이 없는 구간은 빠짐), top{product · platform · country: [{key, docs, share_pct}]}(각 top_n 개),
+    note}. 기간은 발행일 기준입니다.
 
     Args:
-        keyword: 집계할 키워드(한국어 가능 — 부분일치)
-        days: 집계 기간 — 최근 N일(기본 90). 증감은 그 앞 N일과 견준다
-        interval: 시계열 버킷 — day | week | month (기본 week)
-        top_n: 제품 · 플랫폼 · 국가 상위 N개(기본 8)
-        나머지: 공통 필터
-
-    반환: total(건수·고유URL·플랫폼·국가·감성), vs_previous_period(증감),
-          series(시계열), top(제품·플랫폼·국가 상위와 비중)
+        keyword: 셀 낱말(한국어 가능 — 글자 그대로)
+        days: 기간 — 최근 N일(1 ~ 3650, 기본 90). 증감은 그 앞 N일과 견준다
+        interval: 추이 구간 — day | week | month (기본 week)
+        top_n: 제품 · 플랫폼 · 나라 상위 수(1 ~ 50, 기본 8)
     """
     return await keyword_stats_tool(
         keyword, days=days, interval=interval, top_n=top_n,
@@ -987,23 +1262,29 @@ async def keyword_stats(
 
 @mcp.tool()
 async def period_compare(
-    days: int = 30,
-    by: str = "product",
-    limit: int = 15,
+    days: Days = 30,
+    by: CompareAxis = "product",
+    limit: Annotated[int, Field(ge=1, le=100)] = 15,
     keyword: Optional[str] = None,
     brand: Optional[str] = None,
-    category: Optional[str] = None,
+    category: Optional[DeviceCategory] = None,
     country: Optional[str] = None,
-) -> dict:
-    """**최근 N일 vs 직전 N일** — 무엇이 늘고 줄었나.
+) -> PeriodCompareOut:
+    """최근 N일과 그 앞 N일의 VOC 건수를 축(제품 · 브랜드 · 기기 종류 · 나라 · 플랫폼) 값마다 견줘, 늘고 준 것을 돌려줍니다.
 
-    절대 건수만으로는 변화를 볼 수 없습니다. risers/fallers 를 함께 반환합니다.
+    '지난달보다 무엇이 늘었나' 를 볼 때 씁니다. 낱말 하나의 증감은 keyword_stats, 정적인 분포는 voc_breakdown, 출시 효과를
+    걷어낸 결함 급등은 defect_anomalies · lifecycle_compare, 지난 24시간 경보는 alert_check 를 씁니다. 출시 직후의 급등도
+    그대로 늘어난 것으로 나옵니다. 기간은 발행일 기준이고 수집 깊이가 기간마다 다를 수 있어 절대 증감과 함께 봅니다.
+
+    돌려주는 꼴 — {by, days, keyword, match, filters, rows[{key, current, previous, delta, delta_pct(직전이 0 이면 null)}],
+    groups(축 값 전체 수), truncated, risers · fallers(각 최대 5), note}. rows 는 증감 절댓값이 큰 순서로 limit 개이고, risers ·
+    fallers 는 그 rows 안에서 고릅니다.
 
     Args:
-        by: product | brand | category | country | platform
-        days: 최근 N일 vs 그 앞 N일의 N(기본 30)
-        limit: 늘어난 · 줄어든 축 값 상위 N개(기본 15)
-        keyword: 특정 키워드로 한정 — 선택 (한국어 가능)
+        days: 견줄 기간의 길이 N — 최근 N일 vs 그 앞 N일(1 ~ 3650, 기본 30)
+        by: 축 — product | brand | category(기기 종류) | country | platform (기본 product)
+        limit: rows 수(1 ~ 100, 기본 15)
+        keyword: 낱말로 슬라이스 한정(글자 그대로, 한국어 가능) — 선택
     """
     return await period_compare_tool(
         days=days, by=by, limit=limit, keyword=keyword,
@@ -1012,33 +1293,37 @@ async def period_compare(
 
 @mcp.tool()
 async def voc_breakdown(
-    by: str = "product",
-    days: Optional[int] = 30,
-    limit: int = 20,
+    by: VocAxis = "product",
+    days: Optional[AnyDays] = 30,
+    limit: Annotated[int, Field(ge=1, le=100)] = 20,
     keyword: Optional[str] = None,
     product_code: Optional[str] = None,
     brand: Optional[str] = None,
-    category: Optional[str] = None,
+    category: Optional[DeviceCategory] = None,
     country: Optional[str] = None,
     platform: Optional[str] = None,
-    sentiment: Optional[str] = None,
+    sentiment: Optional[Sentiment] = None,
     include_mentions: bool = False,
-) -> dict:
-    """전체 VOC 를 **임의 축으로 분해** — 결함에 한정되지 않습니다.
+) -> VocBreakdownOut:
+    """VOC 전체(결함에 한정하지 않음)를 한 축으로 나눠 값마다 건수 · 부정 건수 · 부정 비율 · 평균 감성 · 비중을 돌려줍니다.
 
-    각 행에 share_pct(슬라이스 내 비중)와 negative_pct 가 붙습니다.
+    '어느 제품 · 나라 · 플랫폼 · 언어에 말이 몰렸나' 와 그 비중을 인용할 때 씁니다. 결함만은 defect_breakdown(1인칭 비중
+    포함), 기간 대비 증감은 period_compare, 낱말 하나의 프로파일은 keyword_stats, 주제(배터리 · 카메라 …)별은
+    chart_category_distribution · get_top_issues 를 씁니다 — 여기의 category 축은 기기 종류(phone · watch …)입니다. 기간은
+    발행일 기준입니다.
+
+    돌려주는 꼴 — {by, days, keyword, match, include_mentions, total(슬라이스 전체 글 수), groups(축 값 전체 수), truncated,
+    rows[{key, docs, negative, negative_pct, avg_sentiment, share_pct}], note} — 많은 값부터 limit 개. 값이 비면 key 는
+    (untagged)(제품 · 브랜드 · 기기 종류) · ??(나라) · unknown(플랫폼 · 감성) · ?(언어)입니다.
 
     Args:
-        by: product | brand | category | country | platform | platform_kind |
-            language | sentiment
-        days: 최근 N일(기본 30, None 이면 전체 기간)
-        limit: 축 값 상위 N개(기본 20)
-        keyword: 키워드로 슬라이스 한정 — 선택 (한국어 가능)
-        include_mentions: 비교글에서 **언급만 된 제품**까지 셉니다 (기본 False).
-            기본값은 대표 제품 기준이라 "S26 vs iPhone 17" 같은 글에서 한쪽만
-            잡힙니다. 켜면 양쪽 다 잡히지만 한 글이 제품 수만큼 중복 계상됩니다.
-            경쟁 비교·신제품 화제성을 볼 때 켜세요 — 신제품일수록 비교 대상으로만
-            등장해 기본 기준에서 빠집니다(실측 GS27 361→1,714건).
+        by: 축 — product | brand | category(기기 종류) | country | platform | platform_kind(media · community · marketplace …) |
+            language | sentiment (기본 product)
+        days: 최근 N일(발행일 기준, 최대 3650, 기본 30) — 0 이나 null 이면 전 기간
+        limit: rows 수(1 ~ 100, 기본 20)
+        keyword: 낱말로 슬라이스 한정(글자 그대로, 한국어 가능) — 선택
+        include_mentions: 비교글에서 언급만 된 제품까지 셉니다(기본 False — 대표 제품만). 켜면 한 글이 제품 수만큼 세어져
+            total 이 링크 수가 되고, 신제품처럼 비교 대상으로만 나오는 제품이 잡힙니다. 경쟁 비교 · 신제품 화제성을 볼 때 켭니다
     """
     return await voc_breakdown_tool(
         by=by, days=days, limit=limit, keyword=keyword,

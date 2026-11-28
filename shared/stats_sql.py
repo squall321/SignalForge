@@ -227,7 +227,8 @@ async def voc_breakdown(
                count(*) FILTER (WHERE v.sentiment_label='negative')::int AS negative,
                round(100.0 * count(*) FILTER (WHERE v.sentiment_label='negative')
                      / NULLIF(count(*),0), 1)::float AS negative_pct,
-               round(avg(v.sentiment_score)::numeric, 3)::float AS avg_sentiment
+               round(avg(v.sentiment_score)::numeric, 3)::float AS avg_sentiment,
+               count(*) OVER ()::int AS groups
         {_joins(include_mentions)}
         WHERE {" AND ".join(conds)}
         GROUP BY 1 ORDER BY docs DESC LIMIT :limit
@@ -238,7 +239,9 @@ async def voc_breakdown(
     rows = (await execute(stmt, params)).mappings().all()
     total = (await execute(total_stmt, params)).scalar() or 0
     out = [dict(r) for r in rows]
+    groups = out[0]["groups"] if out else 0          # 축 값의 전체 수 — rows 보다 크면 limit 에서 잘린 것
     for r in out:
+        r.pop("groups", None)
         r["share_pct"] = round(100.0 * r["docs"] / total, 1) if total else 0.0
     note = "share_pct 는 이 슬라이스 전체(total) 대비 비중이다."
     if include_mentions:
@@ -246,7 +249,7 @@ async def voc_breakdown(
                  " 한 글이 제품 수만큼 중복 계상되므로 total 은 링크 수다.")
     return {"by": label, "days": days, "keyword": keyword, "match": mode,
             "include_mentions": include_mentions,
-            "total": total, "rows": out, "note": note}
+            "total": total, "groups": groups, "truncated": groups > len(out), "rows": out, "note": note}
 
 
 async def keyword_stats(
@@ -382,16 +385,20 @@ async def period_compare(
                COALESCE(cur.n,0) - COALESCE(prev.n,0) AS delta,
                CASE WHEN COALESCE(prev.n,0) = 0 THEN NULL
                     ELSE round(100.0*(COALESCE(cur.n,0)-prev.n)/prev.n, 1)::float
-               END AS delta_pct
+               END AS delta_pct,
+               count(*) OVER ()::int AS groups
         FROM cur FULL OUTER JOIN prev ON cur.key = prev.key
         ORDER BY abs(COALESCE(cur.n,0) - COALESCE(prev.n,0)) DESC
         LIMIT :limit
     """)
     rows = (await execute(stmt, params)).mappings().all()
     data = [dict(r) for r in rows]
+    groups = data[0]["groups"] if data else 0        # 축 값의 전체 수 — risers · fallers 는 잘린 rows 안에서 고른다
+    for r in data:
+        r.pop("groups", None)
     return {
         "by": by, "days": days, "keyword": keyword, "match": mode, "filters": filters,
-        "rows": data,
+        "rows": data, "groups": groups, "truncated": groups > len(data),
         "risers": [r for r in data if r["delta"] > 0][:5],
         "fallers": [r for r in data if r["delta"] < 0][:5],
         "note": ("delta_pct 가 null 이면 직전 기간 0건이라 비율을 낼 수 없다(신규 등장). "

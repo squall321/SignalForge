@@ -7,6 +7,7 @@
 """
 import asyncio
 import pathlib
+import re
 import sys
 
 import pytest
@@ -61,3 +62,155 @@ def test_args_parser_keeps_continuations_and_skips_shorthand_lines(server):
     desc, args = server._split_args(doc)
     assert args == {"interval": "day | week | month (기본 week)", "limit": "상위 N개"}
     assert desc == "한 줄 설명.\n\n반환에 total 이 있다."
+
+
+# ── 2단계(2026-11-28) — 설명의 꼴 · 닫힌 어휘 · 숫자 경계 · 결과 모델 · 정직한 한도 · 바뀐 것 목록 · 앱 입구 ──────────
+def _leaf(prop: dict) -> dict:
+    """Optional[...] 의 anyOf 에서 null 이 아닌 쪽."""
+    return next((x for x in prop.get("anyOf", [prop]) if x.get("type") != "null"), prop)
+
+
+_HISTORY = re.compile(r"20\d\d-\d\d|실측|SG-\d+|SFO-\d+|HP-\d+")
+
+
+def test_descriptions_follow_contract_form(tools):
+    """C1 — 날짜 · 결정 번호 · 실측 일화가 없고 1,500자 안이며, 형제 도구를 이름으로 짚는다."""
+    for name, t in tools.items():
+        d = t["description"]
+        assert len(d) <= 1500, (name, len(d))
+        hit = _HISTORY.search(d)
+        assert not hit, (name, hit and hit.group())
+        assert (set(tools) - {name}) & set(re.findall(r"[a-z_]+", d)), f"{name}: 형제 도구 이름이 없다"
+
+
+def test_closed_vocabularies_are_enums(tools):
+    """C3 — 정해진 낱말 집합은 enum 이다. 모르는 값은 예전처럼 다른 축 · 기본값으로 조용히 바뀌지 않고 거절된다."""
+    want = [("voc_breakdown", "by"), ("period_compare", "by"), ("defect_breakdown", "by"), ("defect_timeline", "interval"),
+            ("keyword_stats", "interval"), ("analyze_sentiment_trend", "granularity"), ("search_voc", "order"),
+            ("search_voc", "match"), ("search_voc", "core_type"), ("semantic_search", "order"), ("query_voc", "category"),
+            ("query_voc", "sentiment"), ("compare_products", "category"), ("defect_profile", "component"),
+            ("defect_profile", "severity"), ("defect_timeline", "symptom"), ("defect_evidence", "modality"),
+            ("defect_anomalies", "severity"), ("get_kg_relations", "edge_type"), ("get_unmapped_voc", "reason"),
+            ("keyword_stats", "category"), ("list_changes", "events"), ("chart_crisis_timeline", "case_code")]
+    missing = [(n, a) for n, a in want
+               if "enum" not in (lambda leaf: leaf.get("items", leaf))(_leaf(tools[n]["inputSchema"]["properties"][a]))]
+    assert not missing, missing
+    topics = _leaf(tools["query_voc"]["inputSchema"]["properties"]["category"])["enum"]
+    assert {"battery", "review", "model_mention"} <= set(topics) and "phone" not in topics, "VOC 주제가 기기 종류와 섞였다"
+
+
+def test_integer_arguments_are_bounded(tools):
+    """C4 — 개수 · 기간 정수에는 최소 · 최대가 있다(함수 안에서 조용히 자르지 않는다). 커서(since)만 위가 열려 있다."""
+    loose = [(n, k) for n, t in tools.items() for k, v in t["inputSchema"].get("properties", {}).items()
+             if _leaf(v).get("type") == "integer" and k != "since"
+             and not ("minimum" in _leaf(v) and "maximum" in _leaf(v))]
+    assert not loose, loose
+
+
+# 큰 글을 내는 도구는 게이트웨이가 한쪽만 넘길 때까지(포털 PLAN M2) 결과 모델을 달지 않는다. compare_products 는 열쇠가
+# 제품 코드라(동적) 칸으로 적을 것이 없다
+_UNMODELLED = {"query_voc", "search_voc", "semantic_search", "get_ontology", "defect_evidence", "compare_products"}
+
+
+def test_structured_tools_publish_output_schema_with_fields(tools):
+    """C7 — 나머지 도구는 실제 칸이 있는 outputSchema 를 낸다(글만 내는 도구는 SDK 의 {result} 껍데기)."""
+    for name, t in tools.items():
+        props = (t.get("outputSchema") or {}).get("properties", {})
+        assert bool(props) != (name in _UNMODELLED), (name, sorted(props))
+
+
+def test_list_tools_say_when_they_cut(server, monkeypatch):
+    """C8 — 목록 도구는 잘랐으면 잘랐다고 한다. 집계는 창 함수로 센 전체 수, 행 도구는 한 건 더 읽은 것으로 안다."""
+    async def platforms(product_code, period_days, top_n):
+        return [{"platform_code": f"p{i}", "voc_count": 9 - i, "total_rows": 7} for i in range(min(top_n, 7))]
+    monkeypatch.setattr(server, "get_platform_breakdown_tool", platforms)
+    out = asyncio.run(server.get_platform_breakdown(top_n=3))
+    assert (out["total"], out["truncated"], len(out["results"])) == (7, True, 3)
+    assert "total_rows" not in out["results"][0]
+
+    async def leaders(product_code, period_days, limit):
+        return [{"id": i} for i in range(min(limit, 4))]            # 글이 넷뿐
+    monkeypatch.setattr(server, "get_engagement_leaders_tool", leaders)
+    cut = asyncio.run(server.get_engagement_leaders(limit=3))
+    assert (cut["total"], cut["truncated"], len(cut["results"])) == (None, True, 3)
+    whole = asyncio.run(server.get_engagement_leaders(limit=10))
+    assert (whole["total"], whole["truncated"]) == (4, False)
+
+    async def voc_rows(*a):
+        limit, offset = a[8], a[9]
+        return [{"id": i} for i in range(5)][offset:offset + limit]  # 행이 다섯
+    monkeypatch.setattr(server, "query_voc_tool", voc_rows)
+    first = asyncio.run(server.query_voc(limit=2))
+    assert (first["truncated"], first["next_cursor"], first["total"]) == (True, "2", None)
+    last = asyncio.run(server.query_voc(limit=2, cursor="4"))
+    assert (last["truncated"], last["next_cursor"], last["total"], last["results"]) == (False, None, 5, [{"id": 4}])
+
+
+class _Rows:
+    def __init__(self, rows=None, scalar=None):
+        self.rows, self._scalar = rows or [], scalar
+
+    def mappings(self):
+        return self
+
+    def all(self):
+        return self.rows
+
+    def scalar(self):
+        return self._scalar
+
+
+class _AlertsDB:
+    """alert_events 흉내 — since · 차례 · 한 건 더 읽기를 SQL 과 인자로 따른다."""
+
+    def __init__(self, events):
+        self.events = events
+
+    async def execute(self, stmt, params=None):
+        sql, params = str(stmt), params or {}
+        rows = [e for e in self.events if e["id"] > params.get("since", -1)]
+        if "count(*)" in sql:
+            return _Rows(scalar=len(rows))
+        rows = sorted(rows, key=lambda e: e["id"], reverse="e.id DESC" in sql)
+        return _Rows(rows=[dict(r) for r in rows[:params["lim"]]])
+
+
+def test_list_changes_continues_by_id_cursor_and_names_events(monkeypatch):
+    """R1 — since 뒤를 오래된 것부터 주고 next_cursor 로 빠짐 · 겹침 없이 이어진다. 이름은 signalforge.<대상>.<일>."""
+    import contextlib
+    from tools import changes as C
+
+    events = [{"id": i, "rule": "defect_anomaly" if i % 2 else "platforms_negative_share", "severity": "warning",
+               "fired_at": None, "value": 1.0, "threshold": 0.5,
+               "payload": {"type": "defect_anomaly", "reason": f"급등 {i}"} if i % 2 else {"description": "규칙"}}
+              for i in range(1, 8)]
+
+    @contextlib.asynccontextmanager
+    async def session():
+        yield _AlertsDB(events)
+    monkeypatch.setattr(C, "get_db_session", session)
+
+    latest = asyncio.run(C.list_changes_tool(limit=3))
+    assert [e["id"] for e in latest["events"]] == [5, 6, 7] and latest["next_cursor"] == 7 and latest["truncated"]
+    seen, cursor = [], 0
+    while True:
+        page = asyncio.run(C.list_changes_tool(since=cursor, limit=3))
+        seen += [e["id"] for e in page["events"]]
+        cursor = page["next_cursor"]
+        if not page["truncated"]:
+            break
+    assert seen == list(range(1, 8)) and cursor == 7
+    assert asyncio.run(C.list_changes_tool(since=7))["events"] == []
+    assert asyncio.run(C.list_changes_tool(since=7))["next_cursor"] == 7      # 새 일이 없으면 받은 커서 그대로
+    names = {e["event"] for e in asyncio.run(C.list_changes_tool(since=0, limit=10))["events"]}
+    assert names == {"signalforge.defect.spiked", "signalforge.alert.fired"}
+    assert all(re.fullmatch(r"signalforge\.[a-z_]+\.[a-z_]+", n) for n in [*C.EVENT_NAMES.values(), C.RULE_EVENT])
+
+
+def test_entry_tool_is_corpus_overview_with_guide(server, tools):
+    """R3 — 입구는 corpus_overview(서버 instructions 가 짚는다), 결과의 guide 는 이 서버에 있는 도구만 차례로 든다."""
+    assert "corpus_overview" in server.mcp.instructions
+    assert "guide" in tools["corpus_overview"]["outputSchema"]["properties"]
+    for wf in server._GUIDE["workflows"]:
+        assert wf["entry"] in tools and wf["entry"] == wf["steps"][0], wf
+        assert set(wf["steps"]) <= set(tools), wf

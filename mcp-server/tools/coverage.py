@@ -91,7 +91,8 @@ async def get_kg_relations_tool(
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     stmt = text(f"""
         SELECT edge_type, source, target,
-               SUM(weight) AS weight, ROUND(AVG(sent_avg)::numeric, 3) AS sent_avg
+               SUM(weight)::float AS weight, ROUND(AVG(sent_avg)::numeric, 3)::float AS sent_avg,
+               count(*) OVER ()::int AS total_rows
         FROM kg_edges_daily
         {where}
         GROUP BY edge_type, source, target

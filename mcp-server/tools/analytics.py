@@ -32,7 +32,7 @@ async def analyze_sentiment_trend_tool(
             SUM(CASE WHEN v.sentiment_label = 'positive' THEN 1 ELSE 0 END) AS positive,
             SUM(CASE WHEN v.sentiment_label = 'negative' THEN 1 ELSE 0 END) AS negative,
             SUM(CASE WHEN v.sentiment_label = 'neutral'  THEN 1 ELSE 0 END) AS neutral,
-            ROUND(AVG(v.sentiment_score)::numeric, 3)                        AS avg_score
+            ROUND(AVG(v.sentiment_score)::numeric, 3)::float                 AS avg_score
         FROM voc_active v
         JOIN products p ON p.id = v.product_id
         WHERE {where}
@@ -55,18 +55,20 @@ async def compare_products_tool(
 ) -> dict:
     results = {}
     for code in product_codes:
-        cat_filter = "AND :category = ANY(v.categories)" if category else ""
+        # category 를 주면 그 주제만 — 예전에는 그 주제가 붙은 글의 다른 주제까지 모두 돌려줬다
+        cat_filter = "AND cat = :category" if category else ""
         stmt = text(f"""
             SELECT
-                unnest(v.categories) AS cat,
-                ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
+                cat,
+                ROUND(AVG(v.sentiment_score)::numeric, 3)::float AS avg_score
             FROM voc_active v
-            JOIN products p ON p.id = v.product_id
+            JOIN products p ON p.id = v.product_id,
+                 unnest(v.categories) AS cat
             WHERE p.code = :product_code
               AND v.collected_at >= NOW() - INTERVAL '30 days'
               {cat_filter}
             GROUP BY cat
-            ORDER BY avg_score DESC
+            ORDER BY avg_score DESC NULLS LAST
         """)
         params: dict = {"product_code": code.upper()}
         if category:
@@ -74,7 +76,8 @@ async def compare_products_tool(
 
         async with get_db_session() as db:
             rows = (await db.execute(stmt, params)).mappings().all()
-            results[code] = {r["cat"]: float(r["avg_score"]) for r in rows}
+            # 감성 점수가 빈 글만 있는 주제는 평균이 NULL — float(None) 으로 도구가 죽었다
+            results[code] = {r["cat"]: r["avg_score"] for r in rows}
 
     return results
 
@@ -86,11 +89,12 @@ async def get_country_breakdown_tool(
         SELECT
             v.country_code,
             COUNT(*) AS voc_count,
-            ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score,
+            ROUND(AVG(v.sentiment_score)::numeric, 3)::float AS avg_score,
             ROUND(
                 SUM(CASE WHEN v.sentiment_label = 'positive' THEN 1 ELSE 0 END)::numeric
                 / NULLIF(COUNT(*), 0) * 100, 1
-            ) AS positive_rate
+            )::float AS positive_rate,
+            count(*) OVER ()::int AS total_rows
         FROM voc_active v
         JOIN products p ON p.id = v.product_id
         WHERE p.code = :product_code

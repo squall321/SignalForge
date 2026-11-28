@@ -93,3 +93,26 @@ def test_percentages_cast_to_float():
         idx = src.index(frag)
         head = src[max(0, idx - 220):idx]
         assert "::float" in head, f"{frag} 가 float 캐스트를 거치지 않는다"
+
+
+# ── 글 단위 셈 · 원문 순서 (2026-11-28) ──────────────────────────────────
+def test_counts_are_per_document_not_per_joined_row():
+    """결함 · 제품 링크 행이 글마다 여러 겹이라 count(*) 는 글 수가 아니다 — 1인칭 수가 docs 보다 컸고 세대 비교의 부정 ·
+    결함 비율이 결함 행 수로 기울었다. 1인칭 · 주차 수는 DISTINCT 글로, 출시 후 경과일은 (글, 제품) 쌍으로 센다."""
+    src = inspect.getsource(_d())
+    assert "count(*) FILTER (WHERE d.modality" not in src
+    assert "count(DISTINCT lc.voc_id)::int AS total" in src
+    assert "count(DISTINCT d.voc_id)::int AS with_defect" in src
+    assert "SELECT DISTINCT p.code AS product_code" in src
+
+
+def test_evidence_is_newest_first_not_url_order():
+    """DISTINCT ON 은 URL 순서로 정렬해야 해서, 바깥에서 다시 최근 글부터 줄 세우지 않으면 사전순 앞 URL 이 나온다."""
+    src = inspect.getsource(_d().defect_evidence_tool)
+    assert "ORDER BY s.published_at DESC" in src
+
+
+def test_anomalies_read_the_current_detector_fields():
+    """탐지기는 독립 출처 수(indep_sources)를 쓴다 — 옛 eff_platforms 만 읽어 새 기록은 늘 null 이었다."""
+    src = inspect.getsource(_d().defect_anomalies_tool)
+    assert "payload->>'indep_sources'" in src and "SELECT id," in src

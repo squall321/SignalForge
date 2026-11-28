@@ -185,7 +185,8 @@ async def alert_check_tool() -> dict:
             HAVING COUNT(*) >= :min_vol
         )
         SELECT code, name_ko, total, neg,
-               ROUND((neg::numeric / NULLIF(total, 0))::numeric, 3) AS neg_ratio
+               ROUND((neg::numeric / NULLIF(total, 0))::numeric, 3) AS neg_ratio,
+               count(*) OVER () AS total_rows
         FROM recent
         WHERE (neg::numeric / NULLIF(total, 0)) >= :threshold
         ORDER BY neg_ratio DESC LIMIT 10
@@ -212,7 +213,8 @@ async def alert_check_tool() -> dict:
                COALESCE(prev.neg_prev, 0) AS neg_prev_24h,
                CASE WHEN COALESCE(prev.neg_prev, 0) = 0 THEN NULL
                     ELSE ROUND((cur.neg::numeric / prev.neg_prev)::numeric, 2)
-               END AS surge_ratio
+               END AS surge_ratio,
+               count(*) OVER () AS total_rows
         FROM cur LEFT JOIN prev ON cur.code = prev.code
         WHERE cur.neg >= :min_vol
           AND (prev.neg_prev IS NULL
@@ -242,6 +244,12 @@ async def alert_check_tool() -> dict:
         })).mappings().all()
         stale = (await db.execute(stale_stmt, {"stale_h": STALE_HOURS})).mappings().all()
     stale_total = int(stale[0]["stale_total"]) if stale else 0
+    # 목록은 10개까지 — 전체 수는 따로 준다(예전 요약은 잘린 목록의 길이라 10을 넘지 못해 적게 말했다)
+    high_neg_total = int(high_neg[0]["total_rows"]) if high_neg else 0
+    surge_total = int(surge[0]["total_rows"]) if surge else 0
+
+    def _cut(total: int, shown: int) -> str:
+        return f"(목록은 상위 {shown}개)" if total > shown else ""
 
     return {
         "thresholds": {
@@ -264,6 +272,8 @@ async def alert_check_tool() -> dict:
                 "surge_ratio": float(r["surge_ratio"]) if r["surge_ratio"] is not None else None,
             } for r in surge
         ],
+        "high_negative_ratio_total": high_neg_total,
+        "negative_surge_total": surge_total,
         "stale_total": stale_total,
         "stale_platforms": [
             {
@@ -273,8 +283,9 @@ async def alert_check_tool() -> dict:
             } for r in stale
         ],
         "summary": (
-            f"부정비율 경보 {len(high_neg)}건 · 부정급증 {len(surge)}건 · "
-            f"수집정체 플랫폼 {stale_total}개" + (f"(목록은 상위 {len(stale)}개)" if stale_total > len(stale) else "")
+            f"부정비율 경보 {high_neg_total}건{_cut(high_neg_total, len(high_neg))} · "
+            f"부정급증 {surge_total}건{_cut(surge_total, len(surge))} · "
+            f"수집정체 플랫폼 {stale_total}개{_cut(stale_total, len(stale))}"
         ),
     }
 
@@ -415,6 +426,12 @@ async def top_emerging_keywords_tool(
         "period_days": period_days,
         "product_code": product_code.upper() if product_code else None,
         "sampled_records": sampled,
+        # 표본은 최신 글부터 row_limit 건까지 — 닿았으면 기간 전체가 아니라 최근 쪽만 본 것이다(조용히 자르지 않는다)
+        "sample_capped": sampled >= params["row_limit"],
+        "row_limit": params["row_limit"],
+        "distinct_korean": len(ko_counter),
+        "distinct_english": len(en_counter),
+        "truncated": len(ko_counter) > top_n or len(en_counter) > top_n,
         "top_korean": [
             {"keyword": k, "count": c} for k, c in ko_counter.most_common(top_n)
         ],

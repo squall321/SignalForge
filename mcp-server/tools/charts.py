@@ -79,7 +79,8 @@ async def chart_country_distribution_tool(
     dfilt = "AND v.published_at >= NOW() - make_interval(days => :days)" if days else ""
     stmt = text(f"""
         SELECT v.country_code AS country, COUNT(*) AS cnt,
-               ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score
+               ROUND(AVG(v.sentiment_score)::numeric, 3) AS avg_score,
+               count(*) OVER () AS total_rows
         FROM voc_active v {"JOIN products p ON p.id = v.product_id" if product_code else ""}
         WHERE v.country_code IS NOT NULL {filt} {dfilt}
         GROUP BY v.country_code ORDER BY cnt DESC LIMIT :top_n
@@ -97,8 +98,11 @@ async def chart_country_distribution_tool(
     opt = build_bar([d["country_code"] for d in raw], [d["voc_count"] for d in raw],
                     f"국가별 VOC 분포{' — '+product_code.upper() if product_code else ''} ({period})",
                     horizontal=True)
-    return chart_response("bar", raw, opt,
-                          f"{period} 상위 {len(raw)}개국 / 1위 {raw[0]['country_code'] if raw else '-'}")
+    out = chart_response("bar", raw, opt,
+                         f"{period} 상위 {len(raw)}개국 / 1위 {raw[0]['country_code'] if raw else '-'}")
+    total = int(rows[0]["total_rows"]) if rows else 0          # 잘랐으면 잘랐다고(계약 C8)
+    out.update(total=total, truncated=total > len(raw))
+    return out
 
 
 async def chart_category_distribution_tool(
@@ -130,7 +134,8 @@ async def chart_category_distribution_tool(
         rows = (await db.execute(stmt, params)).mappings().all()
     cats = [{"category": r["cat"], "voc_count": int(r["cnt"]),
              "avg_score": float(r["avg_score"] or 0)} for r in rows]
-    raw = [c for c in cats if c["category"] not in META_CATEGORIES][:top_n]
+    issues = [c for c in cats if c["category"] not in META_CATEGORIES]
+    raw = issues[:top_n]
     meta = [c for c in cats if c["category"] in META_CATEGORIES]
     scope = []
     if product_code: scope.append(product_code.upper())
@@ -141,6 +146,7 @@ async def chart_category_distribution_tool(
                     f"카테고리별 VOC 분포 ({label})", horizontal=True)
     out = chart_response("bar", raw, opt,
                          f"{label} 상위 {len(raw)}개 이슈 카테고리 / 1위 {raw[0]['category'] if raw else '-'}")
+    out.update(total=len(issues), truncated=len(issues) > len(raw))   # 잘랐으면 잘랐다고(계약 C8)
     out["meta_tags"] = meta
     out["meta_note"] = ("comparison · model_mention 은 이슈가 아니라 글의 성격 표지라 막대에서 뺐다 — "
                         "model_mention 은 모델 이름만 나와도, comparison 은 그때마다 함께 붙어 비교가 없는 글에도 있다")
@@ -291,9 +297,13 @@ async def chart_keyword_network_tool(
         nodes_out.append({"id": k, "name": k, "value": freq,
                           "category": cid, "lang": lang})
 
+    # 잘랐으면 잘랐다고(계약 C8) — 노드는 가중 차수 상위 max_nodes 개만, 엣지는 남은 노드 사이만 남긴다
     raw = {"nodes": nodes_out, "edges": edges_out,
            "meta": {"node_count": len(nodes_out), "edge_count": len(edges_out),
-                    "community_count": len(root_to_cid), "days": days}}
+                    "community_count": len(root_to_cid), "days": days,
+                    "total_nodes": len(deg), "total_edges": len(edge_list),
+                    "truncated": len(deg) > len(nodes_out),
+                    "min_cooccur": min_cooccur, "max_nodes": max_nodes}}
     title = f"키워드 네트워크{' — '+product_code.upper() if product_code else ''} ({days}일)"
     opt = build_graph(nodes_out, edges_out, title)
     return chart_response("graph", raw, opt,

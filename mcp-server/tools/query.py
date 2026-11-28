@@ -39,11 +39,12 @@ async def query_voc_tool(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     limit: int = 20,
+    offset: int = 0,
 ) -> List[dict]:
     # 모든 필터가 선택 — product_code 없이도 전체 VOC 를 자유 조회(제품 태깅은 일부라
     # LEFT JOIN 으로 미태깅 VOC 도 포함). 날짜구간(published_at)·플랫폼·키워드까지 조합 가능.
     conditions: List[str] = ["TRUE"]
-    params: dict = {"limit": limit}
+    params: dict = {"limit": limit, "offset": offset}
 
     if product_code:
         conditions.append("p.code = :product_code")
@@ -85,8 +86,8 @@ async def query_voc_tool(
         LEFT JOIN products p ON p.id = v.product_id
         LEFT JOIN platforms pl ON pl.id = v.platform_id
         WHERE {where}
-        ORDER BY v.published_at DESC NULLS LAST
-        LIMIT :limit
+        ORDER BY v.published_at DESC NULLS LAST, v.id DESC
+        LIMIT :limit OFFSET :offset
     """)
 
     async with get_db_session() as db:
@@ -104,7 +105,8 @@ async def get_top_issues_tool(
             ROUND(
                 SUM(CASE WHEN v.sentiment_label = 'negative' THEN 1 ELSE 0 END)::numeric
                 / NULLIF(COUNT(*), 0) * 100, 1
-            ) AS negative_rate
+            )::float AS negative_rate,
+            count(*) OVER ()::int AS total_rows
         FROM voc_active v
         JOIN products p ON p.id = v.product_id,
              unnest(v.categories) AS cat
