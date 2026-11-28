@@ -51,3 +51,16 @@ SignalForge 몫은 signalforge-7f 에 갔지만 7f 가 보안 결정 여섯의 �
       tools 38 · readOnlyHint 38 · 인자 설명 160/160 · enum 인자 41 · 정수 경계 50/51(나머지는 커서 since) · outputSchema 32 ·
       설명 326 ~ 1,086자(중간 558), list_changes · corpus_overview guide · 목록 꼴 · 쪽 넘김 · 모르는 축 거절 · push · 포털에 항목별 답
 - 백엔드는 다시 띄우지 않았다 — shared/stats_sql 의 groups · truncated 칸은 REST 에 다음 기동부터 붙는다(수치는 같다)
+
+## 받고 버린 인자 드러내기 (2026-11-28, 포털 71 부탁)
+
+리스크 앱이 get_top_issues 에 없는 인자 window_days=90 을 넘겨 SDK 1.x 가 조용히 버리고 기본 30일로 돌았다. 포털 — 지금은 거절로
+바꾸지 말고 결과에 `ignored_args` 와 서버 경고 한 줄로 드러내 달라(부르는 쪽이 고친 뒤 거절을 다시 정한다).
+
+- [x] `_MaskedFastMCP.call_tool` 이 원래 인자에서 도구 스키마에 없는 이름을 잡아 경고 로그(이름만 — 값은 남기지 않는다)
+- [x] 같은 태스크의 도구 결과에 싣는다 — 객체는 `ignored_args` 칸(맨 위 결과 모델 30개의 outputSchema 에 적힘), 글 결과
+      (daily_briefing · get_voc_summary)는 끝에 한 줄, 열쇠가 제품 코드인 compare_products 는 로그만
+- [x] guide 규칙 · workflows.md 에 한 줄
+- [x] 시험 — window_days 가 ignored_args 와 경고로 나오고 기간은 기본 30, 맞는 호출엔 칸이 없다(글) · null(구조), 글 결과 끝줄,
+      compare_products 는 칸 없음. dev DB 46번 호출 다시 실패 0
+- [ ] 커밋 · main · dev sf-mcp · 살아 있는 서버 확인 · push · 포털에 알림

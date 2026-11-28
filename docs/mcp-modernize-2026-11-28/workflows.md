@@ -20,6 +20,8 @@
 - 잘린 목록은 `truncated` 로 안다 — 전체 수를 말할 때는 `total` · `groups` 를 인용한다. `query_voc` 는 `next_cursor` 로 다음 쪽.
 - `category` 는 도구마다 뜻이 다르다 — `query_voc` · `compare_products` 는 VOC 주제(battery · camera …), 통계 · 결함 도구는 기기
   종류(phone · watch …).
+- 결과에 `ignored_args` 가 있으면 그 도구에 없는 인자를 넘긴 것이다 — SDK 1.x 는 모르는 인자를 버리고 기본값으로 돌므로 인자
+  이름을 고쳐 다시 부른다(서버 로그에도 경고 한 줄이 남는다).
 
 ## 바뀐 것 목록 (R1)
 
